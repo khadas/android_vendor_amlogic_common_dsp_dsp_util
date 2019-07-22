@@ -1,12 +1,11 @@
 #
 ## makefile for libgdc and gdc_test
 #
-ifeq (,$(CC))
-CC=armv8l-linux-gnueabihf-gcc
+ifeq (,$(CROSS_PREFIX))
+CROSS_PREFIX=armv8l-linux-gnueabihf-
 endif
-ifeq (,$(CXX))
-CXX=armv8l-linux-gnueabihf-g++
-endif
+CC=$(CROSS_PREFIX)gcc
+CXX=$(CROSS_PREFIX)g++
 CFLAGS = -I ./include/ -I ./tools/
 LIBDIR:= .
 
