@@ -45,6 +45,9 @@ typedef void* tAcodecShmHdl;
 
 tAcodecShmHdl Aml_ACodecMemory_Allocate(size_t size);
 void Aml_ACodecMemory_Free(tAcodecShmHdl hShm);
+void Aml_ACodecMemory_Transfer(tAcodecShmHdl hDst, tAcodecShmHdl hSrc, size_t size);
+void* Aml_ACodecMemory_GetVirtAddr(tAcodecShmHdl hShm);
+void* Aml_ACodecMemory_GetPhyAddr(tAcodecShmHdl hShm);
 uint32_t Aml_ACodecMemory_Clean(tAcodecShmHdl hShm, size_t size);
 uint32_t Aml_ACodecMemory_Inv(tAcodecShmHdl hShm, size_t size);
 

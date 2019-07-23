@@ -19,7 +19,7 @@ LIBHIFICODEC = libhifi4codec.so
 
 HIFICODEC_TEST_SRC_CPP = $(wildcard test/*.cpp)
 HIFICODEC_TEST_OBJ = $(patsubst %cpp, %o, $(HIFICODEC_TEST_SRC_CPP))
-HIFICODEC_TEST = hificodec_test
+HIFICODEC_TEST = hifi4codec_test
 
 HIFI4APP_SRC = test/hifi4app.c
 HIFI4APP_OBJ = test/hifi4app.o

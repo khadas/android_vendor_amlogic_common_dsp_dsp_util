@@ -26,17 +26,25 @@
  */
 
 #include <string.h>
-
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+//#include "rpc_dev.h"
 
 int xAudio_Ipc_init(void) {
+	//return RPC_init("/dev/dsp_dev",O_RDWR, 0);
 	return 0;
 }
 
-void xAudio_Ipc_Deinit(void) {
-	return 0;
+void xAudio_Ipc_Deinit(int handle) {
+
 }
 
-void xAIPC(unsigned int cmd, void *buf, size_t size) {
+int xAIPC(int handle, unsigned int cmd, void *buf, size_t size) {
+	//RPC_invoke(handle, cmd, buf, size);
 	return 0;
 }
 

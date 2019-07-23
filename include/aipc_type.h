@@ -86,6 +86,13 @@ typedef struct {
     tAcodecShmHdlRpc hShm;
 } __attribute__((packed)) acodec_shm_free_st;
 
+typedef struct {
+    tAcodecShmHdlRpc hDst;
+    tAcodecShmHdlRpc hSrc;
+    size_t size;
+} __attribute__((packed)) acodec_shm_transfer_st;
+
+
 #ifdef __cplusplus
 }
 #endif

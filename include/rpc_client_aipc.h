@@ -35,15 +35,13 @@
 #ifndef _RPC_CLIENT_APIC_H_
 #define _RPC_CLIENT_APIC_H_
 
-#include "mailbox-api.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void xAudio_Ipc_init(void);
-void xAudio_Ipc_Deinit(void);
-void xAIPC(uint32_t cmd, void *buf, size_t size);
+int xAudio_Ipc_init(void);
+void xAudio_Ipc_Deinit(int handle);
+int xAIPC(int handle, unsigned int cmd, void *buf, size_t size);
 
 
 #ifdef __cplusplus

@@ -33,8 +33,15 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
+#include <rpc_client_aipc.h>
 #include "rpc_client_mp3.h"
 #include "aipc_type.h"
+
+struct tAmlMp3Ctx {
+	tAmlMp3DecRpcHdl mp3rpchdl;
+	int aipchdl;
+};
 
 static void mp3_sync_rpctype_config_to_local(tAmlACodecConfig_Mp3DecRpc* remote,
 											tAmlACodecConfig_Mp3DecExternal* local) {
@@ -75,28 +82,34 @@ static void mp3_sync_local_config_to_rpctype(tAmlACodecConfig_Mp3DecExternal* lo
 tAmlMp3DecHdl AmlACodecInit_Mp3Dec(tAmlACodecConfig_Mp3DecExternal* pconfig)
 {
 	mp3_init_st arg;
+	struct tAmlMp3Ctx* pAmlMp3Ctx = (struct tAmlMp3Ctx*)malloc(sizeof(struct tAmlMp3Ctx));
+	pAmlMp3Ctx->aipchdl = xAudio_Ipc_init();
 	memset(&arg, 0, sizeof(arg));
-
 	mp3_sync_local_config_to_rpctype(pconfig, &arg.config);
 	//printf("size of config in arm:%u\n", sizeof(tAmlACodecConfig_Mp3DecRpc));
-	xAIPC(MBX_CODEC_MP3_API_INIT, &arg, sizeof(arg));
+	xAIPC(pAmlMp3Ctx->aipchdl, MBX_CODEC_MP3_API_INIT, &arg, sizeof(arg));
 	mp3_sync_rpctype_config_to_local(&arg.config, pconfig);
-	return (void*)arg.hdl;
+	pAmlMp3Ctx->mp3rpchdl = arg.hdl;
+	return (void*)pAmlMp3Ctx;
 }
 
 void AmlACodecDeInit_Mp3Dec(tAmlMp3DecHdl hMp3Dec)
 {
 	mp3_deinit_st arg;
+	struct tAmlMp3Ctx* pAmlMp3Ctx = (struct tAmlMp3Ctx*)hMp3Dec;
 	memset(&arg, 0, sizeof(arg));
-	arg.hdl = (tAmlMp3DecRpcHdl)hMp3Dec;
-	xAIPC(MBX_CODEC_MP3_API_DEINIT, &arg, sizeof(arg));
+	arg.hdl = (tAmlMp3DecRpcHdl)pAmlMp3Ctx->mp3rpchdl;
+	xAIPC(pAmlMp3Ctx->aipchdl, MBX_CODEC_MP3_API_DEINIT, &arg, sizeof(arg));
+	xAudio_Ipc_Deinit(pAmlMp3Ctx->aipchdl);
+	free(pAmlMp3Ctx);
 }
 
 ERROR_CODE AmlACodecExec_Mp3Dec(tAmlMp3DecHdl hMp3Dec, tAmlACodecConfig_Mp3DecExternal *pconfig)
 {
 	mp3_decode_st arg;
+	struct tAmlMp3Ctx* pAmlMp3Ctx = (struct tAmlMp3Ctx*)hMp3Dec;
 	memset(&arg, 0, sizeof(arg));
-	arg.hdl = (tAmlMp3DecRpcHdl)hMp3Dec;
+	arg.hdl = (tAmlMp3DecRpcHdl)pAmlMp3Ctx->mp3rpchdl;
 	mp3_sync_local_config_to_rpctype(pconfig, &arg.config);
 
 	/*int i;
@@ -108,7 +121,7 @@ ERROR_CODE AmlACodecExec_Mp3Dec(tAmlMp3DecHdl hMp3Dec, tAmlACodecConfig_Mp3DecEx
 
     //vCacheCleanDcacheRange((uint64_t)arg.config.pInputBuffer, arg.config.inputBufferCurrentLength);
 	//printf("arg.hdl=0x%lx\n",arg.hdl);
-	xAIPC(MBX_CODEC_MP3_API_DECODE, &arg, sizeof(arg));
+	xAIPC(pAmlMp3Ctx->aipchdl, MBX_CODEC_MP3_API_DECODE, &arg, sizeof(arg));
 	mp3_sync_rpctype_config_to_local(&arg.config, pconfig);
 	//vCacheInvDcacheRange((uint64_t)arg.config.pOutputBuffer, arg.config.outputFrameSize*sizeof(uint16_t));
 	return arg.ret;

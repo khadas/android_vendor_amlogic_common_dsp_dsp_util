@@ -17,6 +17,7 @@
  */
 #ifndef __AML_HIFI4DSP_API_H__
 #define __AML_HIFI4DSP_API_H__
+#include <stdint.h>
 typedef struct hifi4dsp_info_t
 {
 	char id; 			/*dsp_id 0,1,2...*/
