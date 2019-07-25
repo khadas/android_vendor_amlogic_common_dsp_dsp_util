@@ -41,6 +41,8 @@
 struct tAmlMp3Ctx {
 	tAmlMp3DecRpcHdl mp3rpchdl;
 	int aipchdl;
+	tAcodecShmHdlRpc hShmIn;
+	tAcodecShmHdlRpc hShmOut;
 };
 
 static void mp3_sync_rpctype_config_to_local(tAmlACodecConfig_Mp3DecRpc* remote,
@@ -79,10 +81,11 @@ static void mp3_sync_local_config_to_rpctype(tAmlACodecConfig_Mp3DecExternal* lo
 	remote->pInputBuffer = (xpointer)local->pInputBuffer;
 }
 
-tAmlMp3DecHdl AmlACodecInit_Mp3Dec(tAmlACodecConfig_Mp3DecExternal* pconfig)
+tAmlMp3DecHdl AmlACodecInit_Mp3Dec(tAmlACodecConfig_Mp3DecExternal* pconfig, int bInplace)
 {
 	mp3_init_st arg;
 	struct tAmlMp3Ctx* pAmlMp3Ctx = (struct tAmlMp3Ctx*)malloc(sizeof(struct tAmlMp3Ctx));
+	memset(pAmlMp3Ctx, 0, sizeof(struct tAmlMp3Ctx));
 	pAmlMp3Ctx->aipchdl = xAudio_Ipc_init();
 	memset(&arg, 0, sizeof(arg));
 	mp3_sync_local_config_to_rpctype(pconfig, &arg.config);
@@ -90,6 +93,11 @@ tAmlMp3DecHdl AmlACodecInit_Mp3Dec(tAmlACodecConfig_Mp3DecExternal* pconfig)
 	xAIPC(pAmlMp3Ctx->aipchdl, MBX_CODEC_MP3_API_INIT, &arg, sizeof(arg));
 	mp3_sync_rpctype_config_to_local(&arg.config, pconfig);
 	pAmlMp3Ctx->mp3rpchdl = arg.hdl;
+	if (!bInplace) {
+		printf("Allocate codec shared memory\n");
+ 		pAmlMp3Ctx->hShmIn = Aml_ACodecMemory_Allocate(kInputBufferSize);
+		pAmlMp3Ctx->hShmOut = Aml_ACodecMemory_Allocate(kOutputBufferSize);
+	}
 	return (void*)pAmlMp3Ctx;
 }
 
@@ -100,7 +108,15 @@ void AmlACodecDeInit_Mp3Dec(tAmlMp3DecHdl hMp3Dec)
 	memset(&arg, 0, sizeof(arg));
 	arg.hdl = (tAmlMp3DecRpcHdl)pAmlMp3Ctx->mp3rpchdl;
 	xAIPC(pAmlMp3Ctx->aipchdl, MBX_CODEC_MP3_API_DEINIT, &arg, sizeof(arg));
-	xAudio_Ipc_Deinit(pAmlMp3Ctx->aipchdl);
+	xAudio_Ipc_Deinit(pAmlMp3Ctx->aipchdl);	
+	if (pAmlMp3Ctx->hShmIn) {
+		Aml_ACodecMemory_Free(pAmlMp3Ctx->hShmIn);
+		pAmlMp3Ctx->hShmIn = 0;
+	}
+	if (pAmlMp3Ctx->hShmOut) {
+		Aml_ACodecMemory_Free(pAmlMp3Ctx->hShmOut);
+		pAmlMp3Ctx->hShmOut = 0;
+	}	
 	free(pAmlMp3Ctx);
 }
 
@@ -111,7 +127,16 @@ ERROR_CODE AmlACodecExec_Mp3Dec(tAmlMp3DecHdl hMp3Dec, tAmlACodecConfig_Mp3DecEx
 	memset(&arg, 0, sizeof(arg));
 	arg.hdl = (tAmlMp3DecRpcHdl)pAmlMp3Ctx->mp3rpchdl;
 	mp3_sync_local_config_to_rpctype(pconfig, &arg.config);
-
+	if (pAmlMp3Ctx->hShmIn) {
+		void* p = Aml_ACodecMemory_GetVirtAddr(pAmlMp3Ctx->hShmIn);
+		if (pconfig->inputBufferCurrentLength < kInputBufferSize)
+			memcpy(p, pconfig->pInputBuffer, pconfig->inputBufferCurrentLength);
+		else {
+			printf("too large input frame:%d\n", pconfig->inputBufferCurrentLength);
+			memcpy(p, pconfig->pInputBuffer, kInputBufferSize);
+		}
+		Aml_ACodecMemory_Clean(pAmlMp3Ctx->hShmIn, kInputBufferSize);
+	}
 	/*int i;
 	char* samples = (char*)&arg;
 	for (i = 0; i < sizeof(mp3_decode_st); i++) {
@@ -119,11 +144,19 @@ ERROR_CODE AmlACodecExec_Mp3Dec(tAmlMp3DecHdl hMp3Dec, tAmlACodecConfig_Mp3DecEx
 	}
 	printf("\n");*/
 
-    //vCacheCleanDcacheRange((uint64_t)arg.config.pInputBuffer, arg.config.inputBufferCurrentLength);
 	//printf("arg.hdl=0x%lx\n",arg.hdl);
 	xAIPC(pAmlMp3Ctx->aipchdl, MBX_CODEC_MP3_API_DECODE, &arg, sizeof(arg));
 	mp3_sync_rpctype_config_to_local(&arg.config, pconfig);
-	//vCacheInvDcacheRange((uint64_t)arg.config.pOutputBuffer, arg.config.outputFrameSize*sizeof(uint16_t));
+	if (pAmlMp3Ctx->hShmOut) {
+		Aml_ACodecMemory_Inv(pAmlMp3Ctx->hShmOut, kOutputBufferSize);
+		void* p = Aml_ACodecMemory_GetVirtAddr(pAmlMp3Ctx->hShmOut);
+		if (pconfig->outputFrameSize*sizeof(int16_t) < kOutputBufferSize)
+			memcpy(pconfig->pOutputBuffer, p, pconfig->outputFrameSize*sizeof(int16_t));
+		else {
+			memcpy(pconfig->pOutputBuffer, p, kOutputBufferSize);
+		}
+	}
+
 	return arg.ret;
 }
 

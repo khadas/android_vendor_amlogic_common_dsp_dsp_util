@@ -43,11 +43,6 @@
 
 using namespace std;
 
-enum {
-    kInputBufferSize = 10 * 1024,
-    kOutputBufferSize = 4608 * 2,
-};
-
 static void mp3_show_hex(char* samples, uint32 size)
 {
 	int i;
@@ -67,7 +62,7 @@ static int mp3_offload_dec(int argc, char* argv[]) {
     config.crcEnabled = false;
 
     // Initialize the decoder.
-    hdlmp3 = AmlACodecInit_Mp3Dec(&config);
+    hdlmp3 = AmlACodecInit_Mp3Dec(&config, 1);
     INFO("Init mp3dec hdl=%p\n", hdlmp3);
 
     // Open the input file.

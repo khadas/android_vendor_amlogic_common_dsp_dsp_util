@@ -41,10 +41,15 @@
 extern "C" {
 #endif
 
+enum {
+    kInputBufferSize = 10 * 1024,
+    kOutputBufferSize = 4608 * 2,
+};
+
 typedef void* tAmlMp3DecHdl;
 typedef tPVMP3DecoderExternal tAmlACodecConfig_Mp3DecExternal;
 
-tAmlMp3DecHdl AmlACodecInit_Mp3Dec(tAmlACodecConfig_Mp3DecExternal *pconfig);
+tAmlMp3DecHdl AmlACodecInit_Mp3Dec(tAmlACodecConfig_Mp3DecExternal *pconfig, int bInplace);
 void AmlACodecDeInit_Mp3Dec(tAmlMp3DecHdl hMp3Dec);
 ERROR_CODE AmlACodecExec_Mp3Dec(tAmlMp3DecHdl hMp3, tAmlACodecConfig_Mp3DecExternal *pconfig);
 
