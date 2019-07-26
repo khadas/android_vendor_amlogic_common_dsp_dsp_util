@@ -41,7 +41,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+/*mp3 decoder*/
 typedef xpointer tAmlMp3DecRpcHdl;
 typedef struct {
 	int32_t	  inputBufferCurrentLength;
@@ -76,6 +76,7 @@ typedef struct {
 } __attribute__((packed)) mp3_deinit_st;
 
 
+/*hifi codec shared memory*/
 typedef xpointer tAcodecShmHdlRpc;
 typedef struct {
     tAcodecShmHdlRpc hShm;
@@ -91,6 +92,62 @@ typedef struct {
     tAcodecShmHdlRpc hSrc;
     size_t size;
 } __attribute__((packed)) acodec_shm_transfer_st;
+
+
+/*tinyalsa*/
+typedef xpointer tAcodecPcmSrvHdl;
+typedef struct {
+	/** The number of channels in a frame */
+	unsigned int channels;
+	/** The number of frames per second */
+	unsigned int rate;
+	/** The number of frames in a period */
+	unsigned int period_size;
+	/** The number of periods in a PCM */
+	unsigned int period_count;
+	/** The sample format of a PCM */
+	int format;
+	/* Values to use for the ALSA start, stop and silence thresholds.  Setting
+	 * any one of these values to 0 will cause the default tinyalsa values to be
+	 * used instead.  Tinyalsa defaults are as follows.
+	 *
+	 * start_threshold   : period_count * period_size
+	 * stop_threshold    : period_count * period_size
+	 * silence_threshold : 0
+	 */
+	/** The minimum number of frames required to start the PCM */
+	unsigned int start_threshold;
+	/** The minimum number of frames required to stop the PCM */
+	unsigned int stop_threshold;
+	/** The minimum number of frames to silence the PCM */
+	unsigned int silence_threshold;
+}__attribute__((packed)) rpc_pcm_config;
+
+
+typedef struct {
+    uint32_t card;
+    uint32_t device;
+    uint32_t flags;
+    rpc_pcm_config pcm_config; // dsp also could access this address
+    xpointer out_pcm;
+} __attribute__((packed)) pcm_open_st;
+
+typedef struct {
+    xpointer pcm;
+    int32_t out_ret;
+} __attribute__((packed)) pcm_close_st; 
+
+typedef struct {
+    xpointer pcm;
+    xpointer data; // dsp need access this address
+    uint32_t count;
+    int32_t out_ret;
+} __attribute__((packed)) pcm_io_st;
+
+typedef struct {
+    xpointer pcm;
+    int32_t out_ret; // long to int32_t
+} __attribute__((packed)) pcm_get_latency_st;
 
 
 #ifdef __cplusplus

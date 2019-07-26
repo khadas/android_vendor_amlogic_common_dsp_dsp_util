@@ -36,7 +36,16 @@
 #include "rpc_client_mp3.h"
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
+#include "rpc_client_tinyalsa.h"
 #include "aipc_type.h"
+
+
+uint32_t audio_play_data[] = {
+#include "sinewav_48k_24bits_stereo_l1k_r2k_1s.in"
+#include "sinewav_48k_24bits_stereo_l1k_r2k_1s.in"
+};
+
+uint32_t audio_play_data_len = sizeof(audio_play_data);
 
 //#define INFO printf
 #define INFO
@@ -51,6 +60,90 @@ static void mp3_show_hex(char* samples, uint32 size)
 	}
 	INFO("\n");
 }
+
+static int pcm_play_test(int argc, char* argv[])
+{
+	rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
+	pconfig->channels = 2;
+	pconfig->rate = 48000;
+	pconfig->format = PCM_FORMAT_S32_LE;
+	pconfig->period_size = 1024;
+	pconfig->period_count = 2;
+	pconfig->start_threshold = 1024;
+	pconfig->silence_threshold = 1024*2;
+	pconfig->stop_threshold = 1024*2;
+	printf("arm: pconfig:%p\n", pconfig);
+	tAmlPcmhdl p = pcm_client_open(0, 0, 0, pconfig);
+	printf("pcm_open pcm=%p\n", p);
+
+	uint8_t *play_data = (uint8_t *)audio_play_data;
+	int in_fr = pcm_bytes_to_frame(p, audio_play_data_len);
+	int i, fr = 0;
+	const int ms = 36;
+	const int oneshot = 48 * ms; // 1728 samples
+	uint32_t size = pcm_frame_to_bytes(p, oneshot);
+	void *buf = Aml_ACodecMemory_Allocate(size);
+	for (i = 0; i + oneshot <= in_fr; i += fr) {
+		// fill to buf first to simulate customer's case
+		memcpy(buf, play_data + pcm_frame_to_bytes(p, i), size);
+		Aml_ACodecMemory_Clean(buf, size);
+		fr = pcm_client_writei(p, buf, oneshot);
+		printf("%dms pcm_write i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
+			  ms, i, p, buf, oneshot, fr);
+		// XXX: wrapper layer ensure fr == oneshot
+	}
+	int r = pcm_client_close(p);
+	printf("pcm_close pcm=%p r=%d\n", p, r);
+
+	Aml_ACodecMemory_Free(buf);
+	free(pconfig);
+}
+
+
+
+static int pcm_capture_test(int argc, char* argv[])
+{
+	rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
+	pconfig->channels = 2;
+	pconfig->rate = 48000;
+	pconfig->format = PCM_FORMAT_S32_LE;
+	pconfig->period_size = 1024;
+	pconfig->period_count = 4;
+	pconfig->start_threshold = 1024;
+	pconfig->silence_threshold = 1024*2;
+	pconfig->stop_threshold = 1024*2;
+	printf("arm: pconfig:%p\n", pconfig);
+	tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMIN_B, PCM_IN, pconfig);
+	
+	printf("pcm_open pcm=%p\n", p);
+	printf("%s %d\n", __FUNCTION__, __LINE__);
+
+	uint8_t *rec_data = (uint8_t *)audio_play_data;
+	int in_fr = pcm_bytes_to_frame(p, audio_play_data_len);
+	int i, fr = 0;
+	const int ms = 36;
+	const int oneshot = 48 * ms; // 1728 samples
+	uint32_t size = pcm_frame_to_bytes(p, oneshot);
+	void *buf = Aml_ACodecMemory_Allocate(size);
+	printf("%s %d\n", __FUNCTION__, __LINE__);
+	for (i = 0; i + oneshot <= in_fr; i += fr) {
+		// fill to buf first to simulate customer's case
+		printf("%s %d\n", __FUNCTION__, __LINE__);
+		fr = pcm_client_readi(p, buf, oneshot);
+		Aml_ACodecMemory_Inv(buf, size);
+		memcpy(rec_data + pcm_frame_to_bytes(p, i), buf, size);
+		printf("%dms pcm_read i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
+			  ms, i, p, buf, oneshot, fr);
+		// XXX: wrapper layer ensure fr == oneshot
+	}
+	int r = pcm_client_close(p);
+	printf("pcm_close pcm=%p r=%d\n", p, r);
+
+	Aml_ACodecMemory_Free(buf);
+	free(pconfig);
+}
+
+
 
 static int mp3_offload_dec(int argc, char* argv[]) {
 	tAmlMp3DecHdl hdlmp3;
@@ -250,6 +343,8 @@ int main(int argc, char* argv[]) {
 	   {"ipc", no_argument, NULL, 1},
 	   {"shm", no_argument, NULL, 2},
 	   {"mp3dec", no_argument, NULL, 3},
+	   {"pcmplay", no_argument, NULL, 4},
+	   {"playcap", no_argument, NULL, 5},
 	   {0, 0, 0, 0}
 	};
 	c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -268,13 +363,27 @@ int main(int argc, char* argv[]) {
 			shm_uint_tset();
 			break;
 		case 3:
-			if (2 == argc-optind)
-				mp3_offload_dec(argc-optind, &argv[optind]);
+			if (2 == argc - optind)
+				mp3_offload_dec(argc - optind, &argv[optind]);
 			else {
 				usage();
 				exit(1);
 			}
 			break;
+		case 4:
+			if (1 == argc - optind)
+				pcm_play_test(argc - optind, &argv[optind]);
+			else {
+				usage();
+				exit(1);
+			}
+		case 5:
+			if (1 == argc - optind)
+				pcm_capture_test(argc - optind, &argv[optind]);
+			else {
+				usage();
+				exit(1);
+			}
 		case '?':
 		   usage();
 		   exit(1);

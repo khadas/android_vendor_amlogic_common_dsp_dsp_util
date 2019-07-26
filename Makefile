@@ -49,7 +49,7 @@ $(LIBHIFICODEC): $(LIBHIFICODEC_OBJ)
 	$(CC) -shared -fPIC $(CFLAGS) $^ -o $(LIBHIFICODEC)
 
 $(HIFICODEC_TEST): $(HIFICODEC_TEST_OBJ)
-	$(CXX) $^ -L$(LIBDIR) -lhifi4codec $(CFLAGS) -o $@
+	$(CXX) $^ -I./ -L$(LIBDIR) -lhifi4codec $(CFLAGS) -o $@
 
 $(HIFI4APP): $(HIFI4APP_OBJ)
 	$(CC) $^ -o $@

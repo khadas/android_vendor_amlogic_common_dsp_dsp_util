@@ -42,7 +42,6 @@
 #endif
 
 typedef void* tAcodecShmHdl;
-
 tAcodecShmHdl Aml_ACodecMemory_Allocate(size_t size);
 void Aml_ACodecMemory_Free(tAcodecShmHdl hShm);
 void Aml_ACodecMemory_Transfer(tAcodecShmHdl hDst, tAcodecShmHdl hSrc, size_t size);

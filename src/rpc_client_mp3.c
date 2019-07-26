@@ -34,15 +34,17 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <rpc_client_aipc.h>
 #include "rpc_client_mp3.h"
+#include "rpc_client_shm.h"
 #include "aipc_type.h"
 
 struct tAmlMp3Ctx {
 	tAmlMp3DecRpcHdl mp3rpchdl;
 	int aipchdl;
-	tAcodecShmHdlRpc hShmIn;
-	tAcodecShmHdlRpc hShmOut;
+	tAcodecShmHdl hShmIn;
+	tAcodecShmHdl hShmOut;
 };
 
 static void mp3_sync_rpctype_config_to_local(tAmlACodecConfig_Mp3DecRpc* remote,
