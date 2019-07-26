@@ -74,6 +74,7 @@ static int pcm_play_test(int argc, char* argv[])
 	pconfig->stop_threshold = 1024*2;
 	printf("arm: pconfig:%p\n", pconfig);
 	tAmlPcmhdl p = pcm_client_open(0, 0, 0, pconfig);
+	tAcodecShmHdl hShmBuf;
 	printf("pcm_open pcm=%p\n", p);
 
 	uint8_t *play_data = (uint8_t *)audio_play_data;
@@ -82,12 +83,14 @@ static int pcm_play_test(int argc, char* argv[])
 	const int ms = 36;
 	const int oneshot = 48 * ms; // 1728 samples
 	uint32_t size = pcm_frame_to_bytes(p, oneshot);
-	void *buf = Aml_ACodecMemory_Allocate(size);
+	hShmBuf = Aml_ACodecMemory_Allocate(size);
+	void *buf = Aml_ACodecMemory_GetVirtAddr(hShmBuf);
+	void *phybuf = Aml_ACodecMemory_GetPhyAddr(hShmBuf);
 	for (i = 0; i + oneshot <= in_fr; i += fr) {
 		// fill to buf first to simulate customer's case
 		memcpy(buf, play_data + pcm_frame_to_bytes(p, i), size);
-		Aml_ACodecMemory_Clean(buf, size);
-		fr = pcm_client_writei(p, buf, oneshot);
+		Aml_ACodecMemory_Clean(phybuf, size);
+		fr = pcm_client_writei(p, phybuf, oneshot);
 		printf("%dms pcm_write i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
 			  ms, i, p, buf, oneshot, fr);
 		// XXX: wrapper layer ensure fr == oneshot
@@ -95,12 +98,12 @@ static int pcm_play_test(int argc, char* argv[])
 	int r = pcm_client_close(p);
 	printf("pcm_close pcm=%p r=%d\n", p, r);
 
-	Aml_ACodecMemory_Free(buf);
+	Aml_ACodecMemory_Free(hShmBuf);
 	free(pconfig);
 }
 
 
-
+#define PCM_CAPTURE_SAMPLES (48000*2)
 static int pcm_capture_test(int argc, char* argv[])
 {
 	rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
@@ -112,35 +115,34 @@ static int pcm_capture_test(int argc, char* argv[])
 	pconfig->start_threshold = 1024;
 	pconfig->silence_threshold = 1024*2;
 	pconfig->stop_threshold = 1024*2;
-	printf("arm: pconfig:%p\n", pconfig);
 	tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMIN_B, PCM_IN, pconfig);
+	tAcodecShmHdl hShmBuf;
 	
-	printf("pcm_open pcm=%p\n", p);
-	printf("%s %d\n", __FUNCTION__, __LINE__);
+	FILE *filecap = fopen(argv[0], "w+b");
+	if (filecap == NULL) {
+		printf("failed to open captured pcm file\n");
+		return -1;
+	}
 
-	uint8_t *rec_data = (uint8_t *)audio_play_data;
-	int in_fr = pcm_bytes_to_frame(p, audio_play_data_len);
+	int in_fr = PCM_CAPTURE_SAMPLES;
 	int i, fr = 0;
 	const int ms = 36;
 	const int oneshot = 48 * ms; // 1728 samples
 	uint32_t size = pcm_frame_to_bytes(p, oneshot);
-	void *buf = Aml_ACodecMemory_Allocate(size);
-	printf("%s %d\n", __FUNCTION__, __LINE__);
+	hShmBuf = Aml_ACodecMemory_Allocate(size);
+	void *buf = Aml_ACodecMemory_GetVirtAddr(hShmBuf);
+	void *phybuf = Aml_ACodecMemory_GetPhyAddr(hShmBuf);
 	for (i = 0; i + oneshot <= in_fr; i += fr) {
-		// fill to buf first to simulate customer's case
-		printf("%s %d\n", __FUNCTION__, __LINE__);
-		fr = pcm_client_readi(p, buf, oneshot);
-		Aml_ACodecMemory_Inv(buf, size);
-		memcpy(rec_data + pcm_frame_to_bytes(p, i), buf, size);
+		fr = pcm_client_readi(p, phybuf, oneshot);
+		Aml_ACodecMemory_Inv(phybuf, size);
+		fwrite(buf, sizeof(char), size, filecap);
 		printf("%dms pcm_read i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
 			  ms, i, p, buf, oneshot, fr);
-		// XXX: wrapper layer ensure fr == oneshot
 	}
-	int r = pcm_client_close(p);
-	printf("pcm_close pcm=%p r=%d\n", p, r);
-
-	Aml_ACodecMemory_Free(buf);
+	pcm_client_close(p);
+	Aml_ACodecMemory_Free(hShmBuf);
 	free(pconfig);
+	fclose(filecap);
 }
 
 
@@ -295,21 +297,25 @@ static int shm_uint_tset(void)
 	unsigned int i;
 	unsigned int num_repeat = SHM_UNIT_TEST_REPEAT;
 	char samples[16] = {0};
+	void* pVirSrc = NULL;
+	void* pVirDst = NULL;
 	while(num_repeat--) {
 		tAcodecShmHdl hDst, hSrc;
 		hDst = Aml_ACodecMemory_Allocate(sizeof(samples));
 		hSrc = Aml_ACodecMemory_Allocate(sizeof(samples));
 		memset((void*)samples, num_repeat, sizeof(samples));
-		memcpy((void*)hSrc, samples, sizeof(samples));
+		pVirSrc = Aml_ACodecMemory_GetVirtAddr(hSrc);
+		memcpy((void*)pVirSrc, samples, sizeof(samples));
 		Aml_ACodecMemory_Clean(hSrc, sizeof(samples));
 		Aml_ACodecMemory_Transfer(hDst, hSrc, sizeof(samples));
 		Aml_ACodecMemory_Inv(hDst, sizeof(samples));
-		if (memcmp((void*)hDst, samples, sizeof(samples))) {
+		pVirDst = Aml_ACodecMemory_GetVirtAddr(hSrc);
+		if (memcmp((void*)pVirDst, samples, sizeof(samples))) {
 			printf("shm unit test fail, repeat:%d\n",
 				SHM_UNIT_TEST_REPEAT - num_repeat);
 			break;
 		} else {
-			char* k = (char*)hDst;
+			char* k = (char*)pVirDst;
 			for(i = 0; i < sizeof(samples); i++)
 				printf("0x%x ", k[i]);
 			printf("\n");
@@ -331,6 +337,10 @@ static void usage()
 	printf ("\n");
 	printf ("mp3dec Usage: hificodec_test --mp3dec input_file output_file\n");
 	printf ("\n");
+	printf ("pcmplay Usage: hificodec_test --pcmplay pcm_file\n");
+	printf ("\n");
+	printf ("playcap Usage: hificodec_test --pcmcap  pcm_file\n");
+	printf ("\n");
 }
 
 
@@ -344,7 +354,7 @@ int main(int argc, char* argv[]) {
 	   {"shm", no_argument, NULL, 2},
 	   {"mp3dec", no_argument, NULL, 3},
 	   {"pcmplay", no_argument, NULL, 4},
-	   {"playcap", no_argument, NULL, 5},
+	   {"pcmcap", no_argument, NULL, 5},
 	   {0, 0, 0, 0}
 	};
 	c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -377,6 +387,7 @@ int main(int argc, char* argv[]) {
 				usage();
 				exit(1);
 			}
+			break;
 		case 5:
 			if (1 == argc - optind)
 				pcm_capture_test(argc - optind, &argv[optind]);
@@ -384,6 +395,7 @@ int main(int argc, char* argv[]) {
 				usage();
 				exit(1);
 			}
+			break;
 		case '?':
 		   usage();
 		   exit(1);

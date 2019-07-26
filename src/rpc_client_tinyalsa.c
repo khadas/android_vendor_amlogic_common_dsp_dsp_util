@@ -69,9 +69,6 @@ int pcm_client_writei(tAmlPcmhdl hdl, const void *data, unsigned int count)
     arg.count = count;
     arg.out_ret = 0;
 
-    // cross-core operation, need flush cache first
-    uint32_t len = pcm_frame_to_bytes(hdl, count);
-
 	xAIPC(pAmlPcmCtx->aipchdl, MBX_TINYALSA_WRITEI, &arg, sizeof(arg));
     return arg.out_ret;
 }
@@ -86,8 +83,6 @@ int pcm_client_readi(tAmlPcmhdl hdl, const void *data, unsigned int count)
     arg.count = count;
     arg.out_ret = 0;
 
-    // cross-core operation, need flush cache first
-    uint32_t len = pcm_frame_to_bytes(hdl, count);
 	printf("data:%p, count:%d\n", data, count);
 	xAIPC(pAmlPcmCtx->aipchdl, MBX_TINYALSA_READI, &arg, sizeof(arg));
     return arg.out_ret;

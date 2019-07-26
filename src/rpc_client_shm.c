@@ -144,6 +144,7 @@ uint32_t Aml_ACodecMemory_Clean(tAcodecShmHdl phy, size_t size)
 	struct hifi4_shm_info_t info;
 	info.addr = (long)phy;
 	info.size = size;
+
 	if ((ret = ioctl(gACodecShmPoolInfo.fd, HIFI4DSP_SHM_CLEAN, &info)) < 0)
 	{
 		printf("ioctl clean cache fail:%s\n", strerror(errno));
@@ -158,6 +159,7 @@ uint32_t Aml_ACodecMemory_Inv(tAcodecShmHdl phy, size_t size)
 	struct hifi4_shm_info_t info;
 	info.addr = (long)phy;
 	info.size = size;
+
 	if ((ret = ioctl(gACodecShmPoolInfo.fd, HIFI4DSP_SHM_INV, &info)) < 0)
 	{
 		printf("ioctl invalidate cache fail:%s\n", strerror(errno));
