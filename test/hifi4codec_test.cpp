@@ -39,16 +39,12 @@
 #include "rpc_client_tinyalsa.h"
 #include "aipc_type.h"
 
-
 uint32_t audio_play_data[] = {
-#include "sinewav_48k_24bits_stereo_l1k_r2k_1s.in"
-#include "sinewav_48k_24bits_stereo_l1k_r2k_1s.in"
+//#include "sinewav_48k_24bits_stereo_l1k_r2k_1s.in"
+//#include "sinewav_48k_24bits_stereo_l1k_r2k_1s.in"
+#include "pyghlkn_48k_24bits_stereo_10s.in"
 };
-
 uint32_t audio_play_data_len = sizeof(audio_play_data);
-
-//#define INFO printf
-#define INFO
 
 using namespace std;
 
@@ -56,9 +52,44 @@ static void mp3_show_hex(char* samples, uint32 size)
 {
 	int i;
 	for (i = 0; i < size; i++) {
-		INFO("0x%x ", samples[i]);
+		printf("0x%x ", samples[i]);
 	}
-	INFO("\n");
+	printf("\n");
+}
+
+static int pcm_play_buildin()
+{
+	rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
+	pconfig->channels = 2;
+	pconfig->rate = 48000;
+	pconfig->format = PCM_FORMAT_S32_LE;
+	pconfig->period_size = 1024;
+	pconfig->period_count = 2;
+	pconfig->start_threshold = 1024;
+	pconfig->silence_threshold = 1024*2;
+	pconfig->stop_threshold = 1024*2;
+	tAmlPcmhdl p = pcm_client_open(0, 0, 0, pconfig);
+	tAcodecShmHdl hShmBuf;
+
+	uint8_t *play_data = (uint8_t *)audio_play_data;
+	int in_fr = pcm_bytes_to_frame(p, audio_play_data_len);
+	int i, fr = 0;
+	const int ms = 36;
+	const int oneshot = 48 * ms; // 1728 samples
+	uint32_t size = pcm_frame_to_bytes(p, oneshot);
+	hShmBuf = Aml_ACodecMemory_Allocate(size);
+	void *buf = Aml_ACodecMemory_GetVirtAddr(hShmBuf);
+	void *phybuf = Aml_ACodecMemory_GetPhyAddr(hShmBuf);
+	for (i = 0; i + oneshot <= in_fr; i += fr) {
+		memcpy(buf, play_data + pcm_frame_to_bytes(p, i), size);
+		Aml_ACodecMemory_Clean(phybuf, size);
+		fr = pcm_client_writei(p, phybuf, oneshot);
+		//printf("%dms pcm_write i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
+			//  ms, i, p, buf, oneshot, fr);
+	}
+	pcm_client_close(p);
+	Aml_ACodecMemory_Free(hShmBuf);
+	free(pconfig);
 }
 
 static int pcm_play_test(int argc, char* argv[])
@@ -72,34 +103,31 @@ static int pcm_play_test(int argc, char* argv[])
 	pconfig->start_threshold = 1024;
 	pconfig->silence_threshold = 1024*2;
 	pconfig->stop_threshold = 1024*2;
-	printf("arm: pconfig:%p\n", pconfig);
 	tAmlPcmhdl p = pcm_client_open(0, 0, 0, pconfig);
 	tAcodecShmHdl hShmBuf;
-	printf("pcm_open pcm=%p\n", p);
 
-	uint8_t *play_data = (uint8_t *)audio_play_data;
-	int in_fr = pcm_bytes_to_frame(p, audio_play_data_len);
-	int i, fr = 0;
+	FILE *fileplay = fopen(argv[0], "rb");
+	if (fileplay == NULL) {
+		printf("failed to open played pcm file\n");
+		return -1;
+	}
+	int fr = 0;
 	const int ms = 36;
 	const int oneshot = 48 * ms; // 1728 samples
 	uint32_t size = pcm_frame_to_bytes(p, oneshot);
 	hShmBuf = Aml_ACodecMemory_Allocate(size);
 	void *buf = Aml_ACodecMemory_GetVirtAddr(hShmBuf);
 	void *phybuf = Aml_ACodecMemory_GetPhyAddr(hShmBuf);
-	for (i = 0; i + oneshot <= in_fr; i += fr) {
-		// fill to buf first to simulate customer's case
-		memcpy(buf, play_data + pcm_frame_to_bytes(p, i), size);
+	while (size = fread(buf, 1, size, fileplay)) {
 		Aml_ACodecMemory_Clean(phybuf, size);
 		fr = pcm_client_writei(p, phybuf, oneshot);
-		printf("%dms pcm_write i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
-			  ms, i, p, buf, oneshot, fr);
-		// XXX: wrapper layer ensure fr == oneshot
+		//printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
+			//   ms, p, buf, oneshot, fr);
 	}
-	int r = pcm_client_close(p);
-	printf("pcm_close pcm=%p r=%d\n", p, r);
-
+	pcm_client_close(p);
 	Aml_ACodecMemory_Free(hShmBuf);
 	free(pconfig);
+	fclose(fileplay);
 }
 
 
@@ -117,7 +145,7 @@ static int pcm_capture_test(int argc, char* argv[])
 	pconfig->stop_threshold = 1024*2;
 	tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMIN_B, PCM_IN, pconfig);
 	tAcodecShmHdl hShmBuf;
-	
+
 	FILE *filecap = fopen(argv[0], "w+b");
 	if (filecap == NULL) {
 		printf("failed to open captured pcm file\n");
@@ -136,8 +164,8 @@ static int pcm_capture_test(int argc, char* argv[])
 		fr = pcm_client_readi(p, phybuf, oneshot);
 		Aml_ACodecMemory_Inv(phybuf, size);
 		fwrite(buf, sizeof(char), size, filecap);
-		printf("%dms pcm_read i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
-			  ms, i, p, buf, oneshot, fr);
+		//printf("%dms pcm_read i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
+			//  ms, i, p, buf, oneshot, fr);
 	}
 	pcm_client_close(p);
 	Aml_ACodecMemory_Free(hShmBuf);
@@ -158,18 +186,18 @@ static int mp3_offload_dec(int argc, char* argv[]) {
 
     // Initialize the decoder.
     hdlmp3 = AmlACodecInit_Mp3Dec(&config, 1);
-    INFO("Init mp3dec hdl=%p\n", hdlmp3);
+    printf("Init mp3dec hdl=%p\n", hdlmp3);
 
     // Open the input file.
     Mp3Reader mp3Reader;
-	INFO("Read mp3 file:%s\n", argv[0]);
+	printf("Read mp3 file:%s\n", argv[0]);
     bool success = mp3Reader.init(argv[0]);
     if (!success) {
         fprintf(stderr, "Encountered error reading %s\n", argv[0]);
 		AmlACodecDeInit_Mp3Dec(hdlmp3);
         return EXIT_FAILURE;
     }
-    INFO("Init mp3reader\n");
+    printf("Init mp3reader\n");
 
     // Open the output file.
     SF_INFO sfInfo;
@@ -184,7 +212,7 @@ static int mp3_offload_dec(int argc, char* argv[]) {
 		AmlACodecDeInit_Mp3Dec(hdlmp3);
         return EXIT_FAILURE;
     }
-    INFO("Init outfile=%s\n", argv[1]);
+    printf("Init outfile=%s\n", argv[1]);
 
     // Allocate input buffer.
     tAcodecShmHdl hShmInput = Aml_ACodecMemory_Allocate(kInputBufferSize);
@@ -198,7 +226,7 @@ static int mp3_offload_dec(int argc, char* argv[]) {
 	void* outputphy = Aml_ACodecMemory_GetPhyAddr(hShmOutput);
     assert(outputBuf != NULL);
 
-	INFO("Init input %p, output buffer %p\n", inputBuf, outputBuf);
+	printf("Init input %p, output buffer %p\n", inputBuf, outputBuf);
 
     // Decode loop.
     int retVal = EXIT_SUCCESS;
@@ -207,7 +235,7 @@ static int mp3_offload_dec(int argc, char* argv[]) {
         uint32_t bytesRead;
         success = mp3Reader.getFrame(inputBuf, &bytesRead);
         if (!success) {
-			INFO("EOF\n");
+			printf("EOF\n");
             break;
         }
 
@@ -245,15 +273,15 @@ static int mp3_offload_dec(int argc, char* argv[]) {
 
     // Close input reader and output writer.
     mp3Reader.close();
-    INFO("reader close\n");
+    printf("reader close\n");
     sf_close(handle);
-    INFO("write clonse\n");
+    printf("write clonse\n");
 
     // Free allocated memory.
     Aml_ACodecMemory_Free((tAcodecShmHdl)inputBuf);
     Aml_ACodecMemory_Free((tAcodecShmHdl)outputBuf);
     AmlACodecDeInit_Mp3Dec(hdlmp3);
-    INFO("mp3 decoder done\n");
+    printf("mp3 decoder done\n");
 
     return retVal;
 }
@@ -339,7 +367,9 @@ static void usage()
 	printf ("\n");
 	printf ("pcmplay Usage: hificodec_test --pcmplay pcm_file\n");
 	printf ("\n");
-	printf ("playcap Usage: hificodec_test --pcmcap  pcm_file\n");
+	printf ("pcmcap Usage: hificodec_test --pcmcap  pcm_file\n");
+	printf ("\n");
+	printf ("pcmplay-buildin Usage: hificodec_test --pcmplay-buildin\n");
 	printf ("\n");
 }
 
@@ -355,6 +385,7 @@ int main(int argc, char* argv[]) {
 	   {"mp3dec", no_argument, NULL, 3},
 	   {"pcmplay", no_argument, NULL, 4},
 	   {"pcmcap", no_argument, NULL, 5},
+	   {"pcmplay-buildin", no_argument, NULL, 6},
 	   {0, 0, 0, 0}
 	};
 	c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -396,6 +427,8 @@ int main(int argc, char* argv[]) {
 				exit(1);
 			}
 			break;
+		case 6:
+			pcm_play_buildin();
 		case '?':
 		   usage();
 		   exit(1);
