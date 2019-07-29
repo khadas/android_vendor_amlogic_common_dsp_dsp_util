@@ -99,6 +99,9 @@ tAmlMp3DecHdl AmlACodecInit_Mp3Dec(tAmlACodecConfig_Mp3DecExternal* pconfig, int
 		printf("Allocate codec shared memory\n");
  		pAmlMp3Ctx->hShmIn = Aml_ACodecMemory_Allocate(kInputBufferSize);
 		pAmlMp3Ctx->hShmOut = Aml_ACodecMemory_Allocate(kOutputBufferSize);
+	} else {
+		pAmlMp3Ctx->hShmIn = 0;
+		pAmlMp3Ctx->hShmOut = 0;
 	}
 	return (void*)pAmlMp3Ctx;
 }
@@ -110,7 +113,7 @@ void AmlACodecDeInit_Mp3Dec(tAmlMp3DecHdl hMp3Dec)
 	memset(&arg, 0, sizeof(arg));
 	arg.hdl = (tAmlMp3DecRpcHdl)pAmlMp3Ctx->mp3rpchdl;
 	xAIPC(pAmlMp3Ctx->aipchdl, MBX_CODEC_MP3_API_DEINIT, &arg, sizeof(arg));
-	xAudio_Ipc_Deinit(pAmlMp3Ctx->aipchdl);	
+	xAudio_Ipc_Deinit(pAmlMp3Ctx->aipchdl);
 	if (pAmlMp3Ctx->hShmIn) {
 		Aml_ACodecMemory_Free(pAmlMp3Ctx->hShmIn);
 		pAmlMp3Ctx->hShmIn = 0;
@@ -118,7 +121,7 @@ void AmlACodecDeInit_Mp3Dec(tAmlMp3DecHdl hMp3Dec)
 	if (pAmlMp3Ctx->hShmOut) {
 		Aml_ACodecMemory_Free(pAmlMp3Ctx->hShmOut);
 		pAmlMp3Ctx->hShmOut = 0;
-	}	
+	}
 	free(pAmlMp3Ctx);
 }
 

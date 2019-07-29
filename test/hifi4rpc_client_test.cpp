@@ -278,8 +278,8 @@ static int mp3_offload_dec(int argc, char* argv[]) {
     printf("write clonse\n");
 
     // Free allocated memory.
-    Aml_ACodecMemory_Free((tAcodecShmHdl)inputBuf);
-    Aml_ACodecMemory_Free((tAcodecShmHdl)outputBuf);
+    Aml_ACodecMemory_Free((tAcodecShmHdl)hShmInput);
+    Aml_ACodecMemory_Free((tAcodecShmHdl)hShmOutput);
     AmlACodecDeInit_Mp3Dec(hdlmp3);
     printf("mp3 decoder done\n");
 
@@ -359,17 +359,17 @@ static int shm_uint_tset(void)
 
 static void usage()
 {
-	printf ("ipc unit test usage: hificodec_test --ipc\n");
+	printf ("ipc unit test usage: hifi4rpc_client_test --ipc\n");
 	printf ("\n");
-	printf ("shared memory unit test usage: hificodec_test --shm\n");
+	printf ("shared memory unit test usage: hifi4rpc_client_test --shm\n");
 	printf ("\n");
-	printf ("mp3dec Usage: hificodec_test --mp3dec input_file output_file\n");
+	printf ("mp3dec Usage: hifi4rpc_client_test --mp3dec input_file output_file\n");
 	printf ("\n");
-	printf ("pcmplay Usage: hificodec_test --pcmplay pcm_file\n");
+	printf ("pcmplay Usage: hifi4rpc_client_test --pcmplay pcm_file\n");
 	printf ("\n");
-	printf ("pcmcap Usage: hificodec_test --pcmcap  pcm_file\n");
+	printf ("pcmcap Usage: hifi4rpc_client_test --pcmcap  pcm_file\n");
 	printf ("\n");
-	printf ("pcmplay-buildin Usage: hificodec_test --pcmplay-buildin\n");
+	printf ("pcmplay-buildin Usage: hifi4rpc_client_test --pcmplay-buildin\n");
 	printf ("\n");
 }
 
