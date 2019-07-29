@@ -173,10 +173,15 @@ static int pcm_capture_test(int argc, char* argv[])
 	fclose(filecap);
 }
 
-
-
 static int mp3_offload_dec(int argc, char* argv[]) {
-	tAmlMp3DecHdl hdlmp3;
+	int bUserAllocShm = 1;
+	tAmlMp3DecHdl hdlmp3 = 0;
+	tAcodecShmHdl hShmInput =0;
+	tAcodecShmHdl hShmOutput = 0;
+	uint8_t *inputBuf = 0;
+	int16_t *outputBuf = 0;
+	void* inputphy = 0;
+	void* outputphy = 0;
 
     // Initialize the config.
     tAmlACodecConfig_Mp3DecExternal config;
@@ -185,7 +190,7 @@ static int mp3_offload_dec(int argc, char* argv[]) {
     config.crcEnabled = false;
 
     // Initialize the decoder.
-    hdlmp3 = AmlACodecInit_Mp3Dec(&config, 1);
+    hdlmp3 = AmlACodecInit_Mp3Dec(&config);
     printf("Init mp3dec hdl=%p\n", hdlmp3);
 
     // Open the input file.
@@ -214,19 +219,28 @@ static int mp3_offload_dec(int argc, char* argv[]) {
     }
     printf("Init outfile=%s\n", argv[1]);
 
-    // Allocate input buffer.
-    tAcodecShmHdl hShmInput = Aml_ACodecMemory_Allocate(kInputBufferSize);
-    uint8_t *inputBuf = (uint8_t*)Aml_ACodecMemory_GetVirtAddr(hShmInput);
-	void* inputphy = Aml_ACodecMemory_GetPhyAddr(hShmInput);
-    assert(inputBuf != NULL);
+    if (argc == 3)
+		bUserAllocShm = atoi(argv[2]);
+    if (bUserAllocShm) {
+		// Allocate input buffer.
+		hShmInput = Aml_ACodecMemory_Allocate(kInputBufferSize);
+		inputBuf = (uint8_t*)Aml_ACodecMemory_GetVirtAddr(hShmInput);
+		inputphy = Aml_ACodecMemory_GetPhyAddr(hShmInput);
+	
+		// Allocate output buffer.
+		hShmOutput = Aml_ACodecMemory_Allocate(kOutputBufferSize);
+		outputBuf = (int16_t*)Aml_ACodecMemory_GetVirtAddr(hShmOutput);
+		outputphy = Aml_ACodecMemory_GetPhyAddr(hShmOutput);
+		printf("Init in vir:%p phy:%p,  out vir:%p phy:%p\n", 
+				inputBuf, inputphy, outputBuf, outputphy);
+	} else {
+		// Allocate input buffer.
+		inputBuf = (uint8_t*)malloc(kInputBufferSize);
 
-    // Allocate output buffer.
-    tAcodecShmHdl hShmOutput = Aml_ACodecMemory_Allocate(kOutputBufferSize);
-    int16_t *outputBuf = (int16_t*)Aml_ACodecMemory_GetVirtAddr(hShmOutput);
-	void* outputphy = Aml_ACodecMemory_GetPhyAddr(hShmOutput);
-    assert(outputBuf != NULL);
-
-	printf("Init input %p, output buffer %p\n", inputBuf, outputBuf);
+		// Allocate output buffer.
+		outputBuf = (int16_t*)malloc(kOutputBufferSize);
+		printf("Init input %p, output buffer %p\n", inputBuf, outputBuf);
+	}
 
     // Decode loop.
     int retVal = EXIT_SUCCESS;
@@ -243,8 +257,13 @@ static int mp3_offload_dec(int argc, char* argv[]) {
         config.inputBufferCurrentLength = bytesRead;
         config.inputBufferMaxLength = 0;
         config.inputBufferUsedLength = 0;
-        config.pInputBuffer = (uint8_t*)inputphy;
-        config.pOutputBuffer = (int16_t*)outputphy;
+		if (bUserAllocShm) {
+			config.pInputBuffer = (uint8_t*)inputphy;
+			config.pOutputBuffer = (int16_t*)outputphy;			
+		} else {
+			config.pInputBuffer = (uint8_t*)inputBuf;
+			config.pOutputBuffer = (int16_t*)outputBuf;
+		}
         config.outputFrameSize = kOutputBufferSize / sizeof(int16_t);
 		/*INFO("inputBufferCurrentLength:0x%x, inputBufferMaxLength:0x%x, inputBufferUsedLength:0x%x,"
 			"pInputBuffer:0x%lx, pOutputBuffer:0x%lx, outputFrameSize:0x%x\n",
@@ -255,15 +274,19 @@ static int mp3_offload_dec(int argc, char* argv[]) {
 		INFO("\n=================================\n");*/
         ERROR_CODE decoderErr;
         //printf("config.outputFrameSize:%d\n", config.outputFrameSize);
-        Aml_ACodecMemory_Clean(inputphy, bytesRead);
-        decoderErr = AmlACodecExec_Mp3Dec(hdlmp3, &config);
+        if (bUserAllocShm) {
+			Aml_ACodecMemory_Clean(inputphy, bytesRead);
+			decoderErr = AmlACodecExec_UserAllocIoShm_Mp3Dec(hdlmp3, &config);
+			Aml_ACodecMemory_Inv(outputphy, config.outputFrameSize*sizeof(int16_t));
+		} else
+			decoderErr = AmlACodecExec_Mp3Dec(hdlmp3, &config);
+
         if (decoderErr != NO_DECODING_ERROR) {
             fprintf(stderr, "Decoder encountered error:0x%x\n", decoderErr);
             retVal = EXIT_FAILURE;
             break;
         }
-        Aml_ACodecMemory_Inv(outputphy, config.outputFrameSize*sizeof(int16_t));
-		/*INFO("\n*************arm:%p**********************\n", outputBuf);
+	    /*INFO("\n*************arm:%p**********************\n", outputBuf);
 		mp3_show_hex((char*)outputBuf, config.outputFrameSize*sizeof(int16_t));
 		INFO("\n***********************************\n");*/
         //INFO("config.outputFrameSize:%d\n", config.outputFrameSize);
@@ -278,8 +301,13 @@ static int mp3_offload_dec(int argc, char* argv[]) {
     printf("write clonse\n");
 
     // Free allocated memory.
-    Aml_ACodecMemory_Free((tAcodecShmHdl)hShmInput);
-    Aml_ACodecMemory_Free((tAcodecShmHdl)hShmOutput);
+	if (bUserAllocShm) {
+		Aml_ACodecMemory_Free((tAcodecShmHdl)hShmInput);
+		Aml_ACodecMemory_Free((tAcodecShmHdl)hShmOutput);
+	} else {
+		free(inputBuf);
+		free(outputBuf);
+	}
     AmlACodecDeInit_Mp3Dec(hdlmp3);
     printf("mp3 decoder done\n");
 
@@ -363,7 +391,7 @@ static void usage()
 	printf ("\n");
 	printf ("shared memory unit test usage: hifi4rpc_client_test --shm\n");
 	printf ("\n");
-	printf ("mp3dec Usage: hifi4rpc_client_test --mp3dec input_file output_file\n");
+	printf ("mp3dec Usage: hifi4rpc_client_test --mp3dec input_file output_file bUserAllocShm\n");
 	printf ("\n");
 	printf ("pcmplay Usage: hifi4rpc_client_test --pcmplay pcm_file\n");
 	printf ("\n");
@@ -404,7 +432,7 @@ int main(int argc, char* argv[]) {
 			shm_uint_tset();
 			break;
 		case 3:
-			if (2 == argc - optind)
+			if (2 == argc - optind || 3 == argc - optind)
 				mp3_offload_dec(argc - optind, &argv[optind]);
 			else {
 				usage();

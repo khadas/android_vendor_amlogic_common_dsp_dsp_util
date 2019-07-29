@@ -49,9 +49,11 @@ enum {
 typedef void* tAmlMp3DecHdl;
 typedef tPVMP3DecoderExternal tAmlACodecConfig_Mp3DecExternal;
 
-tAmlMp3DecHdl AmlACodecInit_Mp3Dec(tAmlACodecConfig_Mp3DecExternal *pconfig, int bInplace);
+tAmlMp3DecHdl AmlACodecInit_Mp3Dec(tAmlACodecConfig_Mp3DecExternal *pconfig);
 void AmlACodecDeInit_Mp3Dec(tAmlMp3DecHdl hMp3Dec);
 ERROR_CODE AmlACodecExec_Mp3Dec(tAmlMp3DecHdl hMp3, tAmlACodecConfig_Mp3DecExternal *pconfig);
+
+ERROR_CODE AmlACodecExec_UserAllocIoShm_Mp3Dec(tAmlMp3DecHdl hMp3, tAmlACodecConfig_Mp3DecExternal *pconfig);
 
 #ifdef __cplusplus
 }
