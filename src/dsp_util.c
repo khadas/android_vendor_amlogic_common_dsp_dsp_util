@@ -102,15 +102,14 @@ bool dsp_dev_is_exist(struct hifi4dsp_info_t *info)
 	const char *pathname;
 	char path[256];
 	int fd;
-	if( (info->id!=0 )&&(info->id!=1 ))
-	{
+	if ((info->id != 0 )&&(info->id != 1 )) {
 		printf("param error: invalid dsp id (info->id=%d)\n",info->id);
 		return 0;
 	}
 	sprintf(path, "/dev/hifi4dsp%d", info->id);
 	pathname=path;
 
-	if(access(pathname,F_OK) != -1){
+	if (access(pathname,F_OK) != -1) {
 		printf("dsp dev: %s exist\n", pathname);
 	}else{
 		printf("dsp dev: %s not exist\n", pathname);
@@ -127,20 +126,15 @@ bool dsp_firmware_is_exist(struct hifi4dsp_info_t *info)
 	int fd;
 	strcpy(path, "/lib/firmware/");
 	strcat(path, info->fw_name);
-	if(strlen(info->fw_name)==0)
-	{
+	if (strlen(info->fw_name) == 0) {
 		printf("param error: invalid dsp firmware (info->fw_name=NULL)\n");
 		return 0;
 	}
 
-	sprintf(path, "/lib/firmware/%s\n", info->fw_name);
-	printf(" info->fw_name:%s\n", path);
-	pathname=path;
-
-	if(access(pathname,F_OK) != -1){
-		printf("firmware: %s exist\n", pathname);
-	}else{
-		printf("firmware: invalid dsp firmware (%s not exist)\n", pathname);
+	if (access(path, F_OK) != -1) {
+		printf("firmware: %s exist\n", path);
+	} else {
+		printf("firmware: invalid dsp firmware (%s not exist)\n", path);
 		return 0;
 	}
 	return 1;
@@ -149,35 +143,35 @@ bool dsp_firmware_is_exist(struct hifi4dsp_info_t *info)
 int dsp_load(struct hifi4dsp_info_t *info)
 {
 	int err=0;
-	if(false == dsp_dev_is_exist(info))
+	if (false == dsp_dev_is_exist(info))
 		err -= 1;
 
-	//if(strlen(info->fw_name)==0)
+	//if (strlen(info->fw_name) == 0)
 	if (strcmp(info->fw_name, "\0") == 0)
 		strcpy(info->fw_name, "dspaboot.bin");
 
-	if(false == dsp_firmware_is_exist(info))
+	if (false == dsp_firmware_is_exist(info))
 		err -= 1;
-	if(err<0)
+	if (err<0)
 		return err;
-	msleep(200);
+
 	return dsp_ctl(info, HIFI4DSP_LOAD);
 }
 int dsp_reset(struct hifi4dsp_info_t *info)
 {
 	int err=0;
-	if(false == dsp_dev_is_exist(info))
+	if (false == dsp_dev_is_exist(info))
 		err -= 1;
-	if(err<0)
+	if (err<0)
 		return err;
 	return dsp_ctl(info, HIFI4DSP_RESET);
 }
 int dsp_start(struct hifi4dsp_info_t *info)
 {
 	int err=0;
-	if(false == dsp_dev_is_exist(info))
+	if (false == dsp_dev_is_exist(info))
 		err -= 1;
-	if(err<0)
+	if (err<0)
 		return err;
 
 	return dsp_ctl(info, HIFI4DSP_START);
@@ -186,9 +180,9 @@ int dsp_start(struct hifi4dsp_info_t *info)
 int dsp_stop(struct hifi4dsp_info_t *info)
 {
 	int err=0;
-	if(false == dsp_dev_is_exist(info))
+	if (false == dsp_dev_is_exist(info))
 		err -= 1;
-	if(err<0)
+	if (err<0)
 		return err;
 
 	return dsp_ctl(info, HIFI4DSP_STOP);
@@ -196,9 +190,9 @@ int dsp_stop(struct hifi4dsp_info_t *info)
 int dsp_sleep(struct hifi4dsp_info_t *info)
 {
 	int err=0;
-	if(false == dsp_dev_is_exist(info))
+	if (false == dsp_dev_is_exist(info))
 		err -= 1;
-	if(err<0)
+	if (err<0)
 		return err;
 
 	return dsp_ctl(info, HIFI4DSP_SLEEP);
@@ -206,9 +200,9 @@ int dsp_sleep(struct hifi4dsp_info_t *info)
 int dsp_wake(struct hifi4dsp_info_t *info)
 {
 	int err=0;
-	if(false == dsp_dev_is_exist(info))
+	if (false == dsp_dev_is_exist(info))
 		err -= 1;
-	if(err<0)
+	if (err<0)
 		return err;
 
 	return dsp_ctl(info, HIFI4DSP_WAKE);
@@ -226,7 +220,7 @@ int hifi4dsp_load()
 	}
 //	strcpy(info->fw_name, "hifi4dsp_fw.bin2");
 	strcpy(info->fw_name, "dspboot.bin");
-	if(false == dsp_firmware_is_exist(info))
+	if (false == dsp_firmware_is_exist(info))
 		ret -= 1;
 	if (ret < 0)
 		return ret;
@@ -253,7 +247,7 @@ int dsp_cmd_parse(int argc, char **argv, struct hifi4dsp_info_t *info)
 	int opt;
 	int digit_optind = 0;
 	int this_option_optind = optind ? optind : 1;
-  	int option_index = 0;
+	int option_index = 0;
 
 	if (argc < 2) showUsage();
 
@@ -354,14 +348,14 @@ int dsp_cmd_parse(int argc, char **argv, struct hifi4dsp_info_t *info)
     }
 	if (optind < argc) {
 		debug_pr("have non-option ARGV-elements: ");
-		while (optind < argc){
+		while (optind < argc) {
 			showUsage();
 			debug_pr("%s ", argv[optind++]);
 		}
 		debug_pr("\n");
 		return 0;
 	}
-	if (err<0){
+	if (err<0) {
 		showUsage();
 		return err;
 	}
@@ -388,24 +382,24 @@ int main(int argc, char **argv)
 	int cmd=0;
 	struct hifi4dsp_info_t info={0};
 	cmd = dsp_cmd_parse(argc, argv, &info);
-	if(cmd<0)
+	if (cmd<0)
 		return 0;
-	if(cmd&CMD_HIFI4DSP_LOAD){
+	if (cmd&CMD_HIFI4DSP_LOAD) {
 		dsp_load(&info);
 	}
-	if(cmd&CMD_HIFI4DSP_RESET){
+	if (cmd&CMD_HIFI4DSP_RESET) {
 		dsp_reset(&info);
 	}
-	if(cmd&CMD_HIFI4DSP_START){
+	if (cmd&CMD_HIFI4DSP_START) {
 		dsp_start(&info);
 	}
-	if(cmd&CMD_HIFI4DSP_STOP){
+	if (cmd&CMD_HIFI4DSP_STOP) {
 		dsp_stop(&info);
 	}
-	if(cmd&CMD_HIFI4DSP_SLEEP){
+	if (cmd&CMD_HIFI4DSP_SLEEP) {
 		dsp_sleep(&info);
 	}
-	if(cmd&CMD_HIFI4DSP_WAKE){
+	if (cmd&CMD_HIFI4DSP_WAKE) {
 		dsp_wake(&info);
 	}
 	return 0;
