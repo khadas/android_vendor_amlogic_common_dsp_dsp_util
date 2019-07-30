@@ -36,7 +36,7 @@
 #include "rpc_client_mp3.h"
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
-#include "rpc_client_tinyalsa.h"
+#include "rpc_client_pcm.h"
 #include "aipc_type.h"
 
 uint32_t audio_play_data[] = {
@@ -72,16 +72,16 @@ static int pcm_play_buildin()
 	tAcodecShmHdl hShmBuf;
 
 	uint8_t *play_data = (uint8_t *)audio_play_data;
-	int in_fr = pcm_bytes_to_frame(p, audio_play_data_len);
+	int in_fr = pcm_client_bytes_to_frame(p, audio_play_data_len);
 	int i, fr = 0;
 	const int ms = 36;
 	const int oneshot = 48 * ms; // 1728 samples
-	uint32_t size = pcm_frame_to_bytes(p, oneshot);
+	uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
 	hShmBuf = Aml_ACodecMemory_Allocate(size);
 	void *buf = Aml_ACodecMemory_GetVirtAddr(hShmBuf);
 	void *phybuf = Aml_ACodecMemory_GetPhyAddr(hShmBuf);
 	for (i = 0; i + oneshot <= in_fr; i += fr) {
-		memcpy(buf, play_data + pcm_frame_to_bytes(p, i), size);
+		memcpy(buf, play_data + pcm_client_frame_to_bytes(p, i), size);
 		Aml_ACodecMemory_Clean(phybuf, size);
 		fr = pcm_client_writei(p, phybuf, oneshot);
 		//printf("%dms pcm_write i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
@@ -114,7 +114,7 @@ static int pcm_play_test(int argc, char* argv[])
 	int fr = 0;
 	const int ms = 36;
 	const int oneshot = 48 * ms; // 1728 samples
-	uint32_t size = pcm_frame_to_bytes(p, oneshot);
+	uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
 	hShmBuf = Aml_ACodecMemory_Allocate(size);
 	void *buf = Aml_ACodecMemory_GetVirtAddr(hShmBuf);
 	void *phybuf = Aml_ACodecMemory_GetPhyAddr(hShmBuf);
@@ -156,7 +156,7 @@ static int pcm_capture_test(int argc, char* argv[])
 	int i, fr = 0;
 	const int ms = 36;
 	const int oneshot = 48 * ms; // 1728 samples
-	uint32_t size = pcm_frame_to_bytes(p, oneshot);
+	uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
 	hShmBuf = Aml_ACodecMemory_Allocate(size);
 	void *buf = Aml_ACodecMemory_GetVirtAddr(hShmBuf);
 	void *phybuf = Aml_ACodecMemory_GetPhyAddr(hShmBuf);

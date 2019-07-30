@@ -18,8 +18,8 @@ int pcm_client_writei(tAmlPcmhdl hdl, const void *data, unsigned int count);
 int pcm_client_readi(tAmlPcmhdl hdl, const void *data, unsigned int count);
 int pcm_client_close(tAmlPcmhdl hdl);
 long pcm_client_get_latency(tAmlPcmhdl hdl);
-uint32_t pcm_frame_to_bytes(tAmlPcmhdl hdl, uint32_t fr);
-uint32_t pcm_bytes_to_frame(tAmlPcmhdl hdl, uint32_t b);
+uint32_t pcm_client_frame_to_bytes(tAmlPcmhdl hdl, uint32_t fr);
+uint32_t pcm_client_bytes_to_frame(tAmlPcmhdl hdl, uint32_t b);
 
 #ifdef __cplusplus
 }

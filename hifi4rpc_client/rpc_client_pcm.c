@@ -5,7 +5,7 @@
 #include "aipc_type.h"
 #include "rpc_client_mp3.h"
 #include "aipc_type.h"
-#include "rpc_client_tinyalsa.h"
+#include "rpc_client_pcm.h"
 #include "rpc_client_shm.h"
 
 
@@ -15,14 +15,36 @@ struct tAmlPcmCtx {
 	int aipchdl;
 };
 
-
-// mailbox is slow, add hack function here. It only work for 32bit, 2ch
-uint32_t pcm_frame_to_bytes(tAmlPcmhdl hdl, uint32_t fr) {
-    return fr * 8;
+static unsigned int pcm_client_format_to_bytes(enum pcm_format format)
+{
+	switch (format) {
+		case PCM_FORMAT_S32_LE:
+		case PCM_FORMAT_S32_BE:
+		case PCM_FORMAT_S24_LE:
+		case PCM_FORMAT_S24_BE:
+			return 32 >> 3; 	/*4 Bytes*/
+		case PCM_FORMAT_S24_3LE:
+		case PCM_FORMAT_S24_3BE:
+			return 24 >> 3; 	/*3 Bytes*/
+		default:
+		case PCM_FORMAT_S16_LE:
+		case PCM_FORMAT_S16_BE:
+			return 16 >> 3; 	/*2 Bytes*/
+		case PCM_FORMAT_S8:
+			return 8 >> 3;		/*1 Bytes*/
+	};
 }
 
-uint32_t pcm_bytes_to_frame(tAmlPcmhdl hdl, uint32_t b) {
-    return b / 8;
+uint32_t pcm_client_frame_to_bytes(tAmlPcmhdl hdl, uint32_t frame) {
+	struct tAmlPcmCtx* pAmlPcmCtx = (struct tAmlPcmCtx*)hdl;
+	int bytes_per_sample = pcm_client_format_to_bytes(pAmlPcmCtx->config.format);
+	return (frame * bytes_per_sample * (pAmlPcmCtx->config.channels));
+}
+
+uint32_t pcm_client_bytes_to_frame(tAmlPcmhdl hdl, uint32_t bytes) {
+	struct tAmlPcmCtx* pAmlPcmCtx = (struct tAmlPcmCtx*)hdl;
+	int bytes_per_sample = pcm_client_format_to_bytes(pAmlPcmCtx->config.format);
+	return (bytes / ((pAmlPcmCtx->config.channels) * bytes_per_sample));
 }
 
 tAmlPcmhdl pcm_client_open(unsigned int card,
@@ -42,6 +64,7 @@ tAmlPcmhdl pcm_client_open(unsigned int card,
 	pAmlPcmCtx->aipchdl = xAudio_Ipc_init();
 	xAIPC(pAmlPcmCtx->aipchdl, MBX_TINYALSA_OPEN, &arg, sizeof(arg));
     pAmlPcmCtx->pcm_srv_hdl = arg.out_pcm;
+	memcpy(&pAmlPcmCtx->config, config, sizeof(rpc_pcm_config));
     return pAmlPcmCtx;
 }
 
