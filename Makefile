@@ -6,7 +6,7 @@ CROSS_PREFIX=armv8l-linux-gnueabihf-
 endif
 CC?=$(CROSS_PREFIX)gcc
 CXX?=$(CROSS_PREFIX)g++
-CFLAGS = -fPIC -I ./include/ -I ./mp3tools/ -I ./dsp_util/
+CFLAGS = -fPIC -I ./include/ -I ./mp3tools/
 #CPPFLAGS+= $(CFLAGS)
 LIBDIR:= .
 
