@@ -134,8 +134,11 @@ static int pcm_play_test(int argc, char* argv[])
 #define PCM_CAPTURE_SAMPLES (48000*2)
 static int pcm_capture_test(int argc, char* argv[])
 {
+	enum ALSA_DEVICE_IN device = DEVICE_TDMIN_B;
+	if (argc >= 2)
+		device = (enum ALSA_DEVICE_IN)atoi(argv[1]);
 	rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
-	pconfig->channels = 2;
+	pconfig->channels = (device == DEVICE_LOOPBACK)?4:2;
 	pconfig->rate = 48000;
 	pconfig->format = PCM_FORMAT_S32_LE;
 	pconfig->period_size = 1024;
@@ -143,7 +146,7 @@ static int pcm_capture_test(int argc, char* argv[])
 	pconfig->start_threshold = 1024;
 	pconfig->silence_threshold = 1024*2;
 	pconfig->stop_threshold = 1024*2;
-	tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMIN_B, PCM_IN, pconfig);
+	tAmlPcmhdl p = pcm_client_open(0, device, PCM_IN, pconfig);
 	tAcodecShmHdl hShmBuf;
 
 	FILE *filecap = fopen(argv[0], "w+b");
@@ -395,7 +398,7 @@ static void usage()
 	printf ("\n");
 	printf ("pcmplay Usage: hifi4rpc_client_test --pcmplay pcm_file\n");
 	printf ("\n");
-	printf ("pcmcap Usage: hifi4rpc_client_test --pcmcap  pcm_file\n");
+	printf ("pcmcap Usage: hifi4rpc_client_test --pcmcap  pcm_file [1:tdmin,3:tdmin&loopback, 4:pdmin]\n");
 	printf ("\n");
 	printf ("pcmplay-buildin Usage: hifi4rpc_client_test --pcmplay-buildin\n");
 	printf ("\n");
@@ -448,7 +451,7 @@ int main(int argc, char* argv[]) {
 			}
 			break;
 		case 5:
-			if (1 == argc - optind)
+			if (1 == argc - optind || 2 ==  argc - optind)
 				pcm_capture_test(argc - optind, &argv[optind]);
 			else {
 				usage();
