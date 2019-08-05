@@ -31,6 +31,8 @@
 #include <assert.h>
 #include <string.h>
 #include <getopt.h>
+#include <math.h>
+#include <time.h>
 #include "mp3reader.h"
 #include "sndfile.h"
 #include "rpc_client_mp3.h"
@@ -38,6 +40,34 @@
 #include "rpc_client_aipc.h"
 #include "rpc_client_pcm.h"
 #include "aipc_type.h"
+
+
+#define MSECS_PER_SEC (1000L)
+#define NSECS_PER_MSEC (1000000L)
+
+void aprofiler_get_cur_timestamp(struct timespec* ts)
+{
+    clock_gettime(CLOCK_MONOTONIC, ts);
+    return;
+}
+
+uint32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStart)
+{
+    uint32_t uEndMSec = (uint32_t)(tsEnd->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsEnd->tv_nsec/NSECS_PER_MSEC);
+    uint32_t uStartMSec = (uint32_t)(tsStart->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsStart->tv_nsec/NSECS_PER_MSEC);
+	//printf("uEndMSec:%d, uStartMSec:%d\n", uEndMSec, uStartMSec);
+	return (uEndMSec - uStartMSec);
+}
+
+
+#define TIC              \
+    struct timespec bgn, end; \
+    aprofiler_get_cur_timestamp(&bgn)
+
+#define TOC                            \
+    aprofiler_get_cur_timestamp(&end); \
+    uint32_t ms = aprofiler_msec_duration(&end, &bgn)
+
 
 uint32_t audio_play_data[] = {
 //#include "sinewav_48k_24bits_stereo_l1k_r2k_1s.in"
@@ -435,8 +465,12 @@ int main(int argc, char* argv[]) {
 			shm_uint_tset();
 			break;
 		case 3:
-			if (2 == argc - optind || 3 == argc - optind)
+			if (2 == argc - optind || 3 == argc - optind) {
+				TIC;
 				mp3_offload_dec(argc - optind, &argv[optind]);
+				TOC;
+				printf("mp3 offload decoder use:%u ms\n", ms);
+			}
 			else {
 				usage();
 				exit(1);
