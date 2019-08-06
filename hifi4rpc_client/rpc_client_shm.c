@@ -40,6 +40,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <pthread.h>
 #include "aipc_type.h"
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
@@ -51,6 +52,7 @@ struct _ACodecShmPoolInfo_t_ {
 	void* ShmVirBase;
 	long ShmPhyBase;
 	size_t size;
+	pthread_mutex_t mutex;
 };
 
 struct _ACodecShmPoolInfo_t_ gACodecShmPoolInfo = {
@@ -59,24 +61,34 @@ struct _ACodecShmPoolInfo_t_ gACodecShmPoolInfo = {
 	.ShmVirBase = 0,
 	.ShmPhyBase = 0,
 	.size = 0,
+	.mutex = PTHREAD_MUTEX_INITIALIZER,
 };
 
 static int Aml_ACodecMemory_Init(void)
 {
 	int ret = 0;
 	struct hifi4dsp_info_t info;
+	pthread_mutex_lock(&gACodecShmPoolInfo.mutex);
+
+	if (gACodecShmPoolInfo.fd >= 0) {
+		ret = 0;
+		goto tab_end;
+	}
+
 	gACodecShmPoolInfo.fd = open("/dev/hifi4dsp0", O_RDWR);
 	if (gACodecShmPoolInfo.fd < 0)
 	{
 		printf("open fail:%s\n", strerror(errno));
-		return -1;
+		ret = -1;
+		goto tab_end;
 	}
 
 	memset(&info, 0, sizeof(info));
 	if ((ret = ioctl(gACodecShmPoolInfo.fd, HIFI4DSP_GET_INFO, &info)) < 0)
 	{
 		printf("ioctl invalidate cache fail:%s\n", strerror(errno));
-		return -1;
+		ret = -1;
+		goto tab_end;
 	}
 	gACodecShmPoolInfo.ShmPhyBase = info.phy_addr;
 	gACodecShmPoolInfo.size = info.size;
@@ -86,11 +98,13 @@ static int Aml_ACodecMemory_Init(void)
 			gACodecShmPoolInfo.fd, 0);
 
 	gACodecShmPoolInfo.rpchdl = xAudio_Ipc_init();
-
 	printf("fd = %d, Vir: %p, Phy:%lu, size:%zu\n",
 		gACodecShmPoolInfo.fd, gACodecShmPoolInfo.ShmVirBase,
 		gACodecShmPoolInfo.ShmPhyBase, gACodecShmPoolInfo.size);
-	return 0;
+tab_end:
+	pthread_mutex_unlock(&gACodecShmPoolInfo.mutex);
+
+	return ret;
 }
 
 tAcodecShmHdl Aml_ACodecMemory_Allocate(size_t size)
@@ -98,13 +112,13 @@ tAcodecShmHdl Aml_ACodecMemory_Allocate(size_t size)
 	int ret = 0;
 	acodec_shm_alloc_st arg;
 	arg.size = size;
-	if (gACodecShmPoolInfo.fd < 0) {		
+	if (gACodecShmPoolInfo.fd < 0) {
 		if(Aml_ACodecMemory_Init()) {
 			printf("Initialize audio codec shm pool fail\n");
 			return NULL;
-		}		
+		}
 	}
-	
+
 	xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_ALLOC, &arg, sizeof(arg));
 	return (tAcodecShmHdl)arg.hShm;
 }
