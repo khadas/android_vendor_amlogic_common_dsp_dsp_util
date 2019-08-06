@@ -76,6 +76,63 @@ typedef struct {
 } __attribute__((packed)) mp3_deinit_st;
 
 
+/*aac decoder*/
+typedef xpointer tAmlAacDecRpcHdl;
+typedef struct {
+    uint32_t transportFmt;
+    uint32_t nrOfLayers;
+    tAmlAacDecRpcHdl hdl;
+} __attribute__((packed)) aacdec_init_st;
+
+
+typedef struct {
+	uint32_t sampleRate;
+	uint32_t frameSize;
+	uint32_t channels;
+	int channel_counts[0x24];
+} __attribute__((packed)) aacdec_out_ctx_st;
+
+typedef struct {
+    tAmlAacDecRpcHdl hdl;
+    xpointer input_buf;
+	uint32_t input_size;
+    xpointer output_buf;
+	uint32_t output_size;
+	uint32_t input_left_size;
+	aacdec_out_ctx_st out_ctx;
+	uint32_t ret;
+} __attribute__((packed)) aacdec_decode_st;
+
+typedef struct {
+    tAmlAacDecRpcHdl hdl;
+} __attribute__((packed)) aacdec_deinit_st;
+
+typedef struct {
+	int32_t param;
+	int32_t value;
+    tAmlAacDecRpcHdl hdl;
+	uint32_t ret;
+} __attribute__((packed)) aacdec_setparam_st;
+
+
+typedef struct {
+	xpointer buf;
+	int32_t size;
+    tAmlAacDecRpcHdl hdl;
+	uint32_t ret;
+} __attribute__((packed)) aacdec_ancinit_st;
+
+#define MAX_CONFRAW_LENGTH 1024
+#define MAX_NUM_CONF 64
+typedef struct {
+	xpointer conf;
+	int32_t length[MAX_NUM_CONF];
+	int32_t num_conf;
+    tAmlAacDecRpcHdl hdl;
+	uint32_t ret;
+} __attribute__((packed)) aacdec_cfgraw_st;
+
+
 /*hifi codec shared memory*/
 typedef xpointer tAcodecShmHdlRpc;
 typedef struct {

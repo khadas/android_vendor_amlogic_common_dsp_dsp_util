@@ -41,7 +41,7 @@
 #include "aipc_type.h"
 
 struct tAmlMp3Ctx {
-	tAmlMp3DecRpcHdl mp3rpchdl;
+	tAmlMp3DecRpcHdl mp3srvhdl;
 	int aipchdl;
 	tAcodecShmHdl hShmIn;
 	tAcodecShmHdl hShmOut;
@@ -89,7 +89,7 @@ static ERROR_CODE mp3_decoding_exec(tAmlMp3DecHdl hMp3Dec, tAmlACodecConfig_Mp3D
 	mp3_decode_st arg;
 	struct tAmlMp3Ctx* pAmlMp3Ctx = (struct tAmlMp3Ctx*)hMp3Dec;
 	memset(&arg, 0, sizeof(arg));
-	arg.hdl = (tAmlMp3DecRpcHdl)pAmlMp3Ctx->mp3rpchdl;
+	arg.hdl = (tAmlMp3DecRpcHdl)pAmlMp3Ctx->mp3srvhdl;
 	mp3_sync_local_config_to_rpctype(pconfig, &arg.config);
 
 	/*printf("\n===============arm: mp3 bitstream:====================\n");
@@ -119,7 +119,7 @@ tAmlMp3DecHdl AmlACodecInit_Mp3Dec(tAmlACodecConfig_Mp3DecExternal* pconfig)
 	//printf("size of config in arm:%u\n", sizeof(tAmlACodecConfig_Mp3DecRpc));
 	xAIPC(pAmlMp3Ctx->aipchdl, MBX_CODEC_MP3_API_INIT, &arg, sizeof(arg));
 	mp3_sync_rpctype_config_to_local(&arg.config, pconfig);
-	pAmlMp3Ctx->mp3rpchdl = arg.hdl;
+	pAmlMp3Ctx->mp3srvhdl = arg.hdl;
 	pAmlMp3Ctx->hShmIn = Aml_ACodecMemory_Allocate(kInputBufferSize);
 	pAmlMp3Ctx->hShmOut = Aml_ACodecMemory_Allocate(kOutputBufferSize);
 	return (void*)pAmlMp3Ctx;
@@ -130,7 +130,7 @@ void AmlACodecDeInit_Mp3Dec(tAmlMp3DecHdl hMp3Dec)
 	mp3_deinit_st arg;
 	struct tAmlMp3Ctx* pAmlMp3Ctx = (struct tAmlMp3Ctx*)hMp3Dec;
 	memset(&arg, 0, sizeof(arg));
-	arg.hdl = (tAmlMp3DecRpcHdl)pAmlMp3Ctx->mp3rpchdl;
+	arg.hdl = (tAmlMp3DecRpcHdl)pAmlMp3Ctx->mp3srvhdl;
 	xAIPC(pAmlMp3Ctx->aipchdl, MBX_CODEC_MP3_API_DEINIT, &arg, sizeof(arg));
 	xAudio_Ipc_Deinit(pAmlMp3Ctx->aipchdl);
 	Aml_ACodecMemory_Free(pAmlMp3Ctx->hShmIn);
