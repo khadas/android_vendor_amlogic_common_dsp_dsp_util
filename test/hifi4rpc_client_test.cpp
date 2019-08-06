@@ -350,7 +350,7 @@ static int mp3_offload_dec(int argc, char* argv[]) {
 #define IPC_UNIT_TEST_REPEAT 50
 static int ipc_uint_tset(void) {
 	unsigned int i;
-	unsigned int num_repeat = IPC_UNIT_TEST_REPEAT;
+	int num_repeat = IPC_UNIT_TEST_REPEAT;
 	const char send_samples[16] = {
 		0x1, 0xf, 0x2, 0xe, 0x3, 0xd, 0x4, 0xc, 0x5, 0xb, 0x6, 0xa, 0x7, 0x9, 0x0, 0x8
 	};
@@ -372,10 +372,10 @@ static int ipc_uint_tset(void) {
 				printf("0x%x ", ipc_data[i]);
 			printf("\n");
 			break;
-		} else {
-			printf("ipc unittest pass:%d\n", IPC_UNIT_TEST_REPEAT - num_repeat);
 		}
 	}
+	if(num_repeat <= 0)
+		printf("ipc unittest pass, repeat: %d\n", IPC_UNIT_TEST_REPEAT);
 	xAudio_Ipc_Deinit(arpchdl);
 	return 0;
 }
@@ -384,7 +384,7 @@ static int ipc_uint_tset(void) {
 static int shm_uint_tset(void)
 {
 	unsigned int i;
-	unsigned int num_repeat = SHM_UNIT_TEST_REPEAT;
+	int num_repeat = SHM_UNIT_TEST_REPEAT;
 	char samples[16] = {0};
 	void* pVirSrc = NULL;
 	void* pVirDst = NULL;
@@ -404,15 +404,16 @@ static int shm_uint_tset(void)
 				SHM_UNIT_TEST_REPEAT - num_repeat);
 			break;
 		} else {
-			char* k = (char*)pVirDst;
+			/*char* k = (char*)pVirDst;
 			for(i = 0; i < sizeof(samples); i++)
 				printf("0x%x ", k[i]);
-			printf("\n");
-			printf("ipc unittest pass:%d\n", SHM_UNIT_TEST_REPEAT - num_repeat);
+			printf("\n");*/
 		}
 		Aml_ACodecMemory_Free(hSrc);
 		Aml_ACodecMemory_Free(hDst);
 	}
+	if(num_repeat <= 0)
+		printf("ipc unittest pass, repeat %d\n", SHM_UNIT_TEST_REPEAT);
 	return 0;
 
 }
@@ -459,10 +460,20 @@ int main(int argc, char* argv[]) {
 			usage();
 			break;
 		case 1:
-			ipc_uint_tset();
+			{
+				TIC;
+				ipc_uint_tset();
+				TOC;
+				printf("ipc unit test use:%u ms\n", ms);
+			}
 			break;
 		case 2:
-			shm_uint_tset();
+			{
+				TIC;
+				shm_uint_tset();
+				TOC;
+				printf("shm unit test use %u ms\n", ms);
+			}
 			break;
 		case 3:
 			if (2 == argc - optind || 3 == argc - optind) {
