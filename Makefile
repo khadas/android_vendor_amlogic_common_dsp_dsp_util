@@ -42,15 +42,22 @@ OBJS = $(HIFI4RPC_CLIENT_TEST_OBJ) $(LIBHIFI4RPC_CLIENT_OBJ) $(LIBHIFI4RPC_OBJ) 
 LIBS = $(LIBHIFI4RPC_CLIENT) $(LIBHIFI4RPC) $(LIBMP3TOOLS)
 APPS = $(HIFI4RPC_CLIENT_TEST) $(HIFI4RPC_TEST) $(DSP_UTIL)
 
-EXPORT_APIS = ./include/rpc_client_mp3.h \
+EXPORT_HEADERFILES = ./include/rpc_client_mp3.h \
 	./include/rpc_client_shm.h \
 	./include/rpc_client_aipc.h \
 	./include/aipc_type.h \
 	./include/pvmp3decoder_api.h \
 	./include/pvmp3_audio_type_defs.h \
 	./include/pvmp3_dec_defs.h \
-	./include/ipc_cmd_type.h
-
+	./include/ipc_cmd_type.h \
+        ./include/FDK_audio.h \
+	./include/aacdecoder_lib.h \
+	./include/aipc_type.h \
+	./include/genericStds.h \
+	./include/ipc_cmd_type.h \
+	./include/machine_type.h \
+	./include/rpc_client_aac.h \
+	./include/syslib_channelMapDescr.h
 
 # rules
 all: $(LIBS) $(APPS)
@@ -92,7 +99,7 @@ clean:
 
 install:
 	mkdir -p $(STAGING_DIR)/usr/include/aml_dsp
-	-install -m 644 $(EXPORT_APIS) $(STAGING_DIR)/usr/include/aml_dsp
+	-install -m 644 $(EXPORT_HEADERFILES) $(STAGING_DIR)/usr/include/aml_dsp
 	-install -m 644 $(LIBS) $(STAGING_DIR)/usr/lib
 	-install -m 644 $(LIBS) $(TARGET_DIR)/usr/lib
 	-install -m 755 $(APPS) $(TARGET_DIR)/usr/bin
