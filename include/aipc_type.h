@@ -132,6 +132,31 @@ typedef struct {
 	uint32_t ret;
 } __attribute__((packed)) aacdec_cfgraw_st;
 
+/*Voice Signal Processing*/
+typedef xpointer tAmlVspRpcHdl;
+typedef struct {
+	int32_t vsp_type;
+    tAmlVspRpcHdl hdl;
+	uint32_t ret;
+	xpointer param;
+	size_t param_size;
+} __attribute__((packed)) vsp_init_st;
+
+typedef struct {
+	int32_t vsp_type;
+    tAmlVspRpcHdl hdl;
+} __attribute__((packed)) vsp_deinit_st;
+
+typedef struct {
+	int32_t vsp_type;
+    tAmlVspRpcHdl hdl;
+	uint32_t ret;
+	xpointer input_buf;
+	size_t input_size;
+	xpointer output_buf;
+	size_t output_size;
+} __attribute__((packed)) vsp_process_st;
+
 
 /*hifi codec shared memory*/
 typedef xpointer tAcodecShmHdlRpc;

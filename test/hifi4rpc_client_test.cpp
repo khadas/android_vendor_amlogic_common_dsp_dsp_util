@@ -40,6 +40,7 @@
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
 #include "rpc_client_pcm.h"
+#include "rpc_client_vsp.h"
 #include "aipc_type.h"
 
 
@@ -518,6 +519,135 @@ tab_end:
     return retVal;
 }
 
+typedef struct {
+	int32_t	  Fs_Hz_in;
+	int32_t	  Fs_Hz_out;
+} __attribute__((packed)) aml_vsp_st_param;
+
+/*Just an example show how to apply meta data*/
+typedef struct {
+	int32_t	  Fs;
+	int32_t   Bitdepth;
+} __attribute__((packed)) aml_vsp_meta_param;
+
+#define SAMPLE_PER_MS 48
+#define VOICE_MS 32
+#define VOICE_LEN (4*SAMPLE_PER_MS*VOICE_MS)
+
+static int offload_vsp_rsp(int argc, char* argv[]) {
+	int ret = 0;
+	int Vsp_Err = 0;
+	tAmlVspHdl hdlvsp = 0;
+	tAcodecShmHdl hParam = 0;
+	tAcodecShmHdl hShmInput =0;
+	tAcodecShmHdl hShmOutput = 0;
+	uint8_t *paramBuf = 0;
+	uint8_t *inputBuf = 0;
+	uint8_t *outputBuf = 0;
+	void* paramphy = 0;
+	void* inputphy = 0;
+	void* outputphy = 0;
+	uint32_t bytesRead = VOICE_LEN;
+	uint32_t bytesWrite = 0;
+	aml_vsp_st_param* st_param = NULL;
+	aml_vsp_meta_param* meta_param = NULL;
+	FILE* voicefile = NULL;
+	FILE* outfile = NULL;
+
+    // Open the input voice file.
+	voicefile = fopen(argv[0], "rb");
+    if (!voicefile) {
+        printf("Open input file failure %s\n", argv[0]);
+        ret = -1;
+		goto tab_end;
+    }
+    printf("Open voice file\n");
+
+	outfile = fopen(argv[1], "w+b");
+    if (!outfile) {
+        printf("Open output file failure %s\n", argv[1]);
+        ret = -1;
+		goto tab_end;
+    }
+    printf("Open output file\n");
+
+
+
+	// Allocate input buffer.
+	hShmInput = Aml_ACodecMemory_Allocate(sizeof(aml_vsp_meta_param) + VOICE_LEN);
+	inputBuf = (uint8_t*)Aml_ACodecMemory_GetVirtAddr(hShmInput);
+	inputphy = Aml_ACodecMemory_GetPhyAddr(hShmInput);
+
+	// Allocate output buffer.
+	hShmOutput = Aml_ACodecMemory_Allocate(VOICE_LEN/3);
+	outputBuf = (uint8_t*)Aml_ACodecMemory_GetVirtAddr(hShmOutput);
+	outputphy = Aml_ACodecMemory_GetPhyAddr(hShmOutput);
+
+	// Allocate static param buffer, the param is used to initialize vsp
+	hParam = Aml_ACodecMemory_Allocate(sizeof(aml_vsp_st_param));
+	paramBuf = (uint8_t*)Aml_ACodecMemory_GetVirtAddr(hParam);
+	paramphy = Aml_ACodecMemory_GetPhyAddr(hParam);
+
+    // Initialize the vsp-rsp.
+	st_param = (aml_vsp_st_param*)paramBuf;
+	st_param->Fs_Hz_in = 48000;
+	st_param->Fs_Hz_out = 16000;
+	Aml_ACodecMemory_Clean(paramphy, sizeof(aml_vsp_st_param));
+    hdlvsp = Aml_Vsp_Init(AML_VSP_RESAMPLER, (void*)paramphy, sizeof(aml_vsp_st_param));
+	if (!hdlvsp) {
+        printf("Initialize vsp failure\n");
+        ret = -1;
+		goto tab_end;
+	}
+    printf("Init vsp-rsp hdl=%p\n", hdlvsp);
+
+    while (1) {
+		//example to show apply meta data associate with the buffer.
+		meta_param = (aml_vsp_meta_param*)inputBuf;
+		meta_param->Bitdepth = 16;
+		meta_param->Fs = 48000;
+        bytesRead = fread(inputBuf + sizeof(aml_vsp_meta_param), 1, bytesRead, voicefile);
+        if (!bytesRead) {
+			printf("EOF\n");
+            break;
+        }
+
+		bytesWrite = bytesRead/3;
+		Aml_ACodecMemory_Clean(inputphy, bytesRead + sizeof(aml_vsp_meta_param));
+		Vsp_Err = Aml_Vsp_Process(hdlvsp, inputphy, bytesRead + sizeof(aml_vsp_meta_param), outputphy, &bytesWrite);
+		Aml_ACodecMemory_Inv(outputphy, bytesWrite);
+
+        if (Vsp_Err != 0) {
+            printf("Decoder encountered error:0x%x\n", Vsp_Err);
+            ret = -1;
+            break;
+        }
+	    if (outfile)
+			fwrite(outputBuf, 1, bytesWrite, outfile);
+    }
+    printf("voice signal resampling done\n");
+
+tab_end:
+    // Close input reader and output writer.
+	if (voicefile)
+		fclose(voicefile);
+	if (outfile)
+		fclose(outfile);
+
+    // Free allocated memory.
+    if (hShmInput)
+		Aml_ACodecMemory_Free((tAcodecShmHdl)hShmInput);
+	if (hShmOutput)
+		Aml_ACodecMemory_Free((tAcodecShmHdl)hShmOutput);
+	if (hParam)
+		Aml_ACodecMemory_Free((tAcodecShmHdl)hParam);
+	if (hdlvsp)
+		Aml_Vsp_DeInit(hdlvsp);
+
+    return ret;
+}
+
+
 
 #define IPC_UNIT_TEST_REPEAT 50
 static int ipc_uint_tset(void) {
@@ -607,6 +737,8 @@ static void usage()
 	printf ("\n");
 	printf ("pcmplay-buildin Usage: hifi4rpc_client_test --pcmplay-buildin\n");
 	printf ("\n");
+	printf ("vsp-rsp Usage: hifi4rpc_client_test --vsp-rsp input_file output_file\n");
+	printf ("\n");
 }
 
 
@@ -623,6 +755,7 @@ int main(int argc, char* argv[]) {
 	   {"pcmcap", no_argument, NULL, 5},
 	   {"pcmplay-buildin", no_argument, NULL, 6},
 	   {"aacdec", no_argument, NULL, 7},
+	   {"vsp-rsp", no_argument, NULL, 8},
 	   {0, 0, 0, 0}
 	};
 	c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -686,6 +819,18 @@ int main(int argc, char* argv[]) {
 				aac_offload_dec(argc - optind, &argv[optind]);
 				TOC;
 				printf("aac offload decoder use:%u ms\n", ms);
+			}
+			else {
+				usage();
+				exit(1);
+			}
+			break;
+		case 8:
+			if (2 == argc - optind) {
+				TIC;
+				offload_vsp_rsp(argc - optind, &argv[optind]);
+				TOC;
+				printf("offload voice signal resampler use:%u ms\n", ms);
 			}
 			else {
 				usage();
