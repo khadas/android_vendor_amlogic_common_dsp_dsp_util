@@ -56,10 +56,10 @@ extern "C" {
 
 
 
-typedef void* tAmlVspHdl;
-tAmlVspHdl Aml_Vsp_Init(int vsp_type, void* param, size_t param_size);
-void Aml_Vsp_DeInit(tAmlVspHdl hVsp);
-int  Aml_Vsp_Process(tAmlVspHdl hVsp,
+typedef void* AML_VSP_HANDLE;
+AML_VSP_HANDLE AML_VSP_Init(int vsp_type, void* param, size_t param_size);
+void AML_VSP_Deinit(AML_VSP_HANDLE hVsp);
+int  AML_VSP_Process(AML_VSP_HANDLE hVsp,
 								void* input_buf, size_t input_size,
 								void* output_buf, size_t* output_size);
 

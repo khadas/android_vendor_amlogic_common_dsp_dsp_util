@@ -50,6 +50,15 @@ void* Aml_ACodecMemory_GetPhyAddr(tAcodecShmHdl hShm);
 uint32_t Aml_ACodecMemory_Clean(tAcodecShmHdl hShm, size_t size);
 uint32_t Aml_ACodecMemory_Inv(tAcodecShmHdl hShm, size_t size);
 
+
+typedef tAcodecShmHdl AML_MEM_HANDLE;
+#define AML_MEM_Allocate Aml_ACodecMemory_Allocate
+#define AML_MEM_Free Aml_ACodecMemory_Free
+#define AML_MEM_Getvirtaddr Aml_ACodecMemory_GetVirtAddr
+#define AML_MEM_Getphyaddr Aml_ACodecMemory_GetPhyAddr
+#define AML_MEM_Clean Aml_ACodecMemory_Clean
+#define AML_MEM_Invalidate Aml_ACodecMemory_Inv
+
 #ifdef __cplusplus
  }
 #endif

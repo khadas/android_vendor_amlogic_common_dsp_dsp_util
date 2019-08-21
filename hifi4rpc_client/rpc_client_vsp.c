@@ -45,7 +45,7 @@ struct tAmlVspCtx {
 	int vsp_type;
 };
 
-tAmlVspHdl Aml_Vsp_Init(int vsp_type, void* param, size_t param_size)
+AML_VSP_HANDLE AML_VSP_Init(int vsp_type, void* param, size_t param_size)
 {
 	vsp_init_st arg;
 	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)malloc(sizeof(struct tAmlVspCtx));
@@ -61,7 +61,7 @@ tAmlVspHdl Aml_Vsp_Init(int vsp_type, void* param, size_t param_size)
 	return (void*)pAmlVspCtx;
 }
 
-void Aml_Vsp_DeInit(tAmlVspHdl hVsp)
+void AML_VSP_Deinit(AML_VSP_HANDLE hVsp)
 {
 	vsp_deinit_st arg;
 	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
@@ -73,7 +73,7 @@ void Aml_Vsp_DeInit(tAmlVspHdl hVsp)
 	free(pAmlVspCtx);
 }
 
-int  Aml_Vsp_Process(tAmlVspHdl hVsp,
+int  AML_VSP_Process(AML_VSP_HANDLE hVsp,
 									void* input_buf, size_t input_size,
 									void* output_buf, size_t* output_size)
 {

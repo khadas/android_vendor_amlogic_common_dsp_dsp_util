@@ -537,10 +537,10 @@ typedef struct {
 static int offload_vsp_rsp(int argc, char* argv[]) {
 	int ret = 0;
 	int Vsp_Err = 0;
-	tAmlVspHdl hdlvsp = 0;
-	tAcodecShmHdl hParam = 0;
-	tAcodecShmHdl hShmInput =0;
-	tAcodecShmHdl hShmOutput = 0;
+	AML_VSP_HANDLE hdlvsp = 0;
+	AML_MEM_HANDLE hParam = 0;
+	AML_MEM_HANDLE hShmInput =0;
+	AML_MEM_HANDLE hShmOutput = 0;
 	uint8_t *paramBuf = 0;
 	uint8_t *inputBuf = 0;
 	uint8_t *outputBuf = 0;
@@ -574,26 +574,26 @@ static int offload_vsp_rsp(int argc, char* argv[]) {
 
 
 	// Allocate input buffer.
-	hShmInput = Aml_ACodecMemory_Allocate(sizeof(aml_vsp_meta_param) + VOICE_LEN);
-	inputBuf = (uint8_t*)Aml_ACodecMemory_GetVirtAddr(hShmInput);
-	inputphy = Aml_ACodecMemory_GetPhyAddr(hShmInput);
+	hShmInput = AML_MEM_Allocate(sizeof(aml_vsp_meta_param) + VOICE_LEN);
+	inputBuf = (uint8_t*)AML_MEM_Getvirtaddr(hShmInput);
+	inputphy = AML_MEM_Getphyaddr(hShmInput);
 
 	// Allocate output buffer.
-	hShmOutput = Aml_ACodecMemory_Allocate(VOICE_LEN/3);
-	outputBuf = (uint8_t*)Aml_ACodecMemory_GetVirtAddr(hShmOutput);
-	outputphy = Aml_ACodecMemory_GetPhyAddr(hShmOutput);
+	hShmOutput = AML_MEM_Allocate(VOICE_LEN/3);
+	outputBuf = (uint8_t*)AML_MEM_Getvirtaddr(hShmOutput);
+	outputphy = AML_MEM_Getphyaddr(hShmOutput);
 
 	// Allocate static param buffer, the param is used to initialize vsp
-	hParam = Aml_ACodecMemory_Allocate(sizeof(aml_vsp_st_param));
-	paramBuf = (uint8_t*)Aml_ACodecMemory_GetVirtAddr(hParam);
-	paramphy = Aml_ACodecMemory_GetPhyAddr(hParam);
+	hParam = AML_MEM_Allocate(sizeof(aml_vsp_st_param));
+	paramBuf = (uint8_t*)AML_MEM_Getvirtaddr(hParam);
+	paramphy = AML_MEM_Getphyaddr(hParam);
 
     // Initialize the vsp-rsp.
 	st_param = (aml_vsp_st_param*)paramBuf;
 	st_param->Fs_Hz_in = 48000;
 	st_param->Fs_Hz_out = 16000;
-	Aml_ACodecMemory_Clean(paramphy, sizeof(aml_vsp_st_param));
-    hdlvsp = Aml_Vsp_Init(AML_VSP_RESAMPLER, (void*)paramphy, sizeof(aml_vsp_st_param));
+	AML_MEM_Clean(paramphy, sizeof(aml_vsp_st_param));
+	hdlvsp = AML_VSP_Init(AML_VSP_RESAMPLER, (void*)paramphy, sizeof(aml_vsp_st_param));
 	if (!hdlvsp) {
         printf("Initialize vsp failure\n");
         ret = -1;
@@ -613,9 +613,9 @@ static int offload_vsp_rsp(int argc, char* argv[]) {
         }
 
 		bytesWrite = bytesRead/3;
-		Aml_ACodecMemory_Clean(inputphy, bytesRead + sizeof(aml_vsp_meta_param));
-		Vsp_Err = Aml_Vsp_Process(hdlvsp, inputphy, bytesRead + sizeof(aml_vsp_meta_param), outputphy, &bytesWrite);
-		Aml_ACodecMemory_Inv(outputphy, bytesWrite);
+		AML_MEM_Clean(inputphy, bytesRead + sizeof(aml_vsp_meta_param));
+		Vsp_Err = AML_VSP_Process(hdlvsp, inputphy, bytesRead + sizeof(aml_vsp_meta_param), outputphy, &bytesWrite);
+		AML_MEM_Invalidate(outputphy, bytesWrite);
 
         if (Vsp_Err != 0) {
             printf("Decoder encountered error:0x%x\n", Vsp_Err);
@@ -636,13 +636,13 @@ tab_end:
 
     // Free allocated memory.
     if (hShmInput)
-		Aml_ACodecMemory_Free((tAcodecShmHdl)hShmInput);
+		AML_MEM_Free((AML_MEM_HANDLE)hShmInput);
 	if (hShmOutput)
-		Aml_ACodecMemory_Free((tAcodecShmHdl)hShmOutput);
+		AML_MEM_Free((AML_MEM_HANDLE)hShmOutput);
 	if (hParam)
-		Aml_ACodecMemory_Free((tAcodecShmHdl)hParam);
+		AML_MEM_Free((AML_MEM_HANDLE)hParam);
 	if (hdlvsp)
-		Aml_Vsp_DeInit(hdlvsp);
+		AML_VSP_Deinit(hdlvsp);
 
     return ret;
 }
