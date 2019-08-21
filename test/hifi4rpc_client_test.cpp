@@ -547,8 +547,8 @@ static int offload_vsp_rsp(int argc, char* argv[]) {
 	void* paramphy = 0;
 	void* inputphy = 0;
 	void* outputphy = 0;
-	uint32_t bytesRead = VOICE_LEN;
-	uint32_t bytesWrite = 0;
+	size_t bytesRead = VOICE_LEN;
+	size_t bytesWrite = 0;
 	aml_vsp_st_param* st_param = NULL;
 	aml_vsp_meta_param* meta_param = NULL;
 	FILE* voicefile = NULL;
