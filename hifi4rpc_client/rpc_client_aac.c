@@ -69,6 +69,7 @@ static AAC_DECODER_ERROR aac_decoding_exec(tAmlAacDecHdl hAacDec,
 	out_ctx->channelNum = arg.out_ctx.channels;
 	out_ctx->frameSize = arg.out_ctx.frameSize;
 	out_ctx->sampleRate = arg.out_ctx.sampleRate;
+	out_ctx->bitDepth = 16;
 	return arg.ret;
 }
 

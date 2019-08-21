@@ -60,6 +60,7 @@ typedef struct  {
 
 typedef struct  {
 	uint32_t sampleRate;
+	uint32_t bitDepth;
 	uint32_t frameSize;
 	uint32_t channelNum;
 	int chmask[0x24];

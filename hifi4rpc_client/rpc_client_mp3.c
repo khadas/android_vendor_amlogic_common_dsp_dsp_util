@@ -63,6 +63,7 @@ static void mp3_sync_rpctype_config_to_local(tAmlACodecConfig_Mp3DecRpc* remote,
 	local->totalNumberOfBitsUsed = remote->totalNumberOfBitsUsed;
 	local->pOutputBuffer = (uint16*)remote->pOutputBuffer;
 	local->pInputBuffer = (uint8*)remote->pInputBuffer;
+	local->bitDepth = 16;
 }
 
 static void mp3_sync_local_config_to_rpctype(tAmlACodecConfig_Mp3DecExternal* local,
