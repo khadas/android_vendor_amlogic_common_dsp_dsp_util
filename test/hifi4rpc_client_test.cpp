@@ -25,7 +25,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
+#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -261,12 +261,12 @@ static int mp3_offload_dec(int argc, char* argv[]) {
 		hShmInput = Aml_ACodecMemory_Allocate(kInputBufferSize);
 		inputBuf = (uint8_t*)Aml_ACodecMemory_GetVirtAddr(hShmInput);
 		inputphy = Aml_ACodecMemory_GetPhyAddr(hShmInput);
-	
+
 		// Allocate output buffer.
 		hShmOutput = Aml_ACodecMemory_Allocate(kOutputBufferSize);
 		outputBuf = (int16_t*)Aml_ACodecMemory_GetVirtAddr(hShmOutput);
 		outputphy = Aml_ACodecMemory_GetPhyAddr(hShmOutput);
-		printf("Init in vir:%p phy:%p,  out vir:%p phy:%p\n", 
+		printf("Init in vir:%p phy:%p,  out vir:%p phy:%p\n",
 				inputBuf, inputphy, outputBuf, outputphy);
 	} else {
 		// Allocate input buffer.
@@ -294,7 +294,7 @@ static int mp3_offload_dec(int argc, char* argv[]) {
         config.inputBufferUsedLength = 0;
 		if (bUserAllocShm) {
 			config.pInputBuffer = (uint8_t*)inputphy;
-			config.pOutputBuffer = (int16_t*)outputphy;			
+			config.pOutputBuffer = (int16_t*)outputphy;
 		} else {
 			config.pInputBuffer = (uint8_t*)inputBuf;
 			config.pOutputBuffer = (int16_t*)outputBuf;
@@ -313,7 +313,7 @@ static int mp3_offload_dec(int argc, char* argv[]) {
 			Aml_ACodecMemory_Clean(inputphy, bytesRead);
 			decoderErr = AmlACodecExec_UserAllocIoShm_Mp3Dec(hdlmp3, &config);
 			Aml_ACodecMemory_Inv(outputphy, config.outputFrameSize*sizeof(int16_t));
-		} else
+	} else
 			decoderErr = AmlACodecExec_Mp3Dec(hdlmp3, &config);
 
         if (decoderErr != NO_DECODING_ERROR) {
@@ -682,6 +682,36 @@ static int ipc_uint_tset(void) {
 	return 0;
 }
 
+#define RPC_FUNC_DUMMY 0x1
+#define RPC_FUNC_SQUARE 0x2
+static int rpc_unit_tset(int argc, char* argv[]) {
+	tAmlDummyRpc dummy_rpc_param;
+	int ret = 0;
+	int arpchdl = 0;
+	if (argc != 3) {
+		printf("invalid param number:%d\n", argc);
+		return -1;
+	}
+	dummy_rpc_param.func_code = atoi(argv[0]);
+	dummy_rpc_param.input_param = atoi(argv[1]);
+	dummy_rpc_param.task_sleep_ms = atoi(argv[2]);
+	dummy_rpc_param.task_id = getpid();
+	arpchdl = xAudio_Ipc_init();
+	xAIPC(arpchdl, MBX_CMD_RPC_TEST, &dummy_rpc_param, sizeof(dummy_rpc_param));
+	xAudio_Ipc_Deinit(arpchdl);
+	if (dummy_rpc_param.func_code == RPC_FUNC_SQUARE
+		&& (dummy_rpc_param.input_param*dummy_rpc_param.input_param) != dummy_rpc_param.output_param) {
+		ret = -1;
+	}
+	printf("RPC unit test %s, func code:%d, input param:%d, output param:%d, task id:%d, sleep: %d ms\n",
+		(ret==0)?"SUCESS":"FAILE",
+		dummy_rpc_param.func_code, dummy_rpc_param.input_param,
+		dummy_rpc_param.output_param, dummy_rpc_param.task_id,
+		dummy_rpc_param.task_sleep_ms);
+	return 0;
+}
+
+
 #define SHM_UNIT_TEST_REPEAT 50
 static int shm_uint_tset(void)
 {
@@ -725,19 +755,21 @@ static void usage()
 {
 	printf ("ipc unit test usage: hifi4rpc_client_test --ipc\n");
 	printf ("\n");
+	printf ("rpc unit test usage: hifi4rpc_client_test --rpc $func_code[1:dummy, 2:square] $input_param $sleep_time[ms]\n");
+	printf ("\n");
 	printf ("shared memory unit test usage: hifi4rpc_client_test --shm\n");
 	printf ("\n");
-	printf ("mp3dec Usage: hifi4rpc_client_test --mp3dec input_file output_file bUserAllocShm\n");
+	printf ("mp3dec Usage: hifi4rpc_client_test --mp3dec $input_file $output_file $bUserAllocShm\n");
 	printf ("\n");
-	printf ("aacdec Usage: hifi4rpc_client_test --aacdec input_file output_file bUserAllocShm\n");
+	printf ("aacdec Usage: hifi4rpc_client_test --aacdec $input_file $output_file $bUserAllocShm\n");
 	printf ("\n");
-	printf ("pcmplay Usage: hifi4rpc_client_test --pcmplay pcm_file\n");
+	printf ("pcmplay Usage: hifi4rpc_client_test --pcmplay $pcm_file\n");
 	printf ("\n");
-	printf ("pcmcap Usage: hifi4rpc_client_test --pcmcap  pcm_file [1:tdmin,3:tdmin&loopback, 4:pdmin]\n");
+	printf ("pcmcap Usage: hifi4rpc_client_test --pcmcap  $pcm_file $input_mode[1:tdmin,3:tdmin&loopback, 4:pdmin]\n");
 	printf ("\n");
 	printf ("pcmplay-buildin Usage: hifi4rpc_client_test --pcmplay-buildin\n");
 	printf ("\n");
-	printf ("vsp-rsp Usage: hifi4rpc_client_test --vsp-rsp input_file output_file\n");
+	printf ("vsp-rsp Usage: hifi4rpc_client_test --vsp-rsp $input_file $output_file\n");
 	printf ("\n");
 }
 
@@ -756,6 +788,7 @@ int main(int argc, char* argv[]) {
 	   {"pcmplay-buildin", no_argument, NULL, 6},
 	   {"aacdec", no_argument, NULL, 7},
 	   {"vsp-rsp", no_argument, NULL, 8},
+	   {"rpc", no_argument, NULL, 9},
 	   {0, 0, 0, 0}
 	};
 	c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -833,6 +866,17 @@ int main(int argc, char* argv[]) {
 				printf("offload voice signal resampler use:%u ms\n", ms);
 			}
 			else {
+				usage();
+				exit(1);
+			}
+			break;
+		case 9:
+			if (3 == argc - optind){
+				TIC;
+				rpc_unit_tset(argc - optind, &argv[optind]);
+				TOC;
+				printf("rpc unit test use:%u ms\n", ms);
+			} else {
 				usage();
 				exit(1);
 			}

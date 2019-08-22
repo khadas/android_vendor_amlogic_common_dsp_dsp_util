@@ -41,6 +41,16 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/*rpc dummy*/
+typedef struct {
+	int32_t	  task_id;
+	uint32_t  task_sleep_ms;
+	int32_t	  func_code;
+	int32_t   input_param;
+	int32_t   output_param;
+} __attribute__((packed)) tAmlDummyRpc;
+
 /*mp3 decoder*/
 typedef xpointer tAmlMp3DecRpcHdl;
 typedef struct {
