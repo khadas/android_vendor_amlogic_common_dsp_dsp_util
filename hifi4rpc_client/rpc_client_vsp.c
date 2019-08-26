@@ -73,9 +73,58 @@ void AML_VSP_Deinit(AML_VSP_HANDLE hVsp)
 	free(pAmlVspCtx);
 }
 
-int  AML_VSP_Process(AML_VSP_HANDLE hVsp,
-									void* input_buf, size_t input_size,
-									void* output_buf, size_t* output_size)
+int  AML_VSP_Open(AML_VSP_HANDLE hVsp)
+{
+	vsp_open_st arg;
+	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
+	memset(&arg, 0, sizeof(arg));
+	arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
+	arg.vsp_type = pAmlVspCtx->vsp_type;
+	xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_OPEN, &arg, sizeof(arg));
+	return arg.ret;
+}
+
+int  AML_VSP_Close(AML_VSP_HANDLE hVsp)
+{
+	vsp_close_st arg;
+	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
+	memset(&arg, 0, sizeof(arg));
+	arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
+	arg.vsp_type = pAmlVspCtx->vsp_type;
+	xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_CLOSE, &arg, sizeof(arg));
+	return arg.ret;
+}
+
+int  AML_VSP_SetParam(AML_VSP_HANDLE hVsp, int32_t param_id, void* param, size_t param_size)
+{
+	vsp_setparam_st arg;
+	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
+	memset(&arg, 0, sizeof(arg));
+	arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
+	arg.vsp_type = pAmlVspCtx->vsp_type;
+	arg.param_id = param_id;
+	arg.param = (xpointer)param;
+	arg.param_size = param_size;
+	xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_SETPARAM, &arg, sizeof(arg));
+	return arg.ret;
+}
+
+int  AML_VSP_GetParam(AML_VSP_HANDLE hVsp, int32_t param_id, void* param, size_t param_size)
+{
+	vsp_getparam_st arg;
+	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
+	memset(&arg, 0, sizeof(arg));
+	arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
+	arg.vsp_type = pAmlVspCtx->vsp_type;	
+	arg.param_id = param_id;
+	arg.param = (xpointer)param;
+	arg.param_size = param_size;
+	xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_GETPARAM, &arg, sizeof(arg));
+	return arg.ret;
+}
+
+int  AML_VSP_Process(AML_VSP_HANDLE hVsp, void* input_buf, size_t input_size,
+			void* output_buf, size_t* output_size)
 {
 	vsp_process_st arg;
 	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;

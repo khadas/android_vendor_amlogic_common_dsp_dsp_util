@@ -146,7 +146,7 @@ typedef struct {
 typedef xpointer tAmlVspRpcHdl;
 typedef struct {
 	int32_t vsp_type;
-    tAmlVspRpcHdl hdl;
+	tAmlVspRpcHdl hdl;
 	uint32_t ret;
 	xpointer param;
 	size_t param_size;
@@ -154,12 +154,42 @@ typedef struct {
 
 typedef struct {
 	int32_t vsp_type;
-    tAmlVspRpcHdl hdl;
+	tAmlVspRpcHdl hdl;
 } __attribute__((packed)) vsp_deinit_st;
 
 typedef struct {
 	int32_t vsp_type;
-    tAmlVspRpcHdl hdl;
+	tAmlVspRpcHdl hdl;
+	uint32_t ret;
+} __attribute__((packed)) vsp_open_st;
+
+typedef struct {
+	int32_t vsp_type;
+	tAmlVspRpcHdl hdl;
+	uint32_t ret;
+} __attribute__((packed)) vsp_close_st;
+
+typedef struct {
+	int32_t vsp_type;
+	tAmlVspRpcHdl hdl;
+	int32_t param_id;
+	xpointer param;
+	size_t param_size;
+	uint32_t ret;
+} __attribute__((packed)) vsp_setparam_st;
+
+typedef struct {
+	int32_t vsp_type;
+	tAmlVspRpcHdl hdl;
+	int32_t param_id;
+	xpointer param;
+	size_t param_size;
+	uint32_t ret;
+} __attribute__((packed)) vsp_getparam_st;
+
+typedef struct {
+	int32_t vsp_type;
+	tAmlVspRpcHdl hdl;
 	uint32_t ret;
 	xpointer input_buf;
 	size_t input_size;

@@ -49,19 +49,23 @@ extern "C" {
  ******************************************************************************/
 /*VSP TYPE*/
 #define VSP_RESAMPLER       0x1
+#define VSP_AWE             0x2
 /*******************************************************************************
  * VSP type comopsition
  ******************************************************************************/
-#define AML_VSP_RESAMPLER        __VSP_COMPOSE_TYPE(AML_VSP, VSP_RESAMPLER)
-
+#define AML_VSP_RESAMPLER    __VSP_COMPOSE_TYPE(AML_VSP, VSP_RESAMPLER)
+#define AML_VSP_AWE	         __VSP_COMPOSE_TYPE(AML_VSP, VSP_AWE)
 
 
 typedef void* AML_VSP_HANDLE;
 AML_VSP_HANDLE AML_VSP_Init(int vsp_type, void* param, size_t param_size);
 void AML_VSP_Deinit(AML_VSP_HANDLE hVsp);
-int  AML_VSP_Process(AML_VSP_HANDLE hVsp,
-								void* input_buf, size_t input_size,
-								void* output_buf, size_t* output_size);
+int  AML_VSP_Open(AML_VSP_HANDLE hVsp);
+int  AML_VSP_Close(AML_VSP_HANDLE hVsp);
+int  AML_VSP_SetParam(AML_VSP_HANDLE hVsp, int32_t param_id, void* param, size_t param_size);
+int  AML_VSP_GetParam(AML_VSP_HANDLE hVsp, int32_t param_id, void* param, size_t param_size);
+int  AML_VSP_Process(AML_VSP_HANDLE hVsp, void* input, size_t input_size,
+			void* output, size_t* output_size);
 
 
 

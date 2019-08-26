@@ -35,14 +35,14 @@
 #include <time.h>
 #include "mp3reader.h"
 #include "sndfile.h"
+#include "aipc_type.h"
 #include "rpc_client_aac.h"
 #include "rpc_client_mp3.h"
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
 #include "rpc_client_pcm.h"
 #include "rpc_client_vsp.h"
-#include "aipc_type.h"
-
+#include "aml_wakeup_api.h"
 
 #define MSECS_PER_SEC (1000L)
 #define NSECS_PER_MSEC (1000000L)
@@ -575,18 +575,18 @@ static int offload_vsp_rsp(int argc, char* argv[]) {
 
 	// Allocate input buffer.
 	hShmInput = AML_MEM_Allocate(sizeof(aml_vsp_meta_param) + VOICE_LEN);
-	inputBuf = (uint8_t*)AML_MEM_Getvirtaddr(hShmInput);
-	inputphy = AML_MEM_Getphyaddr(hShmInput);
+	inputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmInput);
+	inputphy = AML_MEM_GetPhyAddr(hShmInput);
 
 	// Allocate output buffer.
 	hShmOutput = AML_MEM_Allocate(VOICE_LEN/3);
-	outputBuf = (uint8_t*)AML_MEM_Getvirtaddr(hShmOutput);
-	outputphy = AML_MEM_Getphyaddr(hShmOutput);
+	outputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmOutput);
+	outputphy = AML_MEM_GetPhyAddr(hShmOutput);
 
 	// Allocate static param buffer, the param is used to initialize vsp
 	hParam = AML_MEM_Allocate(sizeof(aml_vsp_st_param));
-	paramBuf = (uint8_t*)AML_MEM_Getvirtaddr(hParam);
-	paramphy = AML_MEM_Getphyaddr(hParam);
+	paramBuf = (uint8_t*)AML_MEM_GetVirtAddr(hParam);
+	paramphy = AML_MEM_GetPhyAddr(hParam);
 
     // Initialize the vsp-rsp.
 	st_param = (aml_vsp_st_param*)paramBuf;
@@ -647,8 +647,179 @@ tab_end:
     return ret;
 }
 
+#define VOICE_LEN_MS 20
+#define AWE_SAMPLE_RATE 16000
+#define VOICE_LEN_BYTE (AWE_SAMPLE_RATE*VOICE_LEN_MS/1000)
+int aml_wake_engine_unit_test(int argc, char* argv[]) {
+    AWE_PARA awe_para;
+	int ret = 0;
+    uint32_t isWakeUp = 0;
+    AWE *awe = NULL;
+    AWE_RET awe_ret = AWE_RET_OK;
+    int32_t inLen = 0, outLen = 0;
+    void *in[4], *out[2];
+	
+	AML_MEM_HANDLE hMic0Buf = 0;
+	void *vir_mic0_buf = NULL;
+	void *phy_mic0_buf = NULL;
 
+	AML_MEM_HANDLE hMic1Buf = 0;
+	void *vir_mic1_buf = NULL;
+	void *phy_mic1_buf = NULL;
 
+	AML_MEM_HANDLE hRef0Buf = 0;
+	void *vir_ref0_buf = NULL;
+	void *phy_ref0_buf = NULL;
+
+	AML_MEM_HANDLE hOutBuf = 0;
+	void *vir_out_buf = NULL;
+	void *phy_out_buf = NULL;
+
+	if (argc != 4) {
+		printf("Invalid parameter number\n");
+		return -1;
+	}
+
+	FILE *fmic0 = fopen(argv[0], "rb");
+	FILE *fmic1 = fopen(argv[1], "rb");
+	FILE *fref0 = fopen(argv[2], "rb");
+	FILE *fout = fopen(argv[3], "w+b");
+	if ( !fmic0 || !fmic1|| !fref0 || !fout) {
+		printf("Can not open io file:%p %p %p %p\n",
+				fmic0, fmic1, fref0, fout);
+		ret = -1;
+		goto end_tab;
+	}
+
+	hOutBuf = AML_MEM_Allocate(VOICE_LEN_BYTE*4);
+	vir_out_buf = AML_MEM_GetVirtAddr(hOutBuf);
+	phy_out_buf = AML_MEM_GetPhyAddr(hOutBuf);
+
+	hMic0Buf = AML_MEM_Allocate(VOICE_LEN_BYTE);
+	vir_mic0_buf = AML_MEM_GetVirtAddr(hMic0Buf);
+	phy_mic0_buf = AML_MEM_GetPhyAddr(hMic0Buf);
+
+	hMic1Buf = AML_MEM_Allocate(VOICE_LEN_BYTE);
+	vir_mic1_buf = AML_MEM_GetVirtAddr(hMic1Buf);
+	phy_mic1_buf = AML_MEM_GetPhyAddr(hMic1Buf);
+
+	hRef0Buf = AML_MEM_Allocate(VOICE_LEN_BYTE);
+	vir_ref0_buf = AML_MEM_GetVirtAddr(hRef0Buf);
+	phy_ref0_buf = AML_MEM_GetPhyAddr(hRef0Buf);
+
+	if ( !hOutBuf || !hMic0Buf|| !hMic1Buf || !hRef0Buf) {
+		printf("Can not allocate shared memory:%p %p %p %p \n",
+				hOutBuf, hMic0Buf, hMic1Buf, hRef0Buf);
+		ret = -1;
+		goto end_tab;
+	} else {
+		printf("outbuf:%p, mic0buf:%p, mic1buf:%p, ref0buf:%p\n",
+			phy_out_buf, phy_mic0_buf, phy_mic1_buf, phy_ref0_buf);
+	}
+
+    awe_ret = AML_AWE_Create(&awe);
+    if (awe_ret != AWE_RET_OK) {
+		printf("Can not create Hifi AWE service\n");
+		ret = -1;
+		goto end_tab;
+    }
+
+    awe_ret = AML_AWE_GetParam(awe, AWE_PARA_SUPPORT_SAMPLE_RATES, &awe_para);
+    if (awe_ret != AWE_RET_OK) {
+		printf("Get supported samperate fail\n");
+		ret = -1;
+		goto end_tab;
+    }
+
+    awe_para.inSampRate = awe_para.supportSampRates[0];
+    awe_ret = AML_AWE_SetParam(awe, AWE_PARA_IN_SAMPLE_RATE, &awe_para);
+    if (awe_ret != AWE_RET_OK) {
+		printf("Set samperate fail\n");
+		ret = -1;
+		goto end_tab;
+    }
+
+    awe_ret = AML_AWE_GetParam(awe, AWE_PARA_SUPPORT_SAMPLE_BITS, &awe_para);
+    if (awe_ret != AWE_RET_OK) {
+		printf("Failed to get sample bits\n");
+		ret = -1;
+		goto end_tab;
+    }
+
+    awe_para.inSampBits = awe_para.supportSampBits[0];
+    awe_ret = AML_AWE_SetParam(awe, AWE_PARA_IN_SAMPLE_BITS, &awe_para);
+    if (awe_ret != AWE_RET_OK) {
+		printf("Failed to set sample bits\n");
+		ret = -1;
+		goto end_tab;
+    }
+
+    awe_ret = AML_AWE_Open(awe);
+    if (awe_ret != AWE_RET_OK) {
+		printf("Failed to open AWE\n");
+		ret = -1;
+		goto end_tab;
+    }
+
+    printf("wake test start! \n");
+	uint32_t i,j;
+    while (1) {
+		int32_t nbyteRead = VOICE_LEN_BYTE;
+		int32_t nbyteMic0 = 0;
+		int32_t nbyteMic1 = 0;
+		int32_t nbyteRef0 = 0;
+		nbyteMic0 = fread(vir_mic0_buf, 1, nbyteRead, fmic0);
+		nbyteMic1 = fread(vir_mic1_buf, 1, nbyteRead, fmic1);
+		nbyteRef0 = fread(vir_ref0_buf, 1, nbyteRead, fref0);
+        if (nbyteMic0 < nbyteRead || nbyteMic1 < nbyteRead || nbyteRef0 < nbyteRead) {
+            printf("EOF\n");
+            break;
+        }
+		AML_MEM_Clean(phy_mic0_buf, nbyteRead);
+		AML_MEM_Clean(phy_mic1_buf, nbyteRead);
+		AML_MEM_Clean(phy_ref0_buf, nbyteRead);
+
+        in[0] = hMic0Buf;
+        in[1] = hMic1Buf;
+        in[2] = hRef0Buf;
+        inLen = nbyteRead;
+        out[0] = hOutBuf;
+        outLen = VOICE_LEN_BYTE*4;
+        AML_AWE_Process(awe, in, &inLen, out, &outLen, &isWakeUp);
+        if (isWakeUp) {
+            printf("wake word detected ! \n");
+        }
+		AML_MEM_Invalidate(phy_out_buf, outLen);
+		fwrite(vir_out_buf, 1, outLen, fout);
+    }
+
+end_tab:
+	if (awe)
+    	AML_AWE_Close(awe);
+	if (awe)
+		AML_AWE_Destroy(awe);
+
+	if (hOutBuf)
+		AML_MEM_Free(hOutBuf);
+	if (hMic0Buf)
+		AML_MEM_Free(hMic0Buf);
+	if (hMic1Buf)
+		AML_MEM_Free(hMic1Buf);
+	if (hRef0Buf)
+		AML_MEM_Free(hRef0Buf);
+
+	if (fmic0)
+		fclose(fmic0);
+	if (fmic1)
+		fclose(fmic1);
+	if (fref0)
+		fclose(fref0);
+	if (fout)
+		fclose(fout);
+
+    return ret;
+}
+ 
 #define IPC_UNIT_TEST_REPEAT 50
 static int ipc_uint_tset(void) {
 	unsigned int i;
@@ -771,7 +942,9 @@ static void usage()
 	printf ("\n");
 	printf ("vsp-rsp Usage: hifi4rpc_client_test --vsp-rsp $input_file $output_file\n");
 	printf ("\n");
-}
+	printf ("vsp-awe-unit Usage: hifi4rpc_client_test --vsp-awe-unit $mic0 $mic1 $ref $out\n");
+	printf ("\n");
+ }
 
 
 int main(int argc, char* argv[]) {
@@ -789,7 +962,8 @@ int main(int argc, char* argv[]) {
 	   {"aacdec", no_argument, NULL, 7},
 	   {"vsp-rsp", no_argument, NULL, 8},
 	   {"rpc", no_argument, NULL, 9},
-	   {0, 0, 0, 0}
+	   {"vsp-awe-unit", no_argument, NULL, 10},
+ 	   {0, 0, 0, 0}
 	};
 	c = getopt_long (argc, argv, "hvV", long_options, &option_index);
 	if(-1 == c) {
@@ -881,7 +1055,18 @@ int main(int argc, char* argv[]) {
 				exit(1);
 			}
 			break;
-		case '?':
+		case 10:
+			if (4 == argc - optind){
+				TIC;
+				aml_wake_engine_unit_test(argc - optind, &argv[optind]);
+				TOC;
+				printf("awe unit test use:%u ms\n", ms);
+			} else {
+				usage();
+				exit(1);
+			}
+			break;
+ 		case '?':
 		   usage();
 		   exit(1);
 		   break;

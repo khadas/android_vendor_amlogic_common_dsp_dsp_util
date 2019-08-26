@@ -98,7 +98,7 @@ static int Aml_ACodecMemory_Init(void)
 			gACodecShmPoolInfo.fd, 0);
 
 	gACodecShmPoolInfo.rpchdl = xAudio_Ipc_init();
-	printf("fd = %d, Vir: %p, Phy:0x%x, size:%zu\n",
+	printf("fd = %d, Vir: %p, Phy:0x%lx, size:%zu\n",
 		gACodecShmPoolInfo.fd, gACodecShmPoolInfo.ShmVirBase,
 		gACodecShmPoolInfo.ShmPhyBase, gACodecShmPoolInfo.size);
 tab_end:
