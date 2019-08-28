@@ -25,7 +25,7 @@
  */
 
 /**
- * amlogic wake up engine API
+ * amlogic wake up engine(AWE) API.
  *
  * Author: Wenjie Zhou <Wenjie.Zhou@amlogic.com>
  * Version:
@@ -85,13 +85,108 @@ typedef enum {
     AWE_RET_ERR_NULL_POINTER = -3,
 } AWE_RET;
 
+/**
+ * Create and initialize AWE instance
+ *
+ * @param[out] AWE instance handler
+ *
+ * @return AWE_RET_OK if successful, otherwise see AWE_RET
+ */
 AWE_RET AML_AWE_Create(AWE **awe);
+
+/**
+ * Destory AWE instance and all resources allocated for AWE instance.
+ *
+ * @param[in] AWE instance handler
+ *
+ * @return AWE_RET_OK if successful, otherwise see AWE_RET
+ */
 AWE_RET AML_AWE_Destroy(AWE *awe);
+
+/**
+ * Enable AWE instance
+ *
+ * All static params should be configured through AML_AWE_SetParam
+ * befor this call. AWE is moved to working status after this call
+ *
+ * @param[in] AWE instance handler
+ *
+ * @return AWE_RET_OK if successful, otherwise see AWE_RET
+ */
 AWE_RET AML_AWE_Open(AWE *awe);
+
+/**
+ * Disable AWE instance
+ *
+ * The API AML_AWE_Process can not working after this call.
+ *
+ * @param[in] AWE instance handler
+ *
+ * @return AWE_RET_OK if successful, otherwise see AWE_RET
+ */
 AWE_RET AML_AWE_Close(AWE *awe);
+
+/**
+ * AWE data processing entry
+ *
+ * AEC and wakeup words spot is handled here.
+ *
+ * @param[in] AWE instance handler
+ *
+ * @param[in] Array of shared memory hanlders. A member of
+ * this array represent a input pcm channel. The shared memory
+ * is filled with mic or reference pcm by application.
+ * The pcm is in none interleave format, mic0|mic1|ref0|ref1
+ * Max supported input channels see AWE_MAX_IN_CHANS
+ *
+ * @param[in/out] Length in bytes of a input channel. Return
+ * remained pcm in bytes after the call
+ *
+ * @param[out] Aarry of shared memory hanlders. A member of
+ * this array represent a output pcm channel. The share memory
+ * is filled with processed pcm by AWE. The pcm in none interleave
+ * format, out0|out1
+ * Max supported channel see AWE_MAX_OUT_CHANS
+ *
+ * @param[in/out] Space in bytes of a output channel. Return processed
+ * pcm length in bytes
+ *
+ * @param[out] A flag indicates whether wake up words is spotted
+ *
+ * @return AWE_RET_OK if successful, otherwise see AWE_RET
+ */
 AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[], int32_t *inLenInByte, AML_MEM_HANDLE out[],
         int32_t *outLenInByte, uint32_t *isWaked);
+
+/**
+ * Configure AWE parameter
+ *
+ * Static params is configured before AML_AWE_Open.
+ * Dynamic params can be configured after AML_AWE_Open.
+ *
+ * @param[in] AWE instance handler
+ *
+ * @param[in] identification of a parameter see AWE_PARA_ID
+ *
+ * @param[in] value of a parameter, associated with paraId,
+ * see AWE_PARA
+ *
+ * @return AWE_RET_OK if successful, otherwise see AWE_RET
+ */
 AWE_RET AML_AWE_SetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para);
+
+/**
+ * Obtain AWE parameter
+ *
+ * @param[in] AWE instance handler
+ *
+ * @param[in] identification of a parameter see AWE_PARA_ID
+ *
+ * @param[out] value of a parameter, associated with paraId,
+ * see AWE_PARA
+ *
+ * @return AWE_RET_OK if successful, otherwise see AWE_RET
+ */
 AWE_RET AML_AWE_GetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para);
 
 #ifdef __cplusplus
