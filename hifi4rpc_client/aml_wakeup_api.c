@@ -35,22 +35,47 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
+#include <semaphore.h>
 #include "rpc_client_aipc.h"
 #include "rpc_client_vsp.h"
 #include "rpc_client_shm.h"
 #include "aml_wakeup_api.h"
 
+#define VOICE_CHUNK_MS 20
+#define VOICE_CHUNK_NUM 50
+
+
 struct _AWE {
-	AML_VSP_HANDLE hVsp;
+    AML_VSP_HANDLE hVsp;
     AML_MEM_HANDLE hParam;
     size_t param_size;
-	AML_MEM_HANDLE hInput;
-	size_t input_size;
-	AML_MEM_HANDLE hOutput;
-	size_t output_size;
+    AML_MEM_HANDLE hInput;
+    size_t input_size;
+    AML_MEM_HANDLE hOutput;
+    size_t output_size;
+    int32_t inSampleRate;
+    int32_t inSampleBit;
     int32_t micInChannels;
     int32_t refInChannels;
     int32_t outChannels;
+    int32_t inputMode;
+    AML_AWE_DataHandler awe_data_handler_func[AWE_DATA_TYPE_MAX];
+    void* awe_data_handler_userdata[AWE_DATA_TYPE_MAX];
+    AML_AWE_EventHandler awe_event_handler_func[AWE_EVENT_TYPE_MAX];
+    void* awe_event_handler_userdata[AWE_EVENT_TYPE_MAX];
+    int32_t work_thread_exit;
+    AML_MEM_HANDLE hinWorkBuf[AWE_MAX_IN_CHANS];
+    int32_t inWorkBufLen;
+    int32_t inWorkBufLenInSample;
+    AML_MEM_HANDLE houtWorkBuf[AWE_MAX_OUT_CHANS];
+    int32_t outWorkBufLen;
+    char* userFillBuf;
+    uint32_t userFillBufRd;
+    uint32_t userFillBufWr;
+    uint32_t userFillBufSize;
+    sem_t userFillSem;
+    pthread_t work_thread;
 };
 
 typedef struct {
@@ -68,7 +93,173 @@ typedef struct {
 	uint32_t   isWaked;
 } __attribute__((packed)) aml_vsp_awe_process_param_out;
 
-extern AWE_RET AML_AWE_GetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para);
+/*for PCM_OUT*/
+static uint32_t aml_awe_ring_buf_fullness(uint32_t size,
+        uint32_t wr, uint32_t rd)
+{
+	return (wr >= rd) ? (wr - rd) : (size + wr - rd);
+}
+
+/*for PCM_OUT*/
+static uint32_t aml_awe_ring_buf_space(uint32_t size,
+        uint32_t wr, uint32_t rd)
+{
+	return (wr > rd) ? (size + rd - wr - 1) :
+	       (rd - wr - 1);
+}
+
+static void aml_ch_extract_s16le(int16_t *dst, int16_t *src, uint32_t nSample,
+                          uint32_t chn, uint32_t chidx)
+{
+    uint32_t i;
+    if (chidx > chn || !dst || !src) {
+        printf("Invaldie param: dst:%p, src:%p, chn:%d, chidx:%d",
+              dst, src, chn, chidx);
+    }
+    for (i = 0; i < nSample; i++) {
+        dst[i] = src[i * chn + chidx];
+    }
+}
+
+static AWE_RET internal_aml_awe_process(AWE *awe, AML_MEM_HANDLE in[],
+                    int32_t *inLenInByte, AML_MEM_HANDLE out[],
+                    int32_t *outLenInByte, uint32_t *isWaked)
+{
+    AWE_RET ret = AWE_RET_OK;
+    if (!awe) {
+        printf("Invalid param %s\n", __FUNCTION__);
+        return AWE_RET_ERR_NULL_POINTER;
+    }
+    aml_vsp_awe_process_param_in* pParamIn = AML_MEM_GetVirtAddr(awe->hInput);
+    aml_vsp_awe_process_param_out* pParamOut = AML_MEM_GetVirtAddr(awe->hOutput);
+    size_t output_size = awe->output_size;
+
+    pParamIn->lenInByte = *inLenInByte;
+    pParamIn->numInChn = awe->micInChannels + awe->refInChannels;
+    if (pParamIn->numInChn < AWE_MAX_IN_CHANS) {
+        int i;
+        for (i = 0; i < pParamIn->numInChn; i++)
+            pParamIn->pChanIn[i] = (uint64_t)AML_MEM_GetPhyAddr(in[i]);
+    } else {
+        printf("The input channel number is out of AWE capability: mic:%d, ref:%d\n",
+            awe->micInChannels, awe->refInChannels);
+        return AWE_RET_ERR_NOT_SUPPORT;
+    }
+
+    pParamIn->lenOutByte = *outLenInByte;
+    pParamIn->numOutChn = awe->outChannels;
+    if (pParamIn->numOutChn < AWE_MAX_OUT_CHANS) {
+        int i;
+        for (i = 0; i < pParamIn->numOutChn; i++)
+            pParamIn->pChanOut[i] = (uint64_t)AML_MEM_GetPhyAddr(out[i]);
+    } else {
+        printf("The output channel number is out of AWE capability: out:%d\n",
+            awe->outChannels);
+        return AWE_RET_ERR_NOT_SUPPORT;
+    }
+
+    AML_MEM_Clean(awe->hInput, awe->input_size);
+    ret = AML_VSP_Process(awe->hVsp, AML_MEM_GetPhyAddr(awe->hInput), awe->input_size,
+                        AML_MEM_GetPhyAddr(awe->hOutput), &output_size);
+    AML_MEM_Invalidate(awe->hOutput, output_size);
+    *inLenInByte = pParamOut->lenInByte;
+    *outLenInByte = pParamOut->lenOutByte;
+    *isWaked = pParamOut->isWaked;
+    return ret;
+}
+
+void awe_tread_process_data(void * data)
+{
+    int i;
+    AWE* awe = (AWE*)data;
+    char* virOut[AWE_MAX_OUT_CHANS];
+    int32_t isWorked;
+    int32_t inLen;
+    int32_t outLen;
+    while(!awe->work_thread_exit) {
+        if (awe->inputMode == AWE_INPUT_FROM_USER) {
+            sem_wait(&awe->userFillSem);
+            uint32_t numOfChunk = aml_awe_ring_buf_fullness(awe->userFillBufSize,
+                                            awe->userFillBufWr, awe->userFillBufRd)/(awe->inWorkBufLen*(awe->micInChannels + awe->refInChannels));
+            //printf("%d, %d %d\n", numOfChunk, awe->inWorkBufLen, (awe->micInChannels + awe->refInChannels));
+            /*wait sema here, thread unblock once user fill new pcm*/
+            //printf("Need handle %d voice chunk, wr:%d, rd:%d\n", numOfChunk, awe->userFillBufWr, awe->userFillBufRd);
+            while(numOfChunk--) {
+                /*hanlder wrap around, copy the wrapped data to the of the buff, to ensure continuous*/
+                if ((awe->userFillBufSize -  awe->userFillBufRd) < awe->inWorkBufLen*(awe->micInChannels + awe->refInChannels)) {
+                    uint32_t block1 = awe->userFillBufSize -  awe->userFillBufRd; 
+                    uint32_t block2 = awe->inWorkBufLen*(awe->micInChannels + awe->refInChannels) - block1;
+                    memcpy(awe->userFillBuf + awe->userFillBufSize, awe->userFillBuf, block2);
+                }
+                for (i = 0; i < (awe->micInChannels + awe->refInChannels); i++) {
+                    aml_ch_extract_s16le((int16_t*)AML_MEM_GetVirtAddr(awe->hinWorkBuf[i]),
+                                (int16_t*)(awe->userFillBuf + awe->userFillBufRd),
+                                awe->inWorkBufLenInSample, (awe->micInChannels + awe->refInChannels), i);
+                    AML_MEM_Clean(awe->hinWorkBuf, awe->inWorkBufLen);
+                }
+                isWorked = 0;
+                inLen =  awe->inWorkBufLen;
+                outLen = awe->outWorkBufLen;
+                awe->userFillBufRd = (awe->userFillBufRd + awe->inWorkBufLen*(awe->micInChannels + awe->refInChannels)) % awe->userFillBufSize;
+                internal_aml_awe_process(awe, awe->hinWorkBuf, &inLen,
+                                awe->houtWorkBuf, &outLen, &isWorked);
+
+                for (i = 0; i < awe->outChannels; i++) {
+                    AML_MEM_Invalidate(awe->houtWorkBuf[i], awe->outWorkBufLen);
+                    virOut[i] = (char*)AML_MEM_GetVirtAddr(awe->houtWorkBuf[i]);
+                }
+                /*throw out data*/
+                if (!awe->awe_data_handler_func[AWE_DATA_TYPE_ASR]) {
+                    printf("Do not install ASR data handler callback\n");
+                    exit(0);
+                }
+                awe->awe_data_handler_func[AWE_DATA_TYPE_ASR](awe, AWE_DATA_TYPE_ASR,
+                                     virOut, awe->outWorkBufLen,
+                                     awe->awe_data_handler_userdata[AWE_DATA_TYPE_ASR]);
+
+                /*throw out event*/
+                if (isWorked) {
+                if (!awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE]) {
+                printf("Do not install wake up event handler callback\n");
+                exit(0);
+                }
+                awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE](awe, AWE_EVENT_TYPE_WAKE, 0,
+                                          NULL, awe->awe_event_handler_userdata[AWE_EVENT_TYPE_MAX]);
+                }
+            }            
+        } else if (awe->inputMode = AWE_INPUT_FROM_DSP) {
+            isWorked = 0;
+            inLen = 0;
+            outLen = awe->outWorkBufLen;
+            internal_aml_awe_process(awe, awe->hinWorkBuf, &inLen, 
+                            awe->houtWorkBuf, &outLen, &isWorked);
+            for (i = 0; i < awe->outChannels; i++) {
+                 virOut[i] = (char*)AML_MEM_GetVirtAddr(awe->houtWorkBuf[i]);
+             }
+             /*throw out data*/
+             if (!awe->awe_data_handler_func[AWE_DATA_TYPE_ASR]) {
+                 printf("Do not install ASR data handler callback\n");
+                 exit(0);
+             }
+
+             awe->awe_data_handler_func[AWE_DATA_TYPE_ASR](awe, AWE_DATA_TYPE_ASR,
+                                             virOut, awe->outWorkBufLen,
+                                             awe->awe_data_handler_userdata[AWE_DATA_TYPE_ASR]);
+
+             /*throw out event*/
+             if (isWorked) {
+                 if (!awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE]) {
+                     printf("Do not install wake up event handler callback\n");
+                     exit(0);
+                 }
+                 awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE](awe, AWE_EVENT_TYPE_WAKE, 0,
+                                                  NULL, awe->awe_event_handler_userdata[AWE_EVENT_TYPE_MAX]);
+             }
+        } else {
+            printf("Impossible, invalid input mode:%d\n", awe->inputMode);
+        }
+    }
+}
 
 AWE_RET AML_AWE_Create(AWE **awe)
 {
@@ -92,26 +283,9 @@ AWE_RET AML_AWE_Create(AWE **awe)
 	pawe->hVsp = AML_VSP_Init(AML_VSP_AWE, NULL, 0);
 
 	if (pawe->hParam && pawe->hInput && pawe->hOutput && pawe->hVsp) {
-		AWE_PARA* para = (AWE_PARA*)AML_MEM_GetVirtAddr(pawe->hParam);
-
-		AML_VSP_GetParam(pawe->hVsp, AWE_PARA_MIC_IN_CHANNELS, AML_MEM_GetPhyAddr(pawe->hParam), pawe->param_size);
-		AML_MEM_Invalidate(AML_MEM_GetPhyAddr(pawe->hParam), pawe->param_size);
-		pawe->micInChannels = para->micInChannels;
-
-		AML_VSP_GetParam(pawe->hVsp, AWE_PARA_REF_IN_CHANNELS, AML_MEM_GetPhyAddr(pawe->hParam), pawe->param_size);
-		AML_MEM_Invalidate(AML_MEM_GetPhyAddr(pawe->hParam), pawe->param_size);
-		pawe->refInChannels = para->refInChannels;
-
-
-		AML_VSP_GetParam(pawe->hVsp, AWE_PARA_OUT_CHANNELS, AML_MEM_GetPhyAddr(pawe->hParam), pawe->param_size);
-		AML_MEM_Invalidate(AML_MEM_GetPhyAddr(pawe->hParam), pawe->param_size);
-		pawe->outChannels = para->outChannels;
-
 		*awe = pawe;
-		printf("Create AWE success: hVsp:%p hParam:%p hInput:%p hOutput:%p\n"
-				"defaut channels: mic:%d, ref:%d, out:%d\n",
-				pawe->hVsp, pawe->hParam, pawe->hInput, pawe->hOutput,
-				pawe->micInChannels, pawe->refInChannels, pawe->outChannels);
+		printf("Create AWE success: hVsp:%p hParam:%p hInput:%p hOutput:%p\n",
+				pawe->hVsp, pawe->hParam, pawe->hInput, pawe->hOutput);
 		return AWE_RET_OK;
 	} else {
 		printf("Allocate AWE resource failed: hVsp:%p hParam:%p hInput:%p hOutput:%p\n",
@@ -140,20 +314,106 @@ AWE_RET AML_AWE_Destroy(AWE *awe)
 
 AWE_RET AML_AWE_Open(AWE *awe)
 {
+    int i;
+    int ret;
     if (!awe) {
 		printf("Invalid param %s\n", __FUNCTION__);
         return AWE_RET_ERR_NULL_POINTER;
     }
+    AWE_PARA* para = (AWE_PARA*)AML_MEM_GetVirtAddr(awe->hParam);
+
+    AML_VSP_GetParam(awe->hVsp, AWE_PARA_MIC_IN_CHANNELS, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    awe->micInChannels = para->micInChannels;
+
+    AML_VSP_GetParam(awe->hVsp, AWE_PARA_REF_IN_CHANNELS, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    awe->refInChannels = para->refInChannels;
+
+
+    AML_VSP_GetParam(awe->hVsp, AWE_PARA_OUT_CHANNELS, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    awe->outChannels = para->outChannels;
+
+    AML_VSP_GetParam(awe->hVsp, AWE_PARA_IN_SAMPLE_RATE, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    awe->inSampleRate = para->inSampRate;
+
+    AML_VSP_GetParam(awe->hVsp, AWE_PARA_IN_SAMPLE_BITS, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    awe->inSampleBit = para->inSampBits;
+
+    AML_VSP_GetParam(awe->hVsp, AWE_PARA_INPUT_MODE, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    awe->inputMode = para->inputMode;
+    printf("Open AWE: SampleRate: %d, Bitdepth:%d, inputMode:%d\n"
+           "channels num: mic:%d, ref:%d, out:%d\n",
+            awe->inSampleRate, awe->inSampleBit, awe->inputMode,
+            awe->micInChannels, awe->refInChannels, awe->outChannels);
+
+    awe->inputMode = AWE_INPUT_FROM_USER;/*!!!! hard code here, will remove later*/
+    awe->inWorkBufLenInSample = awe->inSampleRate*VOICE_CHUNK_MS/1000;
+    awe->inWorkBufLen = (awe->inSampleBit >> 3)*awe->inWorkBufLenInSample;
+    for (i = 0; i < (awe->micInChannels + awe->refInChannels); i++) {
+        awe->hinWorkBuf[i] = AML_MEM_Allocate(awe->inWorkBufLen);
+    }
+
+    awe->outWorkBufLen = awe->inWorkBufLen;
+    for (i = 0; i < awe->outChannels; i++) {
+        awe->houtWorkBuf[i] = AML_MEM_Allocate(awe->outWorkBufLen);
+    }
+
+    awe->userFillBufSize = VOICE_CHUNK_NUM*(awe->micInChannels + awe->refInChannels)*awe->inWorkBufLen;
+    /*one more chunk here is for handling wrap around*/
+    awe->userFillBuf = malloc(awe->userFillBufSize + (awe->micInChannels + awe->refInChannels)*awe->inWorkBufLen);
+    awe->userFillBufRd = awe->userFillBufWr = 0;
+
+    ret = sem_init(&awe->userFillSem, 0, 0);
+    if (ret != 0)
+    {
+        printf("create user filling sem error. %d: %s\n",ret,strerror(ret));
+        exit(0);
+    }
+    awe->work_thread_exit  = 0;
+	ret = pthread_create(&awe->work_thread, NULL, (void*)&awe_tread_process_data, (void*)awe);
+	if (ret != 0)
+    {
+        printf("create working thread error. %d: %s\n",ret,strerror(ret));
+        exit(0);
+    }
+    pthread_setname_np(awe->work_thread, "awe_tread_process_data");
 	return AML_VSP_Open(awe->hVsp);
 }
 
 AWE_RET AML_AWE_Close(AWE *awe)
 {
+    int i;
+    AWE_RET ret;
     if (!awe) {
 		printf("Invalid param %s\n", __FUNCTION__);
         return AWE_RET_ERR_NULL_POINTER;
     }
-	return AML_VSP_Close(awe->hVsp);
+    awe->work_thread_exit = 1;
+    sem_post(&awe->userFillSem);
+    pthread_join(awe->work_thread,NULL);
+
+    for (i = 0; i < (awe->micInChannels + awe->refInChannels); i++) {
+        if (awe->hinWorkBuf[i])
+            AML_MEM_Free(awe->hinWorkBuf[i]);
+    }
+
+    for (i = 0; i < awe->outChannels; i++) {
+        if (awe->houtWorkBuf[i])
+            AML_MEM_Free(awe->houtWorkBuf[i]);
+    }
+
+    if (awe->userFillBuf)
+        free(awe->userFillBuf);
+    if (awe->hVsp)
+        ret = AML_VSP_Close(awe->hVsp);
+    if (&awe->userFillSem)
+        sem_destroy(&awe->userFillSem);
+	return ret;
 }
 
 AWE_RET AML_AWE_SetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para)
@@ -182,51 +442,74 @@ AWE_RET AML_AWE_GetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para)
 	return ret;
 }
 
-
-AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[], int32_t *inLenInByte, AML_MEM_HANDLE out[],
-        int32_t *outLenInByte, uint32_t *isWaked)
+AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[],
+                    int32_t *inLenInByte, AML_MEM_HANDLE out[],
+                    int32_t *outLenInByte, uint32_t *isWaked)
 {
 	AWE_RET ret = AWE_RET_OK;
-    if (!awe) {
-		printf("Invalid param %s\n", __FUNCTION__);
-        return AWE_RET_ERR_NULL_POINTER;
-    }
-	aml_vsp_awe_process_param_in* pParamIn = AML_MEM_GetVirtAddr(awe->hInput);
-	aml_vsp_awe_process_param_out* pParamOut = AML_MEM_GetVirtAddr(awe->hOutput);
-	size_t output_size = awe->output_size;
-
-	pParamIn->lenInByte = *inLenInByte;
-	pParamIn->numInChn = awe->micInChannels + awe->refInChannels;
-	if (pParamIn->numInChn < AWE_MAX_IN_CHANS) {
-		int i;
-		for (i = 0; i < pParamIn->numInChn; i++)
-			pParamIn->pChanIn[i] = (uint64_t)AML_MEM_GetPhyAddr(in[i]);
-	} else {
-		printf("The input channel number is out of AWE capability: mic:%d, ref:%d\n",
-			awe->micInChannels, awe->refInChannels);
-		return AWE_RET_ERR_NOT_SUPPORT;
-	}
-
-	pParamIn->lenOutByte = *outLenInByte;
-	pParamIn->numOutChn = awe->outChannels;
-	if (pParamIn->numOutChn < AWE_MAX_OUT_CHANS) {
-		int i;
-		for (i = 0; i < pParamIn->numOutChn; i++)
-			pParamIn->pChanOut[i] = (uint64_t)AML_MEM_GetPhyAddr(out[i]);
-	} else {
-		printf("The output channel number is out of AWE capability: out:%d\n",
-			awe->outChannels);
-		return AWE_RET_ERR_NOT_SUPPORT;
-	}
-
-	AML_MEM_Clean(awe->hInput, awe->input_size);
-	ret = AML_VSP_Process(awe->hVsp, AML_MEM_GetPhyAddr(awe->hInput), awe->input_size,
-						AML_MEM_GetPhyAddr(awe->hOutput), &output_size);
-	AML_MEM_Invalidate(awe->hOutput, output_size);
-	*inLenInByte = pParamOut->lenInByte;
-	*outLenInByte = pParamOut->lenOutByte;
-	*isWaked = pParamOut->isWaked;
+    ret = internal_aml_awe_process(awe, in, inLenInByte, out, outLenInByte, isWaked);
 	return ret;
 }
 
+AWE_RET AML_AWE_PushBuf(AWE *awe, const char *data, size_t size)
+{
+    if (awe->inputMode == AWE_INPUT_FROM_DSP) {
+        printf("Do not support this API when input is from dsp\n");
+        return AWE_RET_ERR_NOT_SUPPORT;
+    }
+    if (awe->userFillBuf) {
+        //printf("wr:%d rd:%d.size:%d\n\n", awe->userFillBufWr, awe->userFillBufRd, awe->userFillBufSize);
+        if (aml_awe_ring_buf_space(awe->userFillBufSize, awe->userFillBufWr, awe->userFillBufRd) < size) {
+            /*printf("No enough space to fill pcm: rd:%d wr:%d size:%d\n",
+                awe->userFillBufRd, awe->userFillBufWr, awe->userFillBufSize);*/
+            return AWE_RET_ERR_NO_MEM;
+        }
+        if (size <= (awe->userFillBufSize - awe->userFillBufWr)) {
+            memcpy(awe->userFillBuf + awe->userFillBufWr, data, size);
+        } else {
+            uint32_t block1 = awe->userFillBufSize - awe->userFillBufWr;
+            uint32_t block2 = size -block1;
+            memcpy(awe->userFillBuf + awe->userFillBufWr, data, block1);
+            memcpy(awe->userFillBuf, data + block1, block2);
+        }
+        awe->userFillBufWr = (awe->userFillBufWr + size) % awe->userFillBufSize;
+        /*post semaphore here, tell work thread user fills new pcm*/
+        sem_post(&awe->userFillSem);
+        return AWE_RET_OK;
+    } else {
+        printf("Does not allocate ring buffer\n");
+        return AWE_RET_ERR_NO_MEM;
+    }
+}
+
+AWE_RET AML_AWE_AddDataHandler(AWE *awe, const AWE_DATA_TYPE type,
+                                                 AML_AWE_DataHandler handler,
+                                                 void *user_data)
+{
+    if (type >= AWE_DATA_TYPE_MAX) {
+        printf("Invalid data type\n");
+        return AWE_RET_ERR_NOT_SUPPORT;
+    }
+    if (awe->awe_data_handler_func[type] != NULL)
+        printf("New data handler override old one\n");
+    awe->awe_data_handler_func[type] = handler;
+    awe->awe_data_handler_userdata[type] = user_data;
+    return AWE_RET_OK;
+
+}
+
+AWE_RET AML_AWE_AddEventHandler(AWE *awe, const AWE_EVENT_TYPE type,
+                                                  AML_AWE_EventHandler handler,
+                                                  void *user_data)
+{
+    if (type >= AWE_EVENT_TYPE_MAX) {
+        printf("Invalid event type\n");
+        return AWE_RET_ERR_NOT_SUPPORT;
+    }
+    if (awe->awe_event_handler_func[type] != NULL)
+        printf("New event handler override old one\n");
+    awe->awe_event_handler_func[type] = handler;
+    awe->awe_event_handler_userdata[type] = user_data;
+    return AWE_RET_OK;
+}
 

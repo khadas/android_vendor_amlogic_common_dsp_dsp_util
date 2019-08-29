@@ -84,7 +84,7 @@ $(LIBHIFI4RPC): $(LIBHIFI4RPC_OBJ)
 
 #applications compile
 $(HIFI4RPC_CLIENT_TEST): $(HIFI4RPC_CLIENT_TEST_OBJ)
-	$(CXX) $^ -I./ -L$(LIBDIR) -lhifi4rpc_client -lhifi4rpc -lmp3tools $(CFLAGS) -o $@
+	$(CXX) $^ -I./ -L$(LIBDIR) -lhifi4rpc_client -lhifi4rpc -lmp3tools -lpthread $(CFLAGS) -o $@
 
 $(HIFI4RPC_TEST): $(HIFI4RPC_TEST_OBJ)
 	$(CC) $^ -L$(LIBDIR) -lhifi4rpc $(CFLAGS) -o $@

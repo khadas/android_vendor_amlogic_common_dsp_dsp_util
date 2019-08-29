@@ -32,6 +32,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <math.h>
+#include <pthread.h>
 #include <time.h>
 #include "mp3reader.h"
 #include "sndfile.h"
@@ -649,16 +650,40 @@ tab_end:
 
 #define VOICE_LEN_MS 20
 #define AWE_SAMPLE_RATE 16000
-#define VOICE_LEN_BYTE (AWE_SAMPLE_RATE*VOICE_LEN_MS/1000)
+#define AWE_SAMPLE_BYTE 2
+#define VOICE_LEN_BYTE (AWE_SAMPLE_BYTE*AWE_SAMPLE_RATE*VOICE_LEN_MS/1000)
+static 	uint32_t uFeedChunk = 0;
+static 	uint32_t uRecvChunk = 0;
+void aml_wake_engine_data_handler(AWE *awe, const AWE_DATA_TYPE type,
+                                            char* out[], size_t size, void *user_data)
+{
+	FILE* fout = (FILE*)user_data;
+	if (AWE_DATA_TYPE_ASR == type) {
+		fwrite(out[0], 1, size, fout);
+		uRecvChunk++;
+	}
+}
+
+void aml_wake_engine_event_handler(AWE *awe, const AWE_EVENT_TYPE type, int32_t code,
+                                             const void *payload, void *user_data)
+{
+	if (type == AWE_EVENT_TYPE_WAKE)
+		printf("wake word detected !!!! \n");
+}
+
+
 int aml_wake_engine_unit_test(int argc, char* argv[]) {
-    AWE_PARA awe_para;
+	uFeedChunk = 0;
+	uRecvChunk = 0;
+	int syncMode = 0;
+	AWE_PARA awe_para;
 	int ret = 0;
-    uint32_t isWakeUp = 0;
-    AWE *awe = NULL;
-    AWE_RET awe_ret = AWE_RET_OK;
-    int32_t inLen = 0, outLen = 0;
-    void *in[4], *out[2];
-	
+	uint32_t isWakeUp = 0;
+	AWE *awe = NULL;
+	AWE_RET awe_ret = AWE_RET_OK;
+	int32_t inLen = 0, outLen = 0;
+	void *in[4], *out[2];
+
 	AML_MEM_HANDLE hMic0Buf = 0;
 	void *vir_mic0_buf = NULL;
 	void *phy_mic0_buf = NULL;
@@ -671,14 +696,14 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 	void *vir_ref0_buf = NULL;
 	void *phy_ref0_buf = NULL;
 
+	void *vir_interleave_buf = NULL;
+
 	AML_MEM_HANDLE hOutBuf = 0;
 	void *vir_out_buf = NULL;
 	void *phy_out_buf = NULL;
 
-	if (argc != 4) {
-		printf("Invalid parameter number\n");
-		return -1;
-	}
+	if (argc == 5)
+		syncMode = atoi(argv[4]);
 
 	FILE *fmic0 = fopen(argv[0], "rb");
 	FILE *fmic1 = fopen(argv[1], "rb");
@@ -691,30 +716,49 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 		goto end_tab;
 	}
 
-	hOutBuf = AML_MEM_Allocate(VOICE_LEN_BYTE*4);
+	if (syncMode == 1) {
+		vir_interleave_buf = malloc(3*VOICE_LEN_BYTE);
+		if (!vir_interleave_buf) {
+			printf("Can not allocate interleave buffer:%p\n", vir_interleave_buf);
+			ret = -1;
+			goto end_tab;
+		}
+		vir_mic0_buf = malloc(VOICE_LEN_BYTE);
+		vir_mic1_buf = malloc(VOICE_LEN_BYTE);
+		vir_ref0_buf = malloc(VOICE_LEN_BYTE);
+	} else {
+		hMic0Buf = AML_MEM_Allocate(VOICE_LEN_BYTE);
+		vir_mic0_buf = AML_MEM_GetVirtAddr(hMic0Buf);
+		phy_mic0_buf = AML_MEM_GetPhyAddr(hMic0Buf);
+
+		hMic1Buf = AML_MEM_Allocate(VOICE_LEN_BYTE);
+		vir_mic1_buf = AML_MEM_GetVirtAddr(hMic1Buf);
+		phy_mic1_buf = AML_MEM_GetPhyAddr(hMic1Buf);
+
+		hRef0Buf = AML_MEM_Allocate(VOICE_LEN_BYTE);
+		vir_ref0_buf = AML_MEM_GetVirtAddr(hRef0Buf);
+		phy_ref0_buf = AML_MEM_GetPhyAddr(hRef0Buf);
+		if (!hMic0Buf|| !hMic1Buf || !hRef0Buf) {
+			printf("Can not allocate none interleave buffer:%p %p %p\n",
+					hMic0Buf, hMic1Buf, hRef0Buf);
+			ret = -1;
+			goto end_tab;
+		} else {
+			printf("mic0buf:%p, mic1buf:%p, ref0buf:%p\n",
+				phy_mic0_buf, phy_mic1_buf, phy_ref0_buf);
+		}
+	}
+
+	hOutBuf = AML_MEM_Allocate(VOICE_LEN_BYTE);
 	vir_out_buf = AML_MEM_GetVirtAddr(hOutBuf);
 	phy_out_buf = AML_MEM_GetPhyAddr(hOutBuf);
 
-	hMic0Buf = AML_MEM_Allocate(VOICE_LEN_BYTE);
-	vir_mic0_buf = AML_MEM_GetVirtAddr(hMic0Buf);
-	phy_mic0_buf = AML_MEM_GetPhyAddr(hMic0Buf);
-
-	hMic1Buf = AML_MEM_Allocate(VOICE_LEN_BYTE);
-	vir_mic1_buf = AML_MEM_GetVirtAddr(hMic1Buf);
-	phy_mic1_buf = AML_MEM_GetPhyAddr(hMic1Buf);
-
-	hRef0Buf = AML_MEM_Allocate(VOICE_LEN_BYTE);
-	vir_ref0_buf = AML_MEM_GetVirtAddr(hRef0Buf);
-	phy_ref0_buf = AML_MEM_GetPhyAddr(hRef0Buf);
-
-	if ( !hOutBuf || !hMic0Buf|| !hMic1Buf || !hRef0Buf) {
-		printf("Can not allocate shared memory:%p %p %p %p \n",
-				hOutBuf, hMic0Buf, hMic1Buf, hRef0Buf);
+	if (!hOutBuf) {
+		printf("Can not allocate output buffer:%p\n", hOutBuf);
 		ret = -1;
 		goto end_tab;
 	} else {
-		printf("outbuf:%p, mic0buf:%p, mic1buf:%p, ref0buf:%p\n",
-			phy_out_buf, phy_mic0_buf, phy_mic1_buf, phy_ref0_buf);
+		printf("outbuf:%p\n", phy_out_buf);
 	}
 
     awe_ret = AML_AWE_Create(&awe);
@@ -723,6 +767,19 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 		ret = -1;
 		goto end_tab;
     }
+
+	if (syncMode == 1) {
+		AML_AWE_AddDataHandler(awe, AWE_DATA_TYPE_ASR, aml_wake_engine_data_handler,(void *)fout);
+		AML_AWE_AddEventHandler(awe, AWE_EVENT_TYPE_WAKE, aml_wake_engine_event_handler, NULL);
+	}
+
+    /*awe_para.inputMode = AWE_INPUT_FROM_USER;
+    awe_ret = AML_AWE_SetParam(awe, AWE_PARA_INPUT_MODE, &awe_para);
+    if (awe_ret != AWE_RET_OK) {
+		printf("Set input mode fail\n");
+		ret = -1;
+		goto end_tab;
+    }*/
 
     awe_ret = AML_AWE_GetParam(awe, AWE_PARA_SUPPORT_SAMPLE_RATES, &awe_para);
     if (awe_ret != AWE_RET_OK) {
@@ -761,7 +818,7 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 		goto end_tab;
     }
 
-    printf("wake test start! \n");
+    printf("wake test start! !\n");
 	uint32_t i,j;
     while (1) {
 		int32_t nbyteRead = VOICE_LEN_BYTE;
@@ -775,38 +832,82 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
             printf("EOF\n");
             break;
         }
-		AML_MEM_Clean(phy_mic0_buf, nbyteRead);
-		AML_MEM_Clean(phy_mic1_buf, nbyteRead);
-		AML_MEM_Clean(phy_ref0_buf, nbyteRead);
 
-        in[0] = hMic0Buf;
-        in[1] = hMic1Buf;
-        in[2] = hRef0Buf;
-        inLen = nbyteRead;
-        out[0] = hOutBuf;
-        outLen = VOICE_LEN_BYTE*4;
-        AML_AWE_Process(awe, in, &inLen, out, &outLen, &isWakeUp);
-        if (isWakeUp) {
-            printf("wake word detected ! \n");
-        }
-		AML_MEM_Invalidate(phy_out_buf, outLen);
-		fwrite(vir_out_buf, 1, outLen, fout);
+		if (syncMode == 0) {
+			AML_MEM_Clean(phy_mic0_buf, nbyteRead);
+			AML_MEM_Clean(phy_mic1_buf, nbyteRead);
+			AML_MEM_Clean(phy_ref0_buf, nbyteRead);
+
+			in[0] = hMic0Buf;
+			in[1] = hMic1Buf;
+			in[2] = hRef0Buf;
+			inLen = nbyteRead;
+			out[0] = hOutBuf;
+			outLen = VOICE_LEN_BYTE;
+			AML_AWE_Process(awe, in, &inLen, out, &outLen, &isWakeUp);
+			if (isWakeUp) {
+				printf("wake word detected ! \n");
+			}
+			AML_MEM_Invalidate(phy_out_buf, outLen);
+			fwrite(vir_out_buf, 1, outLen, fout);
+		} else if (syncMode == 1) {
+		    /*interleave mic0,mic1,ref0*/
+			short* pMic0 = (short*)vir_mic0_buf;
+			short* pMic1 = (short*)vir_mic1_buf;
+			short* pRef0 = (short*)vir_ref0_buf;
+			short* pInterleave = (short*)vir_interleave_buf;
+			for (i = 0; i < (nbyteRead/2); i++) {
+				*pInterleave = *pMic0++;
+				pInterleave++;
+				*pInterleave = *pMic1++;
+				pInterleave++;
+				*pInterleave = *pRef0++;
+				pInterleave++;
+			}
+			ret = AML_AWE_PushBuf(awe, (const char*)vir_interleave_buf, nbyteRead*3);
+			if (AWE_RET_ERR_NO_MEM == ret) {
+				fseek(fmic0, -nbyteRead, SEEK_CUR);
+				fseek(fmic1, -nbyteRead, SEEK_CUR);
+				fseek(fref0, -nbyteRead, SEEK_CUR);
+				usleep(500);
+			}
+			else if (ret != AWE_RET_OK) {
+				printf("Unknow error when execute AML_AWE_PushBuf, ret=%d\n", ret);
+				break;
+			} else
+				uFeedChunk++;
+		} else {
+			printf("Invalide sync mode:%d\n", syncMode);
+			break;
+		}
     }
 
 end_tab:
+	while(uRecvChunk < uFeedChunk) {
+		printf("uRecvChunk:%d, uFeedChunk:%d\n", uRecvChunk, uFeedChunk);
+		usleep(500);
+	}
 	if (awe)
     	AML_AWE_Close(awe);
 	if (awe)
 		AML_AWE_Destroy(awe);
-
 	if (hOutBuf)
 		AML_MEM_Free(hOutBuf);
-	if (hMic0Buf)
-		AML_MEM_Free(hMic0Buf);
-	if (hMic1Buf)
-		AML_MEM_Free(hMic1Buf);
-	if (hRef0Buf)
-		AML_MEM_Free(hRef0Buf);
+	if (syncMode == 0) {
+		if (hMic0Buf)
+			AML_MEM_Free(hMic0Buf);
+		if (hMic1Buf)
+			AML_MEM_Free(hMic1Buf);
+		if (hRef0Buf)
+			AML_MEM_Free(hRef0Buf);
+	}
+
+	if (vir_interleave_buf) {
+		free(vir_interleave_buf);
+		free(vir_mic0_buf);
+		free(vir_mic1_buf);
+		free(vir_ref0_buf);
+	}
 
 	if (fmic0)
 		fclose(fmic0);
@@ -942,7 +1043,7 @@ static void usage()
 	printf ("\n");
 	printf ("vsp-rsp Usage: hifi4rpc_client_test --vsp-rsp $input_file $output_file\n");
 	printf ("\n");
-	printf ("vsp-awe-unit Usage: hifi4rpc_client_test --vsp-awe-unit $mic0 $mic1 $ref $out\n");
+	printf ("vsp-awe-unit Usage: hifi4rpc_client_test --vsp-awe-unit $mic0 $mic1 $ref $out $syncMode[0:sync,1:async]\n");
 	printf ("\n");
  }
 
@@ -1056,7 +1157,7 @@ int main(int argc, char* argv[]) {
 			}
 			break;
 		case 10:
-			if (4 == argc - optind){
+			if (4 == argc - optind || 5 == argc - optind){
 				TIC;
 				aml_wake_engine_unit_test(argc - optind, &argv[optind]);
 				TOC;

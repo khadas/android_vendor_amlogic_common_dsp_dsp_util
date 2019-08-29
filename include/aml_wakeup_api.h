@@ -45,6 +45,14 @@ extern "C" {
 
 typedef struct _AWE AWE;
 
+typedef enum {
+    AWE_INPUT_INVALID,
+    /*user application feed input*/
+    AWE_INPUT_FROM_USER,
+    /*dsp feed input*/
+    AWE_INPUT_FROM_DSP
+} AWE_INPUT_MODE;
+
 typedef union {
     int32_t inSampRate;
     int32_t inSampBits;
@@ -59,7 +67,19 @@ typedef union {
     int32_t micInChannels;
     int32_t refInChannels;
     int32_t outChannels;
+    AWE_INPUT_MODE inputMode;
 } __attribute__((packed)) AWE_PARA;
+
+/**
+ *  wake event payload structure
+ */
+typedef struct {
+    const char *word; /* Text of wake/hot word */
+    const char *data; /* Samples of wake/hot word */
+    size_t size;      /* Total bytes of samples */
+    float angle;      /* DOA result */
+    float score;      /* Wake confidence */
+} AWE_WAKE;
 
 /*
  */
@@ -76,6 +96,8 @@ typedef enum {
     AWE_PARA_WAKE_UP_SCORE,
     AWE_PARA_SUPPORT_SAMPLE_RATES,
     AWE_PARA_SUPPORT_SAMPLE_BITS,
+    /* see AWE_INPUT_MODE*/
+    AWE_PARA_INPUT_MODE,
 } AWE_PARA_ID;
 
 typedef enum {
@@ -84,6 +106,29 @@ typedef enum {
     AWE_RET_ERR_NOT_SUPPORT = -2,
     AWE_RET_ERR_NULL_POINTER = -3,
 } AWE_RET;
+
+typedef enum {
+    AWE_DATA_TYPE_INVALID,
+    /* AWE optimized for ASR */
+    AWE_DATA_TYPE_ASR,
+    /* AWE optimized for VAD */
+    AWE_DATA_TYPE_VAD,
+    /* AWE optimized for VOIP */
+    AWE_DATA_TYPE_VOIP,
+    AWE_DATA_TYPE_MAX
+} AWE_DATA_TYPE;
+
+
+typedef enum {
+    AWE_EVENT_TYPE_INVALID,
+    /* AWE event for local VAD */
+    AWE_EVENT_TYPE_VAD,
+    /* AWE event for wake detected, payload is `AWE_WAKE` */
+    AWE_EVENT_TYPE_WAKE,
+    /* AWE event for hot word detected, payload is `AWE_WAKE` */
+    AWE_EVENT_TYPE_HOTWORD,
+    AWE_EVENT_TYPE_MAX
+} AWE_EVENT_TYPE;
 
 /**
  * Create and initialize AWE instance
@@ -127,38 +172,6 @@ AWE_RET AML_AWE_Open(AWE *awe);
 AWE_RET AML_AWE_Close(AWE *awe);
 
 /**
- * AWE data processing entry
- *
- * AEC and wakeup words spot is handled here.
- *
- * @param[in] AWE instance handler
- *
- * @param[in] Array of shared memory hanlders. A member of
- * this array represent a input pcm channel. The shared memory
- * is filled with mic or reference pcm by application.
- * The pcm is in none interleave format, mic0|mic1|ref0|ref1
- * Max supported input channels see AWE_MAX_IN_CHANS
- *
- * @param[in/out] Length in bytes of a input channel. Return
- * remained pcm in bytes after the call
- *
- * @param[out] Aarry of shared memory hanlders. A member of
- * this array represent a output pcm channel. The share memory
- * is filled with processed pcm by AWE. The pcm in none interleave
- * format, out0|out1
- * Max supported channel see AWE_MAX_OUT_CHANS
- *
- * @param[in/out] Space in bytes of a output channel. Return processed
- * pcm length in bytes
- *
- * @param[out] A flag indicates whether wake up words is spotted
- *
- * @return AWE_RET_OK if successful, otherwise see AWE_RET
- */
-AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[], int32_t *inLenInByte, AML_MEM_HANDLE out[],
-        int32_t *outLenInByte, uint32_t *isWaked);
-
-/**
  * Configure AWE parameter
  *
  * Static params is configured before AML_AWE_Open.
@@ -188,6 +201,135 @@ AWE_RET AML_AWE_SetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para);
  * @return AWE_RET_OK if successful, otherwise see AWE_RET
  */
 AWE_RET AML_AWE_GetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para);
+
+/**
+ * AWE data processing entry
+ *
+ * AEC and wakeup words spot is handled here.
+ *
+ * @param[in] AWE instance handler
+ *
+ * @param[in] Array of shared memory hanlders. A member of
+ * this array represent a input pcm channel. The shared memory
+ * is filled with mic or reference pcm by application.
+ * The pcm is in none interleave format, mic0|mic1|ref0|ref1
+ * Max supported input channels see AWE_MAX_IN_CHANS
+ * Note: This parameter is invalid when AWE input mode is configured as
+ * AWE_INPUT_FROM_DSP
+ *
+ * @param[in/out] Length in bytes per channel. Return
+ * remained pcm in bytes after the call
+ * Note: This parameter is invalid when AWE input mode is configured as
+ * AWE_INPUT_FROM_DSP
+ *
+ * @param[out] Aarry of shared memory hanlders. A member of
+ * this array represent a output pcm channel. The share memory
+ * is filled with processed pcm by AWE. The pcm in none interleave
+ * format, out0|out1
+ * Max supported channel see AWE_MAX_OUT_CHANS
+ *
+ * @param[in/out] Space in bytes of a output channel. Return processed
+ * pcm length in bytes
+ *
+ * @param[out] A flag indicates whether wake up words is spotted
+ *
+ * @return AWE_RET_OK if successful, otherwise see AWE_RET
+ */
+AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[], int32_t *inLenInByte, AML_MEM_HANDLE out[],
+        int32_t *outLenInByte, uint32_t *isWaked);
+
+/**
+ * Asynchronous data processing entry
+ *
+ * Application feed pcm here.
+ * Application obtain processed pcm through AML_AWE_DataHandler
+ * Application process wake up word detect in AML_AWE_EventHandler
+ * Note: This API is invalid when AWE input mode is configured as
+ * AWE_INPUT_FROM_DSP.
+ *
+ * @param[in] AWE instance handler
+ *
+ * @param[in] Pcm buffer, no interleaved format mic0|mic1|ref0|ref1
+ *
+ * @param[in] size in total bytes
+ *
+ * @return AWE_RET_OK if successful, otherwise see AWE_RET
+ */
+AWE_RET AML_AWE_PushBuf(AWE *awe, const char *data, size_t size);
+
+
+/**
+ * AWE processed data handler
+ *
+ * AEC processed pcm can be obtained here. The implementation should copy
+ * the data and return ASAP (< 1ms), otherwise the worker thread would be blocked.
+ *
+ * @param[in] AWE instance handler
+ *
+ * @param[in] AWE data processing type, see AWE_DATA_TYPE
+ *
+ * @param[in] Pcm processed data, non-interlave, out[0] = ch0, out[1] = ch1
+ *
+ * @param[in] size in bytes per channel
+ *
+ * @param[in] user_data User-defined data
+ */
+typedef void (*AML_AWE_DataHandler)(AWE *awe, const AWE_DATA_TYPE type,
+                                            char* out[], size_t size, void *user_data);
+
+/**
+ * AWE event handler
+ *
+ * Notify application a certain event appear, for example, wakeup words detect.
+ * The implementation should handle event and return ASAP (< 1ms),
+ * otherwise the worker thread would be blocked.
+ *
+ * @param[in] AWE instance handler
+ *
+ * @param[in] AWE event type, see AWE_EVENT_TYPE
+ *
+ * @param[in] Event code, does not define so far
+ *
+ * @param[in] Event payload
+ *
+ * @param[in] user_data User-defined data
+ */
+typedef void (*AML_AWE_EventHandler)(AWE *awe, const AWE_EVENT_TYPE type, int32_t code,
+                                             const void *payload, void *user_data);
+/**
+ * Add a data handler associated with data type
+ *
+ * Multiple data handlers could be added.
+ *
+ * @param[in] AWE instance handler
+ *
+ * @param[in] AWE data processing type, see AWE_DATA_TYPE
+ *
+ * @param[in] callback function to handle data
+ *
+ * @param[in] user_data User-defined data
+ */
+AWE_RET AML_AWE_AddDataHandler(AWE *awe, const AWE_DATA_TYPE type,
+                                                 AML_AWE_DataHandler handler,
+                                                 void *user_data);
+/**
+ * Add a event handler associated with event type
+ *
+ * Multiple v handlers could be added.
+ *
+ * @param[in] AWE instance handler
+ *
+ * @param[in] AWE event type, see AWE_EVENT_TYPE
+ *
+ * @param[in] callback function to handle event
+ *
+ * @param[in] user_data User-defined data
+ */
+AWE_RET AML_AWE_AddEventHandler(AWE *awe, const AWE_EVENT_TYPE type,
+                                                  AML_AWE_EventHandler handler,
+                                                  void *user_data);
+
+
 
 #ifdef __cplusplus
 }
