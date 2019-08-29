@@ -41,23 +41,22 @@
  extern "C" {
 #endif
 
-typedef void* tAcodecShmHdl;
-tAcodecShmHdl Aml_ACodecMemory_Allocate(size_t size);
-void Aml_ACodecMemory_Free(tAcodecShmHdl hShm);
-void Aml_ACodecMemory_Transfer(tAcodecShmHdl hDst, tAcodecShmHdl hSrc, size_t size);
-void* Aml_ACodecMemory_GetVirtAddr(tAcodecShmHdl hShm);
-void* Aml_ACodecMemory_GetPhyAddr(tAcodecShmHdl hShm);
-uint32_t Aml_ACodecMemory_Clean(tAcodecShmHdl hShm, size_t size);
-uint32_t Aml_ACodecMemory_Inv(tAcodecShmHdl hShm, size_t size);
+typedef void* AML_MEM_HANDLE;
+AML_MEM_HANDLE AML_MEM_Allocate(size_t size);
+void AML_MEM_Free(AML_MEM_HANDLE hShm);
+void Aml_ACodecMemory_Transfer(AML_MEM_HANDLE hDst, AML_MEM_HANDLE hSrc, size_t size);
+void* AML_MEM_GetVirtAddr(AML_MEM_HANDLE hShm);
+void* AML_MEM_GetPhyAddr(AML_MEM_HANDLE hShm);
+uint32_t AML_MEM_Clean(AML_MEM_HANDLE hShm, size_t size);
+uint32_t AML_MEM_Invalidate(AML_MEM_HANDLE hShm, size_t size);
 
-
-typedef tAcodecShmHdl AML_MEM_HANDLE;
-#define AML_MEM_Allocate Aml_ACodecMemory_Allocate
-#define AML_MEM_Free Aml_ACodecMemory_Free
-#define AML_MEM_GetVirtAddr Aml_ACodecMemory_GetVirtAddr
-#define AML_MEM_GetPhyAddr Aml_ACodecMemory_GetPhyAddr
-#define AML_MEM_Clean Aml_ACodecMemory_Clean
-#define AML_MEM_Invalidate Aml_ACodecMemory_Inv
+typedef AML_MEM_HANDLE tAcodecShmHdl;
+#define Aml_ACodecMemory_Allocate AML_MEM_Allocate
+#define Aml_ACodecMemory_Free AML_MEM_Free
+#define Aml_ACodecMemory_GetVirtAddr AML_MEM_GetVirtAddr
+#define Aml_ACodecMemory_GetPhyAddr AML_MEM_GetPhyAddr
+#define Aml_ACodecMemory_Clean AML_MEM_Clean
+#define Aml_ACodecMemory_Inv AML_MEM_Invalidate
 
 #ifdef __cplusplus
  }

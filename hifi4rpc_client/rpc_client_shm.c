@@ -107,7 +107,7 @@ tab_end:
 	return ret;
 }
 
-tAcodecShmHdl Aml_ACodecMemory_Allocate(size_t size)
+AML_MEM_HANDLE AML_MEM_Allocate(size_t size)
 {
 	int ret = 0;
 	acodec_shm_alloc_st arg;
@@ -120,39 +120,39 @@ tAcodecShmHdl Aml_ACodecMemory_Allocate(size_t size)
 	}
 
 	xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_ALLOC, &arg, sizeof(arg));
-	return (tAcodecShmHdl)arg.hShm;
+	return (AML_MEM_HANDLE)arg.hShm;
 }
 
-void Aml_ACodecMemory_Free(tAcodecShmHdl hShm)
+void AML_MEM_Free(AML_MEM_HANDLE hShm)
 {
 	acodec_shm_free_st arg;
-	arg.hShm = (tAcodecShmHdlRpc)hShm;
+	arg.hShm = (AML_MEM_HANDLERpc)hShm;
 	xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_FREE, &arg, sizeof(arg));
 }
 
-void Aml_ACodecMemory_Transfer(tAcodecShmHdl hDst, tAcodecShmHdl hSrc, size_t size)
+void Aml_ACodecMemory_Transfer(AML_MEM_HANDLE hDst, AML_MEM_HANDLE hSrc, size_t size)
 {
 	acodec_shm_transfer_st arg;
-	arg.hSrc = (tAcodecShmHdlRpc)hSrc;
-	arg.hDst = (tAcodecShmHdlRpc)hDst;
+	arg.hSrc = (AML_MEM_HANDLERpc)hSrc;
+	arg.hDst = (AML_MEM_HANDLERpc)hDst;
 	arg.size = size;
 	xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_TRANSFER, &arg, sizeof(arg));
 }
 
 
-void* Aml_ACodecMemory_GetVirtAddr(tAcodecShmHdl hShm)
+void* AML_MEM_GetVirtAddr(AML_MEM_HANDLE hShm)
 {
 	void* pVir = NULL;
 	pVir = (void*)(((long)hShm - gACodecShmPoolInfo.ShmPhyBase) + (long)gACodecShmPoolInfo.ShmVirBase);
 }
 
 
-void* Aml_ACodecMemory_GetPhyAddr(tAcodecShmHdl hShm)
+void* AML_MEM_GetPhyAddr(AML_MEM_HANDLE hShm)
 {
 	return hShm;
 }
 
-uint32_t Aml_ACodecMemory_Clean(tAcodecShmHdl phy, size_t size)
+uint32_t AML_MEM_Clean(AML_MEM_HANDLE phy, size_t size)
 {
 	int ret = 0;
 	struct hifi4_shm_info_t info;
@@ -167,7 +167,7 @@ uint32_t Aml_ACodecMemory_Clean(tAcodecShmHdl phy, size_t size)
 	return 0;
 }
 
-uint32_t Aml_ACodecMemory_Inv(tAcodecShmHdl phy, size_t size)
+uint32_t AML_MEM_Invalidate(AML_MEM_HANDLE phy, size_t size)
 {
 	int ret = 0;
 	struct hifi4_shm_info_t info;

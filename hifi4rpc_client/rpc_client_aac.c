@@ -43,9 +43,9 @@
 struct tAmlAacCtx {
 	tAmlAacDecRpcHdl aacsrvhdl;
 	int aipchdl;
-	tAcodecShmHdl hShmIn;
-	tAcodecShmHdl hShmOut;
-	tAcodecShmHdl hConf;
+	AML_MEM_HANDLE hShmIn;
+	AML_MEM_HANDLE hShmOut;
+	AML_MEM_HANDLE hConf;
 	tAmlAacInitCtx InitCtx;
 };
 
@@ -86,11 +86,11 @@ tAmlAacDecHdl AmlACodecInit_AacDec(tAmlAacInitCtx *ctx)
 	arg.nrOfLayers = ctx->nrOfLayers;
 	xAIPC(pAmlAacCtx->aipchdl, MBX_CODEC_AACDEC_API_INIT, &arg, sizeof(arg));
 	pAmlAacCtx->aacsrvhdl = arg.hdl;
-	pAmlAacCtx->hShmIn = Aml_ACodecMemory_Allocate(AAC_INPUT_SIZE);
-	pAmlAacCtx->hShmOut = Aml_ACodecMemory_Allocate(PCM_OUTPUT_SIZE);
+	pAmlAacCtx->hShmIn = AML_MEM_Allocate(AAC_INPUT_SIZE);
+	pAmlAacCtx->hShmOut = AML_MEM_Allocate(PCM_OUTPUT_SIZE);
 	pAmlAacCtx->InitCtx.transportFmt = ctx->transportFmt;
 	pAmlAacCtx->InitCtx.nrOfLayers = ctx->nrOfLayers;
-	pAmlAacCtx->hConf =  Aml_ACodecMemory_Allocate(ctx->nrOfLayers*MAX_CONFRAW_LENGTH);
+	pAmlAacCtx->hConf =  AML_MEM_Allocate(ctx->nrOfLayers*MAX_CONFRAW_LENGTH);
 	return (void*)pAmlAacCtx;
 }
 
@@ -102,11 +102,11 @@ void AmlACodecDeInit_AacDec(tAmlAacDecHdl hAacDec)
 	arg.hdl = (tAmlMp3DecRpcHdl)pAmlAacCtx->aacsrvhdl;
 	xAIPC(pAmlAacCtx->aipchdl, MBX_CODEC_AACDEC_API_DEINIT, &arg, sizeof(arg));
 	xAudio_Ipc_Deinit(pAmlAacCtx->aipchdl);
-	Aml_ACodecMemory_Free(pAmlAacCtx->hShmIn);
+	AML_MEM_Free(pAmlAacCtx->hShmIn);
 	pAmlAacCtx->hShmIn = 0;
-	Aml_ACodecMemory_Free(pAmlAacCtx->hShmOut);
+	AML_MEM_Free(pAmlAacCtx->hShmOut);
 	pAmlAacCtx->hShmOut = 0;
-	Aml_ACodecMemory_Free(pAmlAacCtx->hConf);
+	AML_MEM_Free(pAmlAacCtx->hConf);
 	pAmlAacCtx->hConf = 0;
 	free(pAmlAacCtx);
 }
@@ -130,19 +130,19 @@ AAC_DECODER_ERROR  AmlACodecExec_AacDec(tAmlAacDecHdl hAacDec,
 	AAC_DECODER_ERROR ret;
 
 	struct tAmlAacCtx* pAmlAacCtx = (struct tAmlAacCtx*)hAacDec;
-	void* pVirIn = Aml_ACodecMemory_GetVirtAddr(pAmlAacCtx->hShmIn);
-	void* pVirOut = Aml_ACodecMemory_GetVirtAddr(pAmlAacCtx->hShmOut);
-	void* pPhyIn = Aml_ACodecMemory_GetPhyAddr(pAmlAacCtx->hShmIn);
-	void* pPhyOut = Aml_ACodecMemory_GetPhyAddr(pAmlAacCtx->hShmOut);
+	void* pVirIn = AML_MEM_GetVirtAddr(pAmlAacCtx->hShmIn);
+	void* pVirOut = AML_MEM_GetVirtAddr(pAmlAacCtx->hShmOut);
+	void* pPhyIn = AML_MEM_GetPhyAddr(pAmlAacCtx->hShmIn);
+	void* pPhyOut = AML_MEM_GetPhyAddr(pAmlAacCtx->hShmOut);
 
 	if (aac_input_size <= AAC_INPUT_SIZE) {
 		memcpy(pVirIn, aac_input, aac_input_size);
-		Aml_ACodecMemory_Clean(pPhyIn, aac_input_size);
+		AML_MEM_Clean(pPhyIn, aac_input_size);
 	}
 	else {
 		printf("too large input frame:%d\n", aac_input_size);
 		memcpy(pVirIn, aac_input, AAC_INPUT_SIZE);
-		Aml_ACodecMemory_Clean(pPhyIn, AAC_INPUT_SIZE);
+		AML_MEM_Clean(pPhyIn, AAC_INPUT_SIZE);
 	}
 
 	ret = aac_decoding_exec(hAacDec,
@@ -151,12 +151,12 @@ AAC_DECODER_ERROR  AmlACodecExec_AacDec(tAmlAacDecHdl hAacDec,
 							aac_input_left, out_ctx);
 
 	if (*pcm_out_size <= PCM_OUTPUT_SIZE) {
-		Aml_ACodecMemory_Inv(pPhyOut, *pcm_out_size);
+		AML_MEM_Invalidate(pPhyOut, *pcm_out_size);
 		memcpy(pcm_out, pVirOut, *pcm_out_size);
 	}
 	else {
 		printf("too large output frame:%d\n", *pcm_out_size);
-		Aml_ACodecMemory_Inv(pPhyOut, PCM_OUTPUT_SIZE);
+		AML_MEM_Invalidate(pPhyOut, PCM_OUTPUT_SIZE);
 		memcpy(pcm_out, pVirOut, PCM_OUTPUT_SIZE);
 	}
 	return ret;
@@ -193,7 +193,7 @@ AAC_DECODER_ERROR AmlACodecConfigRaw(tAmlAacDecHdl hAacDec, char** conf, uint32_
 	int i;
 	aacdec_cfgraw_st arg;
 	struct tAmlAacCtx* pAmlAacCtx = (struct tAmlAacCtx*)hAacDec;
-	char* dst_conf = Aml_ACodecMemory_GetVirtAddr(pAmlAacCtx->hConf);
+	char* dst_conf = AML_MEM_GetVirtAddr(pAmlAacCtx->hConf);
 	memset(&arg, 0, sizeof(arg));
 	arg.hdl = (tAmlMp3DecRpcHdl)pAmlAacCtx->aacsrvhdl;
 	arg.num_conf = pAmlAacCtx->InitCtx.nrOfLayers;
@@ -201,13 +201,13 @@ AAC_DECODER_ERROR AmlACodecConfigRaw(tAmlAacDecHdl hAacDec, char** conf, uint32_
 		printf("Too large number of config\n");
 		arg.num_conf = MAX_NUM_CONF;
 	}
-	arg.conf = (xpointer)Aml_ACodecMemory_GetPhyAddr(pAmlAacCtx->hConf);
+	arg.conf = (xpointer)AML_MEM_GetPhyAddr(pAmlAacCtx->hConf);
 	for (i = 0; i < arg.num_conf; i++) {
 		memcpy((void*)dst_conf, (void*)conf[i], length[i]);
 		dst_conf += MAX_CONFRAW_LENGTH;
 		arg.length[i] = length[i];
 	}
-	Aml_ACodecMemory_Clean(pAmlAacCtx->hConf,pAmlAacCtx->InitCtx.nrOfLayers*MAX_CONFRAW_LENGTH);
+	AML_MEM_Clean(pAmlAacCtx->hConf,pAmlAacCtx->InitCtx.nrOfLayers*MAX_CONFRAW_LENGTH);
 	xAIPC(pAmlAacCtx->aipchdl, MBX_CODEC_AACDEC_API_CFGRAW, &arg, sizeof(arg));
 	return arg.ret;
 }

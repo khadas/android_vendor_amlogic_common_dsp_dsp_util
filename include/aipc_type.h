@@ -199,19 +199,19 @@ typedef struct {
 
 
 /*hifi codec shared memory*/
-typedef xpointer tAcodecShmHdlRpc;
+typedef xpointer AML_MEM_HANDLERpc;
 typedef struct {
-    tAcodecShmHdlRpc hShm;
+    AML_MEM_HANDLERpc hShm;
     size_t size;
 } __attribute__((packed)) acodec_shm_alloc_st;
 
 typedef struct {
-    tAcodecShmHdlRpc hShm;
+    AML_MEM_HANDLERpc hShm;
 } __attribute__((packed)) acodec_shm_free_st;
 
 typedef struct {
-    tAcodecShmHdlRpc hDst;
-    tAcodecShmHdlRpc hSrc;
+    AML_MEM_HANDLERpc hDst;
+    AML_MEM_HANDLERpc hSrc;
     size_t size;
 } __attribute__((packed)) acodec_shm_transfer_st;
 

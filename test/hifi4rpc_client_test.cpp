@@ -101,7 +101,7 @@ static int pcm_play_buildin()
 	pconfig->silence_threshold = 1024*2;
 	pconfig->stop_threshold = 1024*2;
 	tAmlPcmhdl p = pcm_client_open(0, 0, 0, pconfig);
-	tAcodecShmHdl hShmBuf;
+	AML_MEM_HANDLE hShmBuf;
 
 	uint8_t *play_data = (uint8_t *)audio_play_data;
 	int in_fr = pcm_client_bytes_to_frame(p, audio_play_data_len);
@@ -109,18 +109,18 @@ static int pcm_play_buildin()
 	const int ms = 36;
 	const int oneshot = 48 * ms; // 1728 samples
 	uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
-	hShmBuf = Aml_ACodecMemory_Allocate(size);
-	void *buf = Aml_ACodecMemory_GetVirtAddr(hShmBuf);
-	void *phybuf = Aml_ACodecMemory_GetPhyAddr(hShmBuf);
+	hShmBuf = AML_MEM_Allocate(size);
+	void *buf = AML_MEM_GetVirtAddr(hShmBuf);
+	void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
 	for (i = 0; i + oneshot <= in_fr; i += fr) {
 		memcpy(buf, play_data + pcm_client_frame_to_bytes(p, i), size);
-		Aml_ACodecMemory_Clean(phybuf, size);
+		AML_MEM_Clean(phybuf, size);
 		fr = pcm_client_writei(p, phybuf, oneshot);
 		//printf("%dms pcm_write i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
 			//  ms, i, p, buf, oneshot, fr);
 	}
 	pcm_client_close(p);
-	Aml_ACodecMemory_Free(hShmBuf);
+	AML_MEM_Free(hShmBuf);
 	free(pconfig);
 }
 
@@ -136,7 +136,7 @@ static int pcm_play_test(int argc, char* argv[])
 	pconfig->silence_threshold = 1024*2;
 	pconfig->stop_threshold = 1024*2;
 	tAmlPcmhdl p = pcm_client_open(0, 0, 0, pconfig);
-	tAcodecShmHdl hShmBuf;
+	AML_MEM_HANDLE hShmBuf;
 
 	FILE *fileplay = fopen(argv[0], "rb");
 	if (fileplay == NULL) {
@@ -147,17 +147,17 @@ static int pcm_play_test(int argc, char* argv[])
 	const int ms = 36;
 	const int oneshot = 48 * ms; // 1728 samples
 	uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
-	hShmBuf = Aml_ACodecMemory_Allocate(size);
-	void *buf = Aml_ACodecMemory_GetVirtAddr(hShmBuf);
-	void *phybuf = Aml_ACodecMemory_GetPhyAddr(hShmBuf);
+	hShmBuf = AML_MEM_Allocate(size);
+	void *buf = AML_MEM_GetVirtAddr(hShmBuf);
+	void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
 	while (size = fread(buf, 1, size, fileplay)) {
-		Aml_ACodecMemory_Clean(phybuf, size);
+		AML_MEM_Clean(phybuf, size);
 		fr = pcm_client_writei(p, phybuf, oneshot);
 		//printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
 			//   ms, p, buf, oneshot, fr);
 	}
 	pcm_client_close(p);
-	Aml_ACodecMemory_Free(hShmBuf);
+	AML_MEM_Free(hShmBuf);
 	free(pconfig);
 	fclose(fileplay);
 }
@@ -179,7 +179,7 @@ static int pcm_capture_test(int argc, char* argv[])
 	pconfig->silence_threshold = 1024*2;
 	pconfig->stop_threshold = 1024*2;
 	tAmlPcmhdl p = pcm_client_open(0, device, PCM_IN, pconfig);
-	tAcodecShmHdl hShmBuf;
+	AML_MEM_HANDLE hShmBuf;
 
 	FILE *filecap = fopen(argv[0], "w+b");
 	if (filecap == NULL) {
@@ -192,18 +192,18 @@ static int pcm_capture_test(int argc, char* argv[])
 	const int ms = 36;
 	const int oneshot = 48 * ms; // 1728 samples
 	uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
-	hShmBuf = Aml_ACodecMemory_Allocate(size);
-	void *buf = Aml_ACodecMemory_GetVirtAddr(hShmBuf);
-	void *phybuf = Aml_ACodecMemory_GetPhyAddr(hShmBuf);
+	hShmBuf = AML_MEM_Allocate(size);
+	void *buf = AML_MEM_GetVirtAddr(hShmBuf);
+	void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
 	for (i = 0; i + oneshot <= in_fr; i += fr) {
 		fr = pcm_client_readi(p, phybuf, oneshot);
-		Aml_ACodecMemory_Inv(phybuf, size);
+		AML_MEM_Invalidate(phybuf, size);
 		fwrite(buf, sizeof(char), size, filecap);
 		//printf("%dms pcm_read i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
 			//  ms, i, p, buf, oneshot, fr);
 	}
 	pcm_client_close(p);
-	Aml_ACodecMemory_Free(hShmBuf);
+	AML_MEM_Free(hShmBuf);
 	free(pconfig);
 	fclose(filecap);
 }
@@ -211,8 +211,8 @@ static int pcm_capture_test(int argc, char* argv[])
 static int mp3_offload_dec(int argc, char* argv[]) {
 	int bUserAllocShm = 1;
 	tAmlMp3DecHdl hdlmp3 = 0;
-	tAcodecShmHdl hShmInput =0;
-	tAcodecShmHdl hShmOutput = 0;
+	AML_MEM_HANDLE hShmInput =0;
+	AML_MEM_HANDLE hShmOutput = 0;
 	uint8_t *inputBuf = 0;
 	int16_t *outputBuf = 0;
 	void* inputphy = 0;
@@ -258,14 +258,14 @@ static int mp3_offload_dec(int argc, char* argv[]) {
 		bUserAllocShm = atoi(argv[2]);
     if (bUserAllocShm) {
 		// Allocate input buffer.
-		hShmInput = Aml_ACodecMemory_Allocate(kInputBufferSize);
-		inputBuf = (uint8_t*)Aml_ACodecMemory_GetVirtAddr(hShmInput);
-		inputphy = Aml_ACodecMemory_GetPhyAddr(hShmInput);
+		hShmInput = AML_MEM_Allocate(kInputBufferSize);
+		inputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmInput);
+		inputphy = AML_MEM_GetPhyAddr(hShmInput);
 
 		// Allocate output buffer.
-		hShmOutput = Aml_ACodecMemory_Allocate(kOutputBufferSize);
-		outputBuf = (int16_t*)Aml_ACodecMemory_GetVirtAddr(hShmOutput);
-		outputphy = Aml_ACodecMemory_GetPhyAddr(hShmOutput);
+		hShmOutput = AML_MEM_Allocate(kOutputBufferSize);
+		outputBuf = (int16_t*)AML_MEM_GetVirtAddr(hShmOutput);
+		outputphy = AML_MEM_GetPhyAddr(hShmOutput);
 		printf("Init in vir:%p phy:%p,  out vir:%p phy:%p\n",
 				inputBuf, inputphy, outputBuf, outputphy);
 	} else {
@@ -310,9 +310,9 @@ static int mp3_offload_dec(int argc, char* argv[]) {
         ERROR_CODE decoderErr;
         //printf("config.outputFrameSize:%d\n", config.outputFrameSize);
         if (bUserAllocShm) {
-			Aml_ACodecMemory_Clean(inputphy, bytesRead);
+			AML_MEM_Clean(inputphy, bytesRead);
 			decoderErr = AmlACodecExec_UserAllocIoShm_Mp3Dec(hdlmp3, &config);
-			Aml_ACodecMemory_Inv(outputphy, config.outputFrameSize*sizeof(int16_t));
+			AML_MEM_Invalidate(outputphy, config.outputFrameSize*sizeof(int16_t));
 	} else
 			decoderErr = AmlACodecExec_Mp3Dec(hdlmp3, &config);
 
@@ -338,8 +338,8 @@ static int mp3_offload_dec(int argc, char* argv[]) {
 
     // Free allocated memory.
 	if (bUserAllocShm) {
-		Aml_ACodecMemory_Free((tAcodecShmHdl)hShmInput);
-		Aml_ACodecMemory_Free((tAcodecShmHdl)hShmOutput);
+		AML_MEM_Free((AML_MEM_HANDLE)hShmInput);
+		AML_MEM_Free((AML_MEM_HANDLE)hShmOutput);
 	} else {
 		free(inputBuf);
 		free(outputBuf);
@@ -354,8 +354,8 @@ static int aac_offload_dec(int argc, char* argv[]) {
 	FILE* pcmfile = NULL;
 	int bUserAllocShm = 1;
 	tAmlAacDecHdl hdlAac = 0;
-	tAcodecShmHdl hShmInput =0;
-	tAcodecShmHdl hShmOutput = 0;
+	AML_MEM_HANDLE hShmInput =0;
+	AML_MEM_HANDLE hShmOutput = 0;
 	uint8_t *inputBuf = 0;
 	int16_t *outputBuf = 0;
 	void* inputphy = 0;
@@ -386,16 +386,16 @@ static int aac_offload_dec(int argc, char* argv[]) {
 		bUserAllocShm = atoi(argv[2]);
     if (bUserAllocShm) {
 		// Allocate input buffer.
-		hShmInput = Aml_ACodecMemory_Allocate(AAC_INPUT_SIZE);
+		hShmInput = AML_MEM_Allocate(AAC_INPUT_SIZE);
 		printf("hShmInput:%p\n", hShmInput);
-		inputBuf = (uint8_t*)Aml_ACodecMemory_GetVirtAddr(hShmInput);
-		inputphy = Aml_ACodecMemory_GetPhyAddr(hShmInput);
+		inputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmInput);
+		inputphy = AML_MEM_GetPhyAddr(hShmInput);
 
 		// Allocate output buffer.
-		hShmOutput = Aml_ACodecMemory_Allocate(PCM_OUTPUT_SIZE);
-		outputBuf = (int16_t*)Aml_ACodecMemory_GetVirtAddr(hShmOutput);
+		hShmOutput = AML_MEM_Allocate(PCM_OUTPUT_SIZE);
+		outputBuf = (int16_t*)AML_MEM_GetVirtAddr(hShmOutput);
 		printf("hShmOutput:%p\n", hShmOutput);
-		outputphy = Aml_ACodecMemory_GetPhyAddr(hShmOutput);
+		outputphy = AML_MEM_GetPhyAddr(hShmOutput);
 		printf("===Init in vir:%p phy:%p,  out vir:%p phy:%p====\n",
 				inputBuf, inputphy, outputBuf, outputphy);
 		if (!hShmOutput || !hShmInput){
@@ -436,12 +436,12 @@ static int aac_offload_dec(int argc, char* argv[]) {
 		pcm_out_size = PCM_OUTPUT_SIZE;
         AAC_DECODER_ERROR decoderErr;
         if (bUserAllocShm) {
-			Aml_ACodecMemory_Clean(inputphy, bytesRead);
+			AML_MEM_Clean(inputphy, bytesRead);
 			decoderErr = AmlACodecExec_UserAllocIoShm_AacDec(hdlAac, inputphy, aac_input_size,
 											   outputphy, &pcm_out_size,
 												&aac_input_left, &out_ctx);
 			//printf("aac_input_left:%dn", aac_input_left);
-			Aml_ACodecMemory_Inv(outputphy, pcm_out_size);
+			AML_MEM_Invalidate(outputphy, pcm_out_size);
 			fseek(aacfile, -aac_input_left, SEEK_CUR);
 		} else {
 			decoderErr = AmlACodecExec_AacDec(hdlAac, inputBuf, aac_input_size,
@@ -505,9 +505,9 @@ tab_end:
     // Free allocated memory.
 	if (bUserAllocShm) {
 		if (hShmInput)
-			Aml_ACodecMemory_Free((tAcodecShmHdl)hShmInput);
+			AML_MEM_Free((AML_MEM_HANDLE)hShmInput);
 		if (hShmOutput)
-			Aml_ACodecMemory_Free((tAcodecShmHdl)hShmOutput);
+			AML_MEM_Free((AML_MEM_HANDLE)hShmOutput);
 	} else {
 		if (inputBuf)
 			free(inputBuf);
@@ -892,16 +892,16 @@ static int shm_uint_tset(void)
 	void* pVirSrc = NULL;
 	void* pVirDst = NULL;
 	while(num_repeat--) {
-		tAcodecShmHdl hDst, hSrc;
-		hDst = Aml_ACodecMemory_Allocate(sizeof(samples));
-		hSrc = Aml_ACodecMemory_Allocate(sizeof(samples));
+		AML_MEM_HANDLE hDst, hSrc;
+		hDst = AML_MEM_Allocate(sizeof(samples));
+		hSrc = AML_MEM_Allocate(sizeof(samples));
 		memset((void*)samples, num_repeat, sizeof(samples));
-		pVirSrc = Aml_ACodecMemory_GetVirtAddr(hSrc);
+		pVirSrc = AML_MEM_GetVirtAddr(hSrc);
 		memcpy((void*)pVirSrc, samples, sizeof(samples));
-		Aml_ACodecMemory_Clean(hSrc, sizeof(samples));
+		AML_MEM_Clean(hSrc, sizeof(samples));
 		Aml_ACodecMemory_Transfer(hDst, hSrc, sizeof(samples));
-		Aml_ACodecMemory_Inv(hDst, sizeof(samples));
-		pVirDst = Aml_ACodecMemory_GetVirtAddr(hSrc);
+		AML_MEM_Invalidate(hDst, sizeof(samples));
+		pVirDst = AML_MEM_GetVirtAddr(hSrc);
 		if (memcmp((void*)pVirDst, samples, sizeof(samples))) {
 			printf("shm unit test fail, repeat:%d\n",
 				SHM_UNIT_TEST_REPEAT - num_repeat);
@@ -912,8 +912,8 @@ static int shm_uint_tset(void)
 				printf("0x%x ", k[i]);
 			printf("\n");*/
 		}
-		Aml_ACodecMemory_Free(hSrc);
-		Aml_ACodecMemory_Free(hDst);
+		AML_MEM_Free(hSrc);
+		AML_MEM_Free(hDst);
 	}
 	if(num_repeat <= 0)
 		printf("ipc unittest pass, repeat %d\n", SHM_UNIT_TEST_REPEAT);
