@@ -41,12 +41,20 @@
 extern "C" {
 #endif
 
+/**
+ * The max size of input and output buffer
+ */
 enum {
     kInputBufferSize = 10 * 1024,
     kOutputBufferSize = 4608 * 2,
 };
 
+
+/**
+ * MP3 docoder handler
+ */
 typedef void* tAmlMp3DecHdl;
+
 typedef struct {
         /*
          * INPUT:
@@ -171,10 +179,45 @@ typedef struct {
 
 } tAmlACodecConfig_Mp3DecExternal;
 
+/**
+ * Create and initialize a mp3 decoder
+ *
+ * @param[in] configure for mp3 decoder
+ *
+ * @return a mp3 decoder handler if success, otherwise return 0;
+ */
 tAmlMp3DecHdl AmlACodecInit_Mp3Dec(tAmlACodecConfig_Mp3DecExternal *pconfig);
+
+/**
+ * Destroy a mp3 decoder
+ *
+ * @param[in] mp3 decoder handler
+ *
+ * @return
+ */
 void AmlACodecDeInit_Mp3Dec(tAmlMp3DecHdl hMp3Dec);
+
+/**
+ * Decode a mp3 frame
+ *
+ * @param[in] mp3 decoder handler
+ *
+ * @param[in/out] see define of tAmlACodecConfig_Mp3DecExternal
+ *
+ * @return NO_DECODING_ERROR if success, otherwise see ERROR_CODE
+ */
 ERROR_CODE AmlACodecExec_Mp3Dec(tAmlMp3DecHdl hMp3, tAmlACodecConfig_Mp3DecExternal *pconfig);
 
+/**
+ * Decode a mp3 frame, user allocate in/out shared memory,
+ * and pass them through pconfig
+ *
+ * @param[in] mp3 decoder handler
+ *
+ * @param[in/out] see define of tAmlACodecConfig_Mp3DecExternal
+ *
+ * @return NO_DECODING_ERROR if success, otherwise see ERROR_CODE
+ */
 ERROR_CODE AmlACodecExec_UserAllocIoShm_Mp3Dec(tAmlMp3DecHdl hMp3, tAmlACodecConfig_Mp3DecExternal *pconfig);
 
 #ifdef __cplusplus

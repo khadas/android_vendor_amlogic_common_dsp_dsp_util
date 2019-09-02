@@ -25,7 +25,7 @@
  */
 
 /**
- * shm for offload audio
+ * shm for transfering memory between arm and hifi
  *
  * Author: Wenjie Zhou <Wenjie.Zhou@amlogic.com>
  * Version:
@@ -41,15 +41,85 @@
  extern "C" {
 #endif
 
+/**
+ *  Shared Memory hanlder
+ */
 typedef void* AML_MEM_HANDLE;
+
+/**
+ * Allocate a block of shared memory
+ *
+ * @param[in] Shared memory size in bytes
+ *
+ * @return a valid shared memeory handler if success, otherwise return 0
+ */
 AML_MEM_HANDLE AML_MEM_Allocate(size_t size);
+
+/**
+ * Free a block of shared memory
+ *
+ * @param[in] Shared memory handler
+ *
+ * @return
+ */
 void AML_MEM_Free(AML_MEM_HANDLE hShm);
+
+/**
+ * Copy data from a shared memory to another
+ *
+ * @param[in] Handler of dest shared memory
+ *
+ * @param[in] Handler of source shared memory
+ *
+ * @param[in] shared memory size
+ *
+ * @return
+ */
 void Aml_ACodecMemory_Transfer(AML_MEM_HANDLE hDst, AML_MEM_HANDLE hSrc, size_t size);
+
+/**
+ * Get the virtual address of a shared memory
+ *
+ * @param[in] Shared memory handler
+ *
+ * @return virtual address if successful, otherwise return NULL
+ */
 void* AML_MEM_GetVirtAddr(AML_MEM_HANDLE hShm);
+
+/**
+ * Get physical address of a shared memory
+ *
+ * @param[in] Shared memory handler
+ *
+ * @return physical address if successful, otherwise return 0
+ */
 void* AML_MEM_GetPhyAddr(AML_MEM_HANDLE hShm);
+
+/**
+ * Clean cache for a block of shared memory
+ *
+ * @param[in] Shared memory handler
+ *
+ * @param[in] The size need to be cleaned
+ *
+ * @return 0 if successful, return -1 if failed
+ */
 uint32_t AML_MEM_Clean(AML_MEM_HANDLE hShm, size_t size);
+
+/**
+ * Invalidate cache for a block of shared memory
+ *
+ * @param[in] Shared memory handler
+ *
+ * @param[in] The size need to be invalidated
+ *
+ * @return 0 if successful, return -1 if failed
+ */
 uint32_t AML_MEM_Invalidate(AML_MEM_HANDLE hShm, size_t size);
 
+/**
+ *  Legacy API, will remove soon
+ */
 typedef AML_MEM_HANDLE tAcodecShmHdl;
 #define Aml_ACodecMemory_Allocate AML_MEM_Allocate
 #define Aml_ACodecMemory_Free AML_MEM_Free
