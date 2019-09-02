@@ -200,9 +200,9 @@ void awe_tread_process_data(void * data)
                 isWorked = 0;
                 inLen =  awe->inWorkBufLen;
                 outLen = awe->outWorkBufLen;
-                awe->userFillBufRd = (awe->userFillBufRd + awe->inWorkBufLen*(awe->micInChannels + awe->refInChannels)) % awe->userFillBufSize;
                 internal_aml_awe_process(awe, awe->hinWorkBuf, &inLen,
                                 awe->houtWorkBuf, &outLen, &isWorked);
+                awe->userFillBufRd = (awe->userFillBufRd + (awe->inWorkBufLen - inLen)*(awe->micInChannels + awe->refInChannels)) % awe->userFillBufSize;
 
                 for (i = 0; i < awe->outChannels; i++) {
                     AML_MEM_Invalidate(awe->houtWorkBuf[i], awe->outWorkBufLen);
@@ -214,7 +214,7 @@ void awe_tread_process_data(void * data)
                     exit(0);
                 }
                 awe->awe_data_handler_func[AWE_DATA_TYPE_ASR](awe, AWE_DATA_TYPE_ASR,
-                                     virOut, awe->outWorkBufLen,
+                                     virOut, outLen,
                                      awe->awe_data_handler_userdata[AWE_DATA_TYPE_ASR]);
 
                 /*throw out event*/
@@ -226,12 +226,12 @@ void awe_tread_process_data(void * data)
                 awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE](awe, AWE_EVENT_TYPE_WAKE, 0,
                                           NULL, awe->awe_event_handler_userdata[AWE_EVENT_TYPE_MAX]);
                 }
-            }            
+            }
         } else if (awe->inputMode = AWE_INPUT_FROM_DSP) {
             isWorked = 0;
             inLen = 0;
             outLen = awe->outWorkBufLen;
-            internal_aml_awe_process(awe, awe->hinWorkBuf, &inLen, 
+            internal_aml_awe_process(awe, awe->hinWorkBuf, &inLen,
                             awe->houtWorkBuf, &outLen, &isWorked);
             for (i = 0; i < awe->outChannels; i++) {
                  virOut[i] = (char*)AML_MEM_GetVirtAddr(awe->houtWorkBuf[i]);
@@ -243,7 +243,7 @@ void awe_tread_process_data(void * data)
              }
 
              awe->awe_data_handler_func[AWE_DATA_TYPE_ASR](awe, AWE_DATA_TYPE_ASR,
-                                             virOut, awe->outWorkBufLen,
+                                             virOut, outLen,
                                              awe->awe_data_handler_userdata[AWE_DATA_TYPE_ASR]);
 
              /*throw out event*/
@@ -358,7 +358,7 @@ AWE_RET AML_AWE_Open(AWE *awe)
         awe->hinWorkBuf[i] = AML_MEM_Allocate(awe->inWorkBufLen);
     }
 
-    awe->outWorkBufLen = awe->inWorkBufLen;
+    awe->outWorkBufLen = awe->inWorkBufLen*3;
     for (i = 0; i < awe->outChannels; i++) {
         awe->houtWorkBuf[i] = AML_MEM_Allocate(awe->outWorkBufLen);
     }

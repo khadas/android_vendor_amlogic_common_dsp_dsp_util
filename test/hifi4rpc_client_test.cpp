@@ -652,8 +652,11 @@ tab_end:
 #define AWE_SAMPLE_RATE 16000
 #define AWE_SAMPLE_BYTE 2
 #define VOICE_LEN_BYTE (AWE_SAMPLE_BYTE*AWE_SAMPLE_RATE*VOICE_LEN_MS/1000)
-static 	uint32_t uFeedChunk = 0;
-static 	uint32_t uRecvChunk = 0;
+static uint32_t uFeedChunk = 0;
+static uint32_t uRecvChunk = 0;
+static uint32_t uTotalBytesRead = 0;
+static uint32_t uTotalBytesWrite = 0;
+
 void aml_wake_engine_data_handler(AWE *awe, const AWE_DATA_TYPE type,
                                             char* out[], size_t size, void *user_data)
 {
@@ -661,6 +664,7 @@ void aml_wake_engine_data_handler(AWE *awe, const AWE_DATA_TYPE type,
 	if (AWE_DATA_TYPE_ASR == type) {
 		fwrite(out[0], 1, size, fout);
 		uRecvChunk++;
+		uTotalBytesWrite += size;
 	}
 }
 
@@ -675,6 +679,8 @@ void aml_wake_engine_event_handler(AWE *awe, const AWE_EVENT_TYPE type, int32_t 
 int aml_wake_engine_unit_test(int argc, char* argv[]) {
 	uFeedChunk = 0;
 	uRecvChunk = 0;
+	uTotalBytesRead = 0;
+	uTotalBytesWrite = 0;
 	int syncMode = 0;
 	AWE_PARA awe_para;
 	int ret = 0;
@@ -749,7 +755,7 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 		}
 	}
 
-	hOutBuf = AML_MEM_Allocate(VOICE_LEN_BYTE);
+	hOutBuf = AML_MEM_Allocate(VOICE_LEN_BYTE*3);
 	vir_out_buf = AML_MEM_GetVirtAddr(hOutBuf);
 	phy_out_buf = AML_MEM_GetPhyAddr(hOutBuf);
 
@@ -817,7 +823,6 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 		ret = -1;
 		goto end_tab;
     }
-
     printf("wake test start! !\n");
 	uint32_t i,j;
     while (1) {
@@ -843,13 +848,22 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 			in[2] = hRef0Buf;
 			inLen = nbyteRead;
 			out[0] = hOutBuf;
-			outLen = VOICE_LEN_BYTE;
+			outLen = VOICE_LEN_BYTE*3;
 			AML_AWE_Process(awe, in, &inLen, out, &outLen, &isWakeUp);
 			if (isWakeUp) {
 				printf("wake word detected ! \n");
 			}
+			if (!inLen) {
+				fseek(fmic0, -inLen, SEEK_CUR);
+				fseek(fmic1, -inLen, SEEK_CUR);
+				fseek(fref0, -inLen, SEEK_CUR);
+			}
 			AML_MEM_Invalidate(phy_out_buf, outLen);
 			fwrite(vir_out_buf, 1, outLen, fout);
+			//if (outLen != VOICE_LEN_BYTE)
+				//printf("outLen=%d, %d\n", outLen, VOICE_LEN_BYTE);
+			uTotalBytesWrite += outLen;
+			uTotalBytesRead += nbyteRead;
 		} else if (syncMode == 1) {
 		    /*interleave mic0,mic1,ref0*/
 			short* pMic0 = (short*)vir_mic0_buf;
@@ -874,8 +888,10 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 			else if (ret != AWE_RET_OK) {
 				printf("Unknow error when execute AML_AWE_PushBuf, ret=%d\n", ret);
 				break;
-			} else
+			} else {
 				uFeedChunk++;
+				uTotalBytesRead += nbyteRead;
+			}
 		} else {
 			printf("Invalide sync mode:%d\n", syncMode);
 			break;
@@ -887,6 +903,7 @@ end_tab:
 		printf("uRecvChunk:%d, uFeedChunk:%d\n", uRecvChunk, uFeedChunk);
 		usleep(500);
 	}
+	printf("Read: %d Kbytes, Write %d Kbytes\n", uTotalBytesRead/1024, uTotalBytesWrite/1024);
 	if (awe)
     	AML_AWE_Close(awe);
 	if (awe)
