@@ -134,21 +134,26 @@ static AWE_RET internal_aml_awe_process(AWE *awe, AML_MEM_HANDLE in[],
     aml_vsp_awe_process_param_out* pParamOut = AML_MEM_GetVirtAddr(awe->hOutput);
     size_t output_size = awe->output_size;
 
-    pParamIn->lenInByte = *inLenInByte;
-    pParamIn->numInChn = awe->micInChannels + awe->refInChannels;
-    if (pParamIn->numInChn < AWE_MAX_IN_CHANS) {
-        int i;
-        for (i = 0; i < pParamIn->numInChn; i++)
-            pParamIn->pChanIn[i] = (uint64_t)AML_MEM_GetPhyAddr(in[i]);
+    if (awe->inputMode == AWE_USER_INPUT_MODE) {
+        pParamIn->lenInByte = *inLenInByte;
+        pParamIn->numInChn = awe->micInChannels + awe->refInChannels;
+        if (pParamIn->numInChn <= AWE_MAX_IN_CHANS) {
+            int i;
+            for (i = 0; i < pParamIn->numInChn; i++)
+                pParamIn->pChanIn[i] = (uint64_t)AML_MEM_GetPhyAddr(in[i]);
+        } else {
+            printf("The input channel number is out of AWE capability: mic:%d, ref:%d\n",
+                awe->micInChannels, awe->refInChannels);
+            return AWE_RET_ERR_NOT_SUPPORT;
+        }
     } else {
-        printf("The input channel number is out of AWE capability: mic:%d, ref:%d\n",
-            awe->micInChannels, awe->refInChannels);
-        return AWE_RET_ERR_NOT_SUPPORT;
+        pParamIn->lenInByte = 0;
+        pParamIn->numInChn = 0;
     }
 
     pParamIn->lenOutByte = *outLenInByte;
     pParamIn->numOutChn = awe->outChannels;
-    if (pParamIn->numOutChn < AWE_MAX_OUT_CHANS) {
+    if (pParamIn->numOutChn <= AWE_MAX_OUT_CHANS) {
         int i;
         for (i = 0; i < pParamIn->numOutChn; i++)
             pParamIn->pChanOut[i] = (uint64_t)AML_MEM_GetPhyAddr(out[i]);
@@ -168,16 +173,16 @@ static AWE_RET internal_aml_awe_process(AWE *awe, AML_MEM_HANDLE in[],
     return ret;
 }
 
-void awe_tread_process_data(void * data)
+void awe_thread_process_data(void * data)
 {
     int i;
     AWE* awe = (AWE*)data;
     char* virOut[AWE_MAX_OUT_CHANS];
-    int32_t isWorked;
+    uint32_t isWorked;
     int32_t inLen;
     int32_t outLen;
     while(!awe->work_thread_exit) {
-        if (awe->inputMode == AWE_INPUT_FROM_USER) {
+        if (awe->inputMode == AWE_USER_INPUT_MODE) {
             sem_wait(&awe->userFillSem);
             uint32_t numOfChunk = aml_awe_ring_buf_fullness(awe->userFillBufSize,
                                             awe->userFillBufWr, awe->userFillBufRd)/(awe->inWorkBufLen*(awe->micInChannels + awe->refInChannels));
@@ -208,26 +213,35 @@ void awe_tread_process_data(void * data)
                     AML_MEM_Invalidate(awe->houtWorkBuf[i], awe->outWorkBufLen);
                     virOut[i] = (char*)AML_MEM_GetVirtAddr(awe->houtWorkBuf[i]);
                 }
-                /*throw out data*/
+                /*throw out asr data*/
                 if (!awe->awe_data_handler_func[AWE_DATA_TYPE_ASR]) {
                     printf("Do not install ASR data handler callback\n");
                     exit(0);
                 }
                 awe->awe_data_handler_func[AWE_DATA_TYPE_ASR](awe, AWE_DATA_TYPE_ASR,
-                                     virOut, outLen,
+                                     virOut[0], outLen,
                                      awe->awe_data_handler_userdata[AWE_DATA_TYPE_ASR]);
+
+                /*throw out voip data*/
+                if (!awe->awe_data_handler_func[AWE_DATA_TYPE_VOIP]) {
+                    printf("Do not install VOIP data handler callback\n");
+                    exit(0);
+                }
+                awe->awe_data_handler_func[AWE_DATA_TYPE_VOIP](awe, AWE_DATA_TYPE_VOIP,
+                                     virOut[1], outLen,
+                                     awe->awe_data_handler_userdata[AWE_DATA_TYPE_VOIP]);
 
                 /*throw out event*/
                 if (isWorked) {
-                if (!awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE]) {
-                printf("Do not install wake up event handler callback\n");
-                exit(0);
-                }
-                awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE](awe, AWE_EVENT_TYPE_WAKE, 0,
+                        if (!awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE]) {
+                        printf("Do not install wake up event handler callback\n");
+                        exit(0);
+                    }
+                    awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE](awe, AWE_EVENT_TYPE_WAKE, 0,
                                           NULL, awe->awe_event_handler_userdata[AWE_EVENT_TYPE_MAX]);
                 }
-            }
-        } else if (awe->inputMode = AWE_INPUT_FROM_DSP) {
+            }            
+        } else if (awe->inputMode == AWE_DSP_INPUT_MODE) {
             isWorked = 0;
             inLen = 0;
             outLen = awe->outWorkBufLen;
@@ -243,8 +257,17 @@ void awe_tread_process_data(void * data)
              }
 
              awe->awe_data_handler_func[AWE_DATA_TYPE_ASR](awe, AWE_DATA_TYPE_ASR,
-                                             virOut, outLen,
+                                             virOut[0], outLen,
                                              awe->awe_data_handler_userdata[AWE_DATA_TYPE_ASR]);
+
+             /*throw out voip data*/
+             if (!awe->awe_data_handler_func[AWE_DATA_TYPE_VOIP]) {
+                 printf("Do not install VOIP data handler callback\n");
+                 exit(0);
+             }
+             awe->awe_data_handler_func[AWE_DATA_TYPE_VOIP](awe, AWE_DATA_TYPE_VOIP,
+                                  virOut[1], outLen,
+                                  awe->awe_data_handler_userdata[AWE_DATA_TYPE_VOIP]);
 
              /*throw out event*/
              if (isWorked) {
@@ -351,38 +374,76 @@ AWE_RET AML_AWE_Open(AWE *awe)
             awe->inSampleRate, awe->inSampleBit, awe->inputMode,
             awe->micInChannels, awe->refInChannels, awe->outChannels);
 
-    awe->inputMode = AWE_INPUT_FROM_USER;/*!!!! hard code here, will remove later*/
+    ret = AML_VSP_Open(awe->hVsp);
+    if (ret != AWE_RET_OK) {
+        printf("Open hifi awe failed:%d\n", ret);
+        goto table_failure_handling;
+    }
+
+
     awe->inWorkBufLenInSample = awe->inSampleRate*VOICE_CHUNK_MS/1000;
     awe->inWorkBufLen = (awe->inSampleBit >> 3)*awe->inWorkBufLenInSample;
     for (i = 0; i < (awe->micInChannels + awe->refInChannels); i++) {
         awe->hinWorkBuf[i] = AML_MEM_Allocate(awe->inWorkBufLen);
+        if (awe->hinWorkBuf[i] == NULL) {
+            printf("Failed to allocate input work buf, ch:%d", i);
+            goto table_failure_handling;
+        }
     }
 
-    awe->outWorkBufLen = awe->inWorkBufLen*3;
+    awe->outWorkBufLen = awe->inWorkBufLen*4;
     for (i = 0; i < awe->outChannels; i++) {
         awe->houtWorkBuf[i] = AML_MEM_Allocate(awe->outWorkBufLen);
+        if (awe->houtWorkBuf[i] == NULL) {
+            printf("Failed to allocate output work buf, ch:%d", i);
+            goto table_failure_handling;
+        }
     }
 
     awe->userFillBufSize = VOICE_CHUNK_NUM*(awe->micInChannels + awe->refInChannels)*awe->inWorkBufLen;
     /*one more chunk here is for handling wrap around*/
     awe->userFillBuf = malloc(awe->userFillBufSize + (awe->micInChannels + awe->refInChannels)*awe->inWorkBufLen);
     awe->userFillBufRd = awe->userFillBufWr = 0;
+    if (awe->userFillBuf == NULL) {
+        printf("Failed to allocate user fill ring buf\n");
+        goto table_failure_handling;
+    }
 
     ret = sem_init(&awe->userFillSem, 0, 0);
     if (ret != 0)
     {
         printf("create user filling sem error. %d: %s\n",ret,strerror(ret));
-        exit(0);
+        goto table_failure_handling;
     }
     awe->work_thread_exit  = 0;
-	ret = pthread_create(&awe->work_thread, NULL, (void*)&awe_tread_process_data, (void*)awe);
+	ret = pthread_create(&awe->work_thread, NULL, (void*)&awe_thread_process_data, (void*)awe);
 	if (ret != 0)
     {
         printf("create working thread error. %d: %s\n",ret,strerror(ret));
-        exit(0);
+        goto table_failure_handling;
     }
-    pthread_setname_np(awe->work_thread, "awe_tread_process_data");
-	return AML_VSP_Open(awe->hVsp);
+    pthread_setname_np(awe->work_thread, "awe_thread_process_data");
+    goto table_end;
+table_failure_handling:
+    awe->work_thread_exit = 1;
+    sem_post(&awe->userFillSem);
+    pthread_join(awe->work_thread,NULL);
+    if (&awe->userFillSem)
+        sem_destroy(&awe->userFillSem);
+    if (awe->userFillBuf)
+        free(awe->userFillBuf);
+
+    for (i = 0; i < (awe->micInChannels + awe->refInChannels); i++) {
+        if (awe->hinWorkBuf[i])
+            AML_MEM_Free(awe->hinWorkBuf[i]);
+    }
+
+    for (i = 0; i < awe->outChannels; i++) {
+        if (awe->houtWorkBuf[i])
+            AML_MEM_Free(awe->houtWorkBuf[i]);
+    }
+table_end:
+	return ret;
 }
 
 AWE_RET AML_AWE_Close(AWE *awe)
@@ -453,7 +514,7 @@ AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[],
 
 AWE_RET AML_AWE_PushBuf(AWE *awe, const char *data, size_t size)
 {
-    if (awe->inputMode == AWE_INPUT_FROM_DSP) {
+    if (awe->inputMode == AWE_DSP_INPUT_MODE) {
         printf("Do not support this API when input is from dsp\n");
         return AWE_RET_ERR_NOT_SUPPORT;
     }

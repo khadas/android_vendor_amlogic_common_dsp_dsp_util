@@ -38,7 +38,7 @@
 extern "C" {
 #endif
 
-#include "stdint.h"
+#include <stdint.h>
 #include "rpc_client_shm.h"
 #define AWE_MAX_IN_CHANS 4
 #define AWE_MAX_OUT_CHANS 2
@@ -46,27 +46,27 @@ extern "C" {
 typedef struct _AWE AWE;
 
 typedef enum {
-    AWE_INPUT_INVALID,
-    /*user application feed input*/
-    AWE_INPUT_FROM_USER,
     /*dsp feed input*/
-    AWE_INPUT_FROM_DSP
+    AWE_DSP_INPUT_MODE,
+    /*user application feed input*/
+    AWE_USER_INPUT_MODE
 } AWE_INPUT_MODE;
 
 typedef union {
     int32_t inSampRate;
     int32_t inSampBits;
     struct {
-        int32_t supportSampRates[4];
         int32_t numOfSupportSampRates;
+        int32_t supportSampRates[4];
     };
     struct {
-        int32_t supportSampBits[4];
         int32_t numOfSupportSampBits;
+        int32_t supportSampBits[4];
     };
     int32_t micInChannels;
     int32_t refInChannels;
     int32_t outChannels;
+    uint32_t freeRunMode;
     AWE_INPUT_MODE inputMode;
 } __attribute__((packed)) AWE_PARA;
 
@@ -86,18 +86,18 @@ typedef struct {
 typedef enum {
     /* static params */
     /* static params can only be set before AWE_Open */
+    AWE_PARA_INPUT_MODE,
     AWE_PARA_IN_SAMPLE_RATE,
     AWE_PARA_IN_SAMPLE_BITS,
     AWE_PARA_MIC_IN_CHANNELS,
     AWE_PARA_REF_IN_CHANNELS,
     AWE_PARA_OUT_CHANNELS,
     /* dynamic params */
+    AWE_PARA_FREE_RUN_MODE,
     /* getting only params */
     AWE_PARA_WAKE_UP_SCORE,
     AWE_PARA_SUPPORT_SAMPLE_RATES,
     AWE_PARA_SUPPORT_SAMPLE_BITS,
-    /* see AWE_INPUT_MODE*/
-    AWE_PARA_INPUT_MODE,
 } AWE_PARA_ID;
 
 typedef enum {
@@ -215,12 +215,12 @@ AWE_RET AML_AWE_GetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para);
  * The pcm is in none interleave format, mic0|mic1|ref0|ref1
  * Max supported input channels see AWE_MAX_IN_CHANS
  * Note: This parameter is invalid when AWE input mode is configured as
- * AWE_INPUT_FROM_DSP
+ * AWE_DSP_INPUT_MODE
  *
  * @param[in/out] Length in bytes per channel. Return
  * remained pcm in bytes after the call
  * Note: This parameter is invalid when AWE input mode is configured as
- * AWE_INPUT_FROM_DSP
+ * AWE_DSP_INPUT_MODE
  *
  * @param[out] Aarry of shared memory hanlders. A member of
  * this array represent a output pcm channel. The share memory
@@ -245,7 +245,7 @@ AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[], int32_t *inLenInByte, AML
  * Application obtain processed pcm through AML_AWE_DataHandler
  * Application process wake up word detect in AML_AWE_EventHandler
  * Note: This API is invalid when AWE input mode is configured as
- * AWE_INPUT_FROM_DSP.
+ * AWE_DSP_INPUT_MODE.
  *
  * @param[in] AWE instance handler
  *
@@ -275,7 +275,7 @@ AWE_RET AML_AWE_PushBuf(AWE *awe, const char *data, size_t size);
  * @param[in] user_data User-defined data
  */
 typedef void (*AML_AWE_DataHandler)(AWE *awe, const AWE_DATA_TYPE type,
-                                            char* out[], size_t size, void *user_data);
+                                            char* out, size_t size, void *user_data);
 
 /**
  * AWE event handler
