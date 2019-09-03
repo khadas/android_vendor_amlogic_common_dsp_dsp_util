@@ -26,6 +26,10 @@ LIBHIFI4RPC_OBJ += $(patsubst %c, %o, $(LIBHIFI4RPC_SRC))
 LIBHIFI4RPC = libhifi4rpc.so
 
 #applications define
+HIFI4_TOOL_SRC = $(wildcard hifi4_tool/*.c)
+HIFI4_TOOL_OBJ = $(patsubst %c, %o, $(HIFI4_TOOL_SRC))
+HIFI4_TOOL = hifi4_media_tool
+
 HIFI4RPC_CLIENT_TEST_SRC_CPP = $(wildcard test/*.cpp)
 HIFI4RPC_CLIENT_TEST_OBJ = $(patsubst %cpp, %o, $(HIFI4RPC_CLIENT_TEST_SRC_CPP))
 HIFI4RPC_CLIENT_TEST = hifi4rpc_client_test
@@ -38,9 +42,9 @@ HIFI4RPC_TEST_SRC = test/rpc_test.c
 HIFI4RPC_TEST_OBJ = test/rpc_test.o
 HIFI4RPC_TEST = hifi4_rpc_test
 
-OBJS = $(HIFI4RPC_CLIENT_TEST_OBJ) $(LIBHIFI4RPC_CLIENT_OBJ) $(LIBHIFI4RPC_OBJ) $(HIFI4RPC_TEST_OBJ) $(LIBMP3TOOLS_OBJ) $(DSP_UTIL_OBJ)
+OBJS = $(HIFI4_TOOL_OBJ) $(HIFI4RPC_CLIENT_TEST_OBJ) $(LIBHIFI4RPC_CLIENT_OBJ) $(LIBHIFI4RPC_OBJ) $(HIFI4RPC_TEST_OBJ) $(LIBMP3TOOLS_OBJ) $(DSP_UTIL_OBJ)
 LIBS = $(LIBHIFI4RPC_CLIENT) $(LIBHIFI4RPC) $(LIBMP3TOOLS)
-APPS = $(HIFI4RPC_CLIENT_TEST) $(HIFI4RPC_TEST) $(DSP_UTIL)
+APPS = $(HIFI4_TOOL) $(HIFI4RPC_CLIENT_TEST) $(HIFI4RPC_TEST) $(DSP_UTIL)
 
 EXPORT_HEADERFILES = ./include/rpc_client_mp3.h \
 	./include/rpc_client_shm.h \
@@ -63,6 +67,7 @@ EXPORT_HEADERFILES = ./include/rpc_client_mp3.h \
 # rules
 all: $(LIBS) $(APPS)
 
+$(HIFI4_TOOL): $(LIBHIFI4RPC_CLIENT) $(LIBHIFI4RPC)
 $(HIFI4RPC_CLIENT_TEST): $(LIBHIFI4RPC_CLIENT) $(LIBHIFI4RPC) $(LIBMP3TOOLS)
 $(HIFI4RPC_TEST): $(LIBHIFI4RPC)
 
@@ -83,6 +88,9 @@ $(LIBHIFI4RPC): $(LIBHIFI4RPC_OBJ)
 	$(CC) -shared -fPIC -I ./include $^ -o $(LIBHIFI4RPC)
 
 #applications compile
+$(HIFI4_TOOL): $(HIFI4_TOOL_OBJ)
+	$(CC) $^ -I./ -L$(LIBDIR) -lhifi4rpc_client -lhifi4rpc -lpthread $(CFLAGS) -o $@
+
 $(HIFI4RPC_CLIENT_TEST): $(HIFI4RPC_CLIENT_TEST_OBJ)
 	$(CXX) $^ -I./ -L$(LIBDIR) -lhifi4rpc_client -lhifi4rpc -lmp3tools -lpthread $(CFLAGS) -o $@
 

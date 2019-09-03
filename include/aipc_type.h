@@ -216,6 +216,32 @@ typedef struct {
     xsize_t size;
 } __attribute__((packed)) acodec_shm_transfer_st;
 
+/*hifi circular buffer*/
+typedef xpointer tAmlCBufHdlRpc;
+typedef struct {
+    tAmlCBufHdlRpc hCbuf;
+    xsize_t size;
+    xsize_t pad_size;
+    uint32_t cbuf_id;
+} __attribute__((packed)) aml_cbuf_create_st;
+
+typedef struct {
+    tAmlCBufHdlRpc hCbuf;
+    xpointer mem;
+    xsize_t size;
+} __attribute__((packed)) aml_cbuf_write_st;
+
+typedef struct {
+    tAmlCBufHdlRpc hCbuf;
+    xpointer mem;
+    xsize_t size;
+} __attribute__((packed)) aml_cbuf_read_st;
+
+typedef struct {
+    tAmlCBufHdlRpc hCbuf;
+    uint32_t cbuf_id;
+} __attribute__((packed)) aml_cbuf_destory_st;
+
 
 /*tinyalsa*/
 typedef xpointer tAcodecPcmSrvHdl;
