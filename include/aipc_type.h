@@ -144,12 +144,13 @@ typedef struct {
 
 /*Voice Signal Processing*/
 typedef xpointer tAmlVspRpcHdl;
+typedef uint64_t xsize_t;
 typedef struct {
 	int32_t vsp_type;
 	tAmlVspRpcHdl hdl;
 	uint32_t ret;
 	xpointer param;
-	size_t param_size;
+	xsize_t param_size;
 } __attribute__((packed)) vsp_init_st;
 
 typedef struct {
@@ -174,7 +175,7 @@ typedef struct {
 	tAmlVspRpcHdl hdl;
 	int32_t param_id;
 	xpointer param;
-	size_t param_size;
+	xsize_t param_size;
 	uint32_t ret;
 } __attribute__((packed)) vsp_setparam_st;
 
@@ -183,7 +184,7 @@ typedef struct {
 	tAmlVspRpcHdl hdl;
 	int32_t param_id;
 	xpointer param;
-	size_t param_size;
+	xsize_t param_size;
 	uint32_t ret;
 } __attribute__((packed)) vsp_getparam_st;
 
@@ -192,9 +193,9 @@ typedef struct {
 	tAmlVspRpcHdl hdl;
 	uint32_t ret;
 	xpointer input_buf;
-	size_t input_size;
+	xsize_t input_size;
 	xpointer output_buf;
-	size_t output_size;
+	xsize_t output_size;
 } __attribute__((packed)) vsp_process_st;
 
 
@@ -202,7 +203,7 @@ typedef struct {
 typedef xpointer AML_MEM_HANDLERpc;
 typedef struct {
     AML_MEM_HANDLERpc hShm;
-    size_t size;
+    xsize_t size;
 } __attribute__((packed)) acodec_shm_alloc_st;
 
 typedef struct {
@@ -212,7 +213,7 @@ typedef struct {
 typedef struct {
     AML_MEM_HANDLERpc hDst;
     AML_MEM_HANDLERpc hSrc;
-    size_t size;
+    xsize_t size;
 } __attribute__((packed)) acodec_shm_transfer_st;
 
 
