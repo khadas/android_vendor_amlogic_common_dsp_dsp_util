@@ -45,6 +45,20 @@
 #define VOICE_CHUNK_MS 20
 #define VOICE_CHUNK_NUM 50
 
+#define AWE_CHECK_NULL(ptr)    if ((ptr) == 0)          \
+    {printf("%s:%d:NULL POINT\n", __FUNCTION__, __LINE__);return AWE_RET_ERR_NULL_POINTER;}
+#define AWE_CHECK_STATUS(st0,st1)    if ((st0) != (st1))          \
+    {printf("%s:%d:Invalid status:\n", __FUNCTION__, __LINE__, (st0));return AWE_RET_ERR_NOT_SUPPORT;}
+
+typedef enum {
+    /* Set to IDEL in Create*/
+    AWE_STATUS_IDLE,
+    /* Set to EXECUTE in Open*/
+    AWE_STATUS_EXECUTE,
+    /* Set to FREE_RUN in low power*/
+    AWE_STATUS_FREE_RUN,
+} AWE_STATUS;
+
 
 struct _AWE {
     AML_VSP_HANDLE hVsp;
@@ -76,6 +90,7 @@ struct _AWE {
     uint32_t userFillBufSize;
     sem_t userFillSem;
     pthread_t work_thread;
+    uint32_t aweStatus;
 };
 
 typedef struct {
@@ -192,7 +207,7 @@ void awe_thread_process_data(void * data)
             while(numOfChunk--) {
                 /*hanlder wrap around, copy the wrapped data to the of the buff, to ensure continuous*/
                 if ((awe->userFillBufSize -  awe->userFillBufRd) < awe->inWorkBufLen*(awe->micInChannels + awe->refInChannels)) {
-                    uint32_t block1 = awe->userFillBufSize -  awe->userFillBufRd; 
+                    uint32_t block1 = awe->userFillBufSize -  awe->userFillBufRd;
                     uint32_t block2 = awe->inWorkBufLen*(awe->micInChannels + awe->refInChannels) - block1;
                     memcpy(awe->userFillBuf + awe->userFillBufSize, awe->userFillBuf, block2);
                 }
@@ -238,9 +253,9 @@ void awe_thread_process_data(void * data)
                         exit(0);
                     }
                     awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE](awe, AWE_EVENT_TYPE_WAKE, 0,
-                                          NULL, awe->awe_event_handler_userdata[AWE_EVENT_TYPE_MAX]);
+                                          NULL, awe->awe_event_handler_userdata[AWE_EVENT_TYPE_WAKE]);
                 }
-            }            
+            }
         } else if (awe->inputMode == AWE_DSP_INPUT_MODE) {
             isWorked = 0;
             inLen = 0;
@@ -276,7 +291,7 @@ void awe_thread_process_data(void * data)
                      exit(0);
                  }
                  awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE](awe, AWE_EVENT_TYPE_WAKE, 0,
-                                                  NULL, awe->awe_event_handler_userdata[AWE_EVENT_TYPE_MAX]);
+                                                  NULL, awe->awe_event_handler_userdata[AWE_EVENT_TYPE_WAKE]);
              }
         } else {
             printf("Impossible, invalid input mode:%d\n", awe->inputMode);
@@ -287,10 +302,7 @@ void awe_thread_process_data(void * data)
 AWE_RET AML_AWE_Create(AWE **awe)
 {
     AWE *pawe = NULL;
-    if (!awe) {
-		printf("Invalid param %s\n", __FUNCTION__);
-        return AWE_RET_ERR_NULL_POINTER;
-    }
+    AWE_CHECK_NULL(awe);
     pawe = calloc(1, sizeof(AWE));
 	if (!pawe) {
 		printf("Calloc AWE structure failed\n");
@@ -309,20 +321,26 @@ AWE_RET AML_AWE_Create(AWE **awe)
 		*awe = pawe;
 		printf("Create AWE success: hVsp:%p hParam:%p hInput:%p hOutput:%p\n",
 				pawe->hVsp, pawe->hParam, pawe->hInput, pawe->hOutput);
+        (*awe)->aweStatus = AWE_STATUS_IDLE;
 		return AWE_RET_OK;
 	} else {
 		printf("Allocate AWE resource failed: hVsp:%p hParam:%p hInput:%p hOutput:%p\n",
 				pawe->hVsp, pawe->hParam, pawe->hInput, pawe->hOutput);
+        if (pawe->hParam)
+            AML_MEM_Free(pawe->hParam);
+        if (pawe->hInput)
+            AML_MEM_Free(pawe->hInput);
+        if (pawe->hOutput)
+            AML_MEM_Free(pawe->hInput);
+        if (pawe->hVsp)
+            AML_MEM_Free(pawe->hVsp);
 		return AWE_RET_ERR_NO_MEM;
 	}
 }
 
 AWE_RET AML_AWE_Destroy(AWE *awe)
 {
-    if (!awe) {
-		printf("Invalid param %s\n", __FUNCTION__);
-        return AWE_RET_ERR_NULL_POINTER;
-    }
+    AWE_CHECK_NULL(awe);
 	if (awe->hOutput)
 		AML_MEM_Free(awe->hOutput);
 	if (awe->hInput)
@@ -331,18 +349,17 @@ AWE_RET AML_AWE_Destroy(AWE *awe)
 		AML_MEM_Free(awe->hParam);
 	if (awe->hVsp)
 		AML_VSP_Deinit(awe->hVsp);
-	free(awe);
+    if (awe)
+	    free(awe);
 	return 0;
 }
 
 AWE_RET AML_AWE_Open(AWE *awe)
 {
     int i;
-    int ret;
-    if (!awe) {
-		printf("Invalid param %s\n", __FUNCTION__);
-        return AWE_RET_ERR_NULL_POINTER;
-    }
+    AWE_RET ret;
+    AWE_CHECK_NULL(awe);
+    AWE_CHECK_STATUS(awe->aweStatus, AWE_STATUS_IDLE)
     AWE_PARA* para = (AWE_PARA*)AML_MEM_GetVirtAddr(awe->hParam);
 
     AML_VSP_GetParam(awe->hVsp, AWE_PARA_MIC_IN_CHANNELS, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
@@ -352,7 +369,6 @@ AWE_RET AML_AWE_Open(AWE *awe)
     AML_VSP_GetParam(awe->hVsp, AWE_PARA_REF_IN_CHANNELS, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
     AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
     awe->refInChannels = para->refInChannels;
-
 
     AML_VSP_GetParam(awe->hVsp, AWE_PARA_OUT_CHANNELS, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
     AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
@@ -423,6 +439,7 @@ AWE_RET AML_AWE_Open(AWE *awe)
         goto table_failure_handling;
     }
     pthread_setname_np(awe->work_thread, "awe_thread_process_data");
+    awe->aweStatus = AWE_STATUS_EXECUTE;
     goto table_end;
 table_failure_handling:
     awe->work_thread_exit = 1;
@@ -450,10 +467,8 @@ AWE_RET AML_AWE_Close(AWE *awe)
 {
     int i;
     AWE_RET ret;
-    if (!awe) {
-		printf("Invalid param %s\n", __FUNCTION__);
-        return AWE_RET_ERR_NULL_POINTER;
-    }
+    AWE_CHECK_NULL(awe);
+    AWE_CHECK_STATUS(awe->aweStatus, AWE_STATUS_EXECUTE);
     awe->work_thread_exit = 1;
     sem_post(&awe->userFillSem);
     pthread_join(awe->work_thread,NULL);
@@ -479,10 +494,8 @@ AWE_RET AML_AWE_Close(AWE *awe)
 
 AWE_RET AML_AWE_SetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para)
 {
-    if (!awe) {
-		printf("Invalid param %s\n", __FUNCTION__);
-        return AWE_RET_ERR_NULL_POINTER;
-    }
+    AWE_CHECK_NULL(awe);
+    AWE_CHECK_NULL(para);
 	char* pParam = (char*)AML_MEM_GetVirtAddr(awe->hParam);
 	memcpy(pParam, para, sizeof(AWE_PARA));
 	AML_MEM_Clean(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
@@ -492,10 +505,8 @@ AWE_RET AML_AWE_SetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para)
 AWE_RET AML_AWE_GetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para)
 {
 	AWE_RET ret = AWE_RET_OK;
-    if (!awe) {
-		printf("Invalid param %s\n", __FUNCTION__);
-        return AWE_RET_ERR_NULL_POINTER;
-    }
+    AWE_CHECK_NULL(awe);
+    AWE_CHECK_NULL(para);
 	ret = AML_VSP_GetParam(awe->hVsp, (int32_t)paraId, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
 	AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
 	char* pParam = (char*)AML_MEM_GetVirtAddr(awe->hParam);
@@ -508,6 +519,10 @@ AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[],
                     int32_t *outLenInByte, uint32_t *isWaked)
 {
 	AWE_RET ret = AWE_RET_OK;
+    AWE_CHECK_NULL(awe);
+    AWE_CHECK_NULL(inLenInByte);
+    AWE_CHECK_NULL(outLenInByte);
+    AWE_CHECK_STATUS(awe->aweStatus, AWE_STATUS_EXECUTE);
     if (awe->inputMode == AWE_USER_INPUT_MODE)
         ret = internal_aml_awe_process(awe, in, inLenInByte, out, outLenInByte, isWaked);
     else {
@@ -519,6 +534,9 @@ AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[],
 
 AWE_RET AML_AWE_PushBuf(AWE *awe, const char *data, size_t size)
 {
+    AWE_CHECK_NULL(awe);
+    AWE_CHECK_NULL(data);
+    AWE_CHECK_STATUS(awe->aweStatus, AWE_STATUS_EXECUTE);
     if (awe->inputMode == AWE_DSP_INPUT_MODE) {
         printf("Do not support this API when input is from dsp\n");
         return AWE_RET_ERR_NOT_SUPPORT;
@@ -552,6 +570,9 @@ AWE_RET AML_AWE_AddDataHandler(AWE *awe, const AWE_DATA_TYPE type,
                                                  AML_AWE_DataHandler handler,
                                                  void *user_data)
 {
+    AWE_CHECK_NULL(awe);
+    AWE_CHECK_NULL(handler);
+    AWE_CHECK_STATUS(awe->aweStatus, AWE_STATUS_IDLE);
     if (type >= AWE_DATA_TYPE_MAX) {
         printf("Invalid data type\n");
         return AWE_RET_ERR_NOT_SUPPORT;
@@ -568,6 +589,9 @@ AWE_RET AML_AWE_AddEventHandler(AWE *awe, const AWE_EVENT_TYPE type,
                                                   AML_AWE_EventHandler handler,
                                                   void *user_data)
 {
+    AWE_CHECK_NULL(awe);
+    AWE_CHECK_NULL(handler);
+    AWE_CHECK_STATUS(awe->aweStatus, AWE_STATUS_IDLE);
     if (type >= AWE_EVENT_TYPE_MAX) {
         printf("Invalid event type\n");
         return AWE_RET_ERR_NOT_SUPPORT;
