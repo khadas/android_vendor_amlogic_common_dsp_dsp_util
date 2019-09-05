@@ -48,7 +48,7 @@
 #define AWE_CHECK_NULL(ptr)    if ((ptr) == 0)          \
     {printf("%s:%d:NULL POINT\n", __FUNCTION__, __LINE__);return AWE_RET_ERR_NULL_POINTER;}
 #define AWE_CHECK_STATUS(st0,st1)    if ((st0) != (st1))          \
-    {printf("%s:%d:Invalid status:\n", __FUNCTION__, __LINE__, (st0));return AWE_RET_ERR_NOT_SUPPORT;}
+    {printf("%s:%d:Invalid status:%d\n", __FUNCTION__, __LINE__, (st0));return AWE_RET_ERR_NOT_SUPPORT;}
 
 typedef enum {
     /* Set to IDEL in Create*/
@@ -303,29 +303,33 @@ AWE_RET AML_AWE_Create(AWE **awe)
 {
     AWE *pawe = NULL;
     AWE_CHECK_NULL(awe);
+    if (*awe != NULL) {
+        printf("Dagerous, *awe should be initialized as NULL, *awe=%p\n", *awe);
+        return AWE_RET_ERR_NOT_SUPPORT;
+    }
     pawe = calloc(1, sizeof(AWE));
-	if (!pawe) {
-		printf("Calloc AWE structure failed\n");
+    if (!pawe) {
+        printf("Calloc AWE structure failed\n");
         return AWE_RET_ERR_NO_MEM;
-	}
-	memset(pawe, 0, sizeof(AWE));
-	pawe->hParam = AML_MEM_Allocate(sizeof(AWE_PARA));
-	pawe->param_size = sizeof(AWE_PARA);
-	pawe->hInput = AML_MEM_Allocate(sizeof(aml_vsp_awe_process_param_in));
-	pawe->input_size = sizeof(aml_vsp_awe_process_param_in);
-	pawe->hOutput = AML_MEM_Allocate(sizeof(aml_vsp_awe_process_param_out));
-	pawe->output_size = sizeof(aml_vsp_awe_process_param_out);
-	pawe->hVsp = AML_VSP_Init(AML_VSP_AWE, NULL, 0);
+    }
+    memset(pawe, 0, sizeof(AWE));
+    pawe->hParam = AML_MEM_Allocate(sizeof(AWE_PARA));
+    pawe->param_size = sizeof(AWE_PARA);
+    pawe->hInput = AML_MEM_Allocate(sizeof(aml_vsp_awe_process_param_in));
+    pawe->input_size = sizeof(aml_vsp_awe_process_param_in);
+    pawe->hOutput = AML_MEM_Allocate(sizeof(aml_vsp_awe_process_param_out));
+    pawe->output_size = sizeof(aml_vsp_awe_process_param_out);
+    pawe->hVsp = AML_VSP_Init(AML_VSP_AWE, NULL, 0);
 
-	if (pawe->hParam && pawe->hInput && pawe->hOutput && pawe->hVsp) {
-		*awe = pawe;
-		printf("Create AWE success: hVsp:%p hParam:%p hInput:%p hOutput:%p\n",
-				pawe->hVsp, pawe->hParam, pawe->hInput, pawe->hOutput);
+    if (pawe->hParam && pawe->hInput && pawe->hOutput && pawe->hVsp) {
+        *awe = pawe;
+        printf("Create AWE success: hVsp:%p hParam:%p hInput:%p hOutput:%p\n",
+            pawe->hVsp, pawe->hParam, pawe->hInput, pawe->hOutput);
         (*awe)->aweStatus = AWE_STATUS_IDLE;
-		return AWE_RET_OK;
-	} else {
-		printf("Allocate AWE resource failed: hVsp:%p hParam:%p hInput:%p hOutput:%p\n",
-				pawe->hVsp, pawe->hParam, pawe->hInput, pawe->hOutput);
+        return AWE_RET_OK;
+    } else {
+        printf("Allocate AWE resource failed: hVsp:%p hParam:%p hInput:%p hOutput:%p\n",
+            pawe->hVsp, pawe->hParam, pawe->hInput, pawe->hOutput);
         if (pawe->hParam)
             AML_MEM_Free(pawe->hParam);
         if (pawe->hInput)
@@ -334,24 +338,32 @@ AWE_RET AML_AWE_Create(AWE **awe)
             AML_MEM_Free(pawe->hInput);
         if (pawe->hVsp)
             AML_MEM_Free(pawe->hVsp);
-		return AWE_RET_ERR_NO_MEM;
-	}
+        return AWE_RET_ERR_NO_MEM;
+    }
 }
 
 AWE_RET AML_AWE_Destroy(AWE *awe)
 {
     AWE_CHECK_NULL(awe);
-	if (awe->hOutput)
-		AML_MEM_Free(awe->hOutput);
-	if (awe->hInput)
-		AML_MEM_Free(awe->hInput);
-	if (awe->hParam)
-		AML_MEM_Free(awe->hParam);
-	if (awe->hVsp)
-		AML_VSP_Deinit(awe->hVsp);
+    if (awe->hOutput) {
+        AML_MEM_Free(awe->hOutput);
+        awe->hOutput = NULL;
+    }
+    if (awe->hInput) {
+        AML_MEM_Free(awe->hInput);
+        awe->hOutput = NULL;
+    }
+    if (awe->hParam) {
+        AML_MEM_Free(awe->hParam);
+        awe->hOutput = NULL;
+    }
+    if (awe->hVsp) {
+        AML_VSP_Deinit(awe->hVsp);
+        awe->hVsp = NULL;
+    }
     if (awe)
-	    free(awe);
-	return 0;
+        free(awe);
+    return 0;
 }
 
 AWE_RET AML_AWE_Open(AWE *awe)
@@ -526,7 +538,7 @@ AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[],
     if (awe->inputMode == AWE_USER_INPUT_MODE)
         ret = internal_aml_awe_process(awe, in, inLenInByte, out, outLenInByte, isWaked);
     else {
-        printf("AWE is not worked at user input mode. current input mode:%s\n", awe->inputMode);
+        printf("AWE is not worked at user input mode. current input mode:%d\n", awe->inputMode);
         ret = AWE_RET_ERR_NOT_SUPPORT;
     }
     return ret;

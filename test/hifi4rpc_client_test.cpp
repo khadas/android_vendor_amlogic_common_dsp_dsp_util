@@ -34,6 +34,7 @@
 #include <math.h>
 #include <pthread.h>
 #include <time.h>
+#include <signal.h>
 #include "mp3reader.h"
 #include "sndfile.h"
 #include "aipc_type.h"
@@ -684,6 +685,16 @@ void aml_wake_engine_event_handler(AWE *awe, const AWE_EVENT_TYPE type, int32_t 
 		printf("wake word detected !!!! \n");
 }
 
+static AWE *gAwe = NULL;
+void awe_test_sighandler(int signum)
+{
+    if (gAwe)
+        AML_AWE_Close(gAwe);
+    if (gAwe)
+        AML_AWE_Destroy(gAwe);
+    gAwe = NULL;
+    uFeedChunk = 0;
+}
 
 int aml_wake_engine_unit_test(int argc, char* argv[]) {
 	uFeedChunk = 0;
@@ -694,7 +705,6 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 	AWE_PARA awe_para;
 	int ret = 0;
 	uint32_t isWakeUp = 0;
-	AWE *awe = NULL;
 	AWE_RET awe_ret = AWE_RET_OK;
 	int32_t inLen = 0, outLen = 0;
 	void *in[4], *out[2];
@@ -721,6 +731,7 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 	void *vir_out1_buf = NULL;
 	void *phy_out1_buf = NULL;
 
+	signal(SIGINT, &awe_test_sighandler);
 	if (argc == 6)
 		syncMode = atoi(argv[5]);
 
@@ -786,7 +797,7 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 		printf("outbuf:%p,%p\n", phy_out0_buf, phy_out1_buf);
 	}
 
-    awe_ret = AML_AWE_Create(&awe);
+    awe_ret = AML_AWE_Create(&gAwe);
     if (awe_ret != AWE_RET_OK) {
 		printf("Can not create Hifi AWE service\n");
 		ret = -1;
@@ -794,20 +805,20 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
     }
 
 	if (syncMode == 1) {
-		AML_AWE_AddDataHandler(awe, AWE_DATA_TYPE_ASR, aml_wake_engine_asr_data_handler,(void *)fout0);		
-		AML_AWE_AddDataHandler(awe, AWE_DATA_TYPE_VOIP, aml_wake_engine_voip_data_handler,(void *)fout1);
-		AML_AWE_AddEventHandler(awe, AWE_EVENT_TYPE_WAKE, aml_wake_engine_event_handler, NULL);
+		AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_ASR, aml_wake_engine_asr_data_handler,(void *)fout0);
+		AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_VOIP, aml_wake_engine_voip_data_handler,(void *)fout1);
+		AML_AWE_AddEventHandler(gAwe, AWE_EVENT_TYPE_WAKE, aml_wake_engine_event_handler, NULL);
 	}
 
     awe_para.inputMode = AWE_USER_INPUT_MODE;
-    awe_ret = AML_AWE_SetParam(awe, AWE_PARA_INPUT_MODE, &awe_para);
+    awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_INPUT_MODE, &awe_para);
     if (awe_ret != AWE_RET_OK) {
 		printf("Set input mode fail:%d\n", awe_ret);
 		ret = -1;
 		goto end_tab;
     }
 
-    awe_ret = AML_AWE_GetParam(awe, AWE_PARA_SUPPORT_SAMPLE_RATES, &awe_para);
+    awe_ret = AML_AWE_GetParam(gAwe, AWE_PARA_SUPPORT_SAMPLE_RATES, &awe_para);
     if (awe_ret != AWE_RET_OK) {
 		printf("Get supported samperate fail:%d\n", awe_ret);
 		ret = -1;
@@ -816,14 +827,14 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 
     awe_para.inSampRate = awe_para.supportSampRates[0];
 	printf("awe_para.inSampRate:%d\n", awe_para.inSampRate);
-    awe_ret = AML_AWE_SetParam(awe, AWE_PARA_IN_SAMPLE_RATE, &awe_para);
+    awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_IN_SAMPLE_RATE, &awe_para);
     if (awe_ret != AWE_RET_OK) {
 		printf("Set samperate fail:%d\n", awe_ret);
 		ret = -1;
 		goto end_tab;
     }
 
-    awe_ret = AML_AWE_GetParam(awe, AWE_PARA_SUPPORT_SAMPLE_BITS, &awe_para);
+    awe_ret = AML_AWE_GetParam(gAwe, AWE_PARA_SUPPORT_SAMPLE_BITS, &awe_para);
     if (awe_ret != AWE_RET_OK) {
 		printf("Failed to get sample bits:%d\n", awe_ret);
 		ret = -1;
@@ -831,14 +842,14 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
     }
 
     awe_para.inSampBits = awe_para.supportSampBits[0];
-    awe_ret = AML_AWE_SetParam(awe, AWE_PARA_IN_SAMPLE_BITS, &awe_para);
+    awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_IN_SAMPLE_BITS, &awe_para);
     if (awe_ret != AWE_RET_OK) {
 		printf("Failed to set sample bits:%d\n", awe_ret);
 		ret = -1;
 		goto end_tab;
     }
 
-    awe_ret = AML_AWE_Open(awe);
+    awe_ret = AML_AWE_Open(gAwe);
     if (awe_ret != AWE_RET_OK) {
 		printf("Failed to open AWE:%d\n", awe_ret);
 		ret = -1;
@@ -871,7 +882,7 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 			out[0] = hOutBuf0;
 			out[1] = hOutBuf1;
 			outLen = 2048;
-			AML_AWE_Process(awe, in, &inLen, out, &outLen, &isWakeUp);
+			AML_AWE_Process(gAwe, in, &inLen, out, &outLen, &isWakeUp);
 			if (isWakeUp) {
 				printf("wake word detected ! \n");
 			}
@@ -900,7 +911,7 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 				*pInterleave = *pRef0++;
 				pInterleave++;
 			}
-			ret = AML_AWE_PushBuf(awe, (const char*)vir_interleave_buf, nbyteRead*3);
+			ret = AML_AWE_PushBuf(gAwe, (const char*)vir_interleave_buf, nbyteRead*3);
 			if (AWE_RET_ERR_NO_MEM == ret) {
 				fseek(fmic0, -nbyteRead, SEEK_CUR);
 				fseek(fmic1, -nbyteRead, SEEK_CUR);
@@ -923,13 +934,13 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 end_tab:
 	while(uRecvChunk < uFeedChunk) {
 		printf("uRecvChunk:%d, uFeedChunk:%d\n", uRecvChunk, uFeedChunk);
-		usleep(500);
+		usleep(5000);
 	}
 	printf("Read: %d Kbytes, Write %d Kbytes\n", uTotalBytesRead/1024, uTotalBytesWrite/1024);
-	if (awe)
-    	AML_AWE_Close(awe);
-	if (awe)
-		AML_AWE_Destroy(awe);
+	if (gAwe)
+    	AML_AWE_Close(gAwe);
+	if (gAwe)
+		AML_AWE_Destroy(gAwe);
 	if (hOutBuf0)
 		AML_MEM_Free(hOutBuf0);
 	if (hOutBuf1)
@@ -960,7 +971,6 @@ end_tab:
 		fclose(fout0);
 	if (fout1)
 		fclose(fout1);
-
     return ret;
 }
 
@@ -972,7 +982,6 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 	AWE_PARA awe_para;
 	int ret = 0;
 	uint32_t isWakeUp = 0;
-	AWE *awe = NULL;
 	AWE_RET awe_ret = AWE_RET_OK;
 	int32_t inLen = 0, outLen = 0;
 	void *in[4], *out[2];
@@ -984,7 +993,8 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 	AML_MEM_HANDLE hOutBuf1 = 0;
 	void *vir_out_buf1 = NULL;
 	void *phy_out_buf1 = NULL;
-
+	
+	signal(SIGINT, &awe_test_sighandler);
 	if (argc == 3)
 		freeRunMode = atoi(argv[2]);
 
@@ -1012,26 +1022,26 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 		printf("outbuf:%p %p\n", phy_out_buf0, phy_out_buf1);
 	}
 
-    awe_ret = AML_AWE_Create(&awe);
+    awe_ret = AML_AWE_Create(&gAwe);
     if (awe_ret != AWE_RET_OK) {
 		printf("Can not create Hifi AWE service\n");
 		ret = -1;
 		goto end_tab;
     }
 
-	AML_AWE_AddDataHandler(awe, AWE_DATA_TYPE_ASR, aml_wake_engine_asr_data_handler,(void *)fout0);
-	AML_AWE_AddDataHandler(awe, AWE_DATA_TYPE_VOIP, aml_wake_engine_voip_data_handler,(void *)fout1);
-	AML_AWE_AddEventHandler(awe, AWE_EVENT_TYPE_WAKE, aml_wake_engine_event_handler, NULL);
+	AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_ASR, aml_wake_engine_asr_data_handler,(void *)fout0);
+	AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_VOIP, aml_wake_engine_voip_data_handler,(void *)fout1);
+	AML_AWE_AddEventHandler(gAwe, AWE_EVENT_TYPE_WAKE, aml_wake_engine_event_handler, NULL);
 
     awe_para.inputMode = AWE_DSP_INPUT_MODE;
-    awe_ret = AML_AWE_SetParam(awe, AWE_PARA_INPUT_MODE, &awe_para);
+    awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_INPUT_MODE, &awe_para);
     if (awe_ret != AWE_RET_OK) {
 		printf("Set input mode fail\n");
 		ret = -1;
 		goto end_tab;
     }
 
-    awe_ret = AML_AWE_GetParam(awe, AWE_PARA_SUPPORT_SAMPLE_RATES, &awe_para);
+    awe_ret = AML_AWE_GetParam(gAwe, AWE_PARA_SUPPORT_SAMPLE_RATES, &awe_para);
     if (awe_ret != AWE_RET_OK) {
 		printf("Get supported samperate fail\n");
 		ret = -1;
@@ -1039,14 +1049,14 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
     }
 
     awe_para.inSampRate = awe_para.supportSampRates[0];
-    awe_ret = AML_AWE_SetParam(awe, AWE_PARA_IN_SAMPLE_RATE, &awe_para);
+    awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_IN_SAMPLE_RATE, &awe_para);
     if (awe_ret != AWE_RET_OK) {
 		printf("Set samperate fail\n");
 		ret = -1;
 		goto end_tab;
     }
 
-    awe_ret = AML_AWE_GetParam(awe, AWE_PARA_SUPPORT_SAMPLE_BITS, &awe_para);
+    awe_ret = AML_AWE_GetParam(gAwe, AWE_PARA_SUPPORT_SAMPLE_BITS, &awe_para);
     if (awe_ret != AWE_RET_OK) {
 		printf("Failed to get sample bits\n");
 		ret = -1;
@@ -1054,14 +1064,14 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
     }
 
     awe_para.inSampBits = awe_para.supportSampBits[0];
-    awe_ret = AML_AWE_SetParam(awe, AWE_PARA_IN_SAMPLE_BITS, &awe_para);
+    awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_IN_SAMPLE_BITS, &awe_para);
     if (awe_ret != AWE_RET_OK) {
 		printf("Failed to set sample bits\n");
 		ret = -1;
 		goto end_tab;
     }
 
-    awe_ret = AML_AWE_Open(awe);
+    awe_ret = AML_AWE_Open(gAwe);
     if (awe_ret != AWE_RET_OK) {
 		printf("Failed to open AWE\n");
 		ret = -1;
@@ -1083,7 +1093,7 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 				break;
 		}
 		awe_para.freeRunMode = 1;
-		awe_ret = AML_AWE_SetParam(awe, AWE_PARA_FREE_RUN_MODE, &awe_para);
+		awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_FREE_RUN_MODE, &awe_para);
 		while (1) {
 			printf("Please input exit if you want to quit\n");
 			scanf("%s", user_cmd);
@@ -1092,7 +1102,7 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 				break;
 		}
 		awe_para.freeRunMode = 0;
-		awe_ret = AML_AWE_SetParam(awe, AWE_PARA_FREE_RUN_MODE, &awe_para);
+		awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_FREE_RUN_MODE, &awe_para);
 		uRecvChunk = 0;
 	}
 	while(uRecvChunk < uFeedChunk) {
@@ -1101,10 +1111,10 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 	}
 
 end_tab:
-	if (awe)
-		AML_AWE_Close(awe);
-	if (awe)
-		AML_AWE_Destroy(awe);
+	if (gAwe)
+		AML_AWE_Close(gAwe);
+	if (gAwe)
+		AML_AWE_Destroy(gAwe);
 	if (hOutBuf0)
 		AML_MEM_Free(hOutBuf0);
 	if (hOutBuf1)
@@ -1114,7 +1124,6 @@ end_tab:
 		fclose(fout0);
 	if (fout1)
 		fclose(fout1);
-
     return ret;
 }
 
