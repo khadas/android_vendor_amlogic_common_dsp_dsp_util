@@ -203,9 +203,11 @@ AWE_RET AML_AWE_SetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para);
 AWE_RET AML_AWE_GetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para);
 
 /**
- * AWE data processing entry
- *
- * AEC and wakeup words spot is handled here.
+ * Synchronous AWE data processing entry.
+ * Application feed pcm here, application get output
+ * and wake up result here.
+ * Note: This api only work when AWE input mode is configured
+ * as AWE_USER_INPUT_MODE
  *
  * @param[in] AWE instance handler
  *
@@ -214,13 +216,9 @@ AWE_RET AML_AWE_GetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para);
  * is filled with mic or reference pcm by application.
  * The pcm is in none interleave format, mic0|mic1|ref0|ref1
  * Max supported input channels see AWE_MAX_IN_CHANS
- * Note: This parameter is invalid when AWE input mode is configured as
- * AWE_DSP_INPUT_MODE
  *
  * @param[in/out] Length in bytes per channel. Return
  * remained pcm in bytes after the call
- * Note: This parameter is invalid when AWE input mode is configured as
- * AWE_DSP_INPUT_MODE
  *
  * @param[out] Aarry of shared memory hanlders. A member of
  * this array represent a output pcm channel. The share memory
@@ -268,7 +266,7 @@ AWE_RET AML_AWE_PushBuf(AWE *awe, const char *data, size_t size);
  *
  * @param[in] AWE data processing type, see AWE_DATA_TYPE
  *
- * @param[in] Pcm processed data, non-interlave, out[0] = ch0, out[1] = ch1
+ * @param[in] Pcm processed data, mono channel
  *
  * @param[in] size in bytes per channel
  *

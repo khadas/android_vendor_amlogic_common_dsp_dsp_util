@@ -968,7 +968,7 @@ end_tab:
 int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 	uFeedChunk = TOTAL_DURATION_MS/VOICE_CHUNK_LEN_MS;
 	uRecvChunk = 0;
-	int syncMode = 0;
+	int freeRunMode = 0;
 	AWE_PARA awe_para;
 	int ret = 0;
 	uint32_t isWakeUp = 0;
@@ -986,7 +986,7 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 	void *phy_out_buf1 = NULL;
 
 	if (argc == 3)
-		syncMode = atoi(argv[2]);
+		freeRunMode = atoi(argv[2]);
 
 	FILE *fout0 = fopen(argv[0], "w+b");
 	FILE *fout1 = fopen(argv[1], "w+b");
@@ -1019,11 +1019,9 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 		goto end_tab;
     }
 
-	if (syncMode == 1) {
-		AML_AWE_AddDataHandler(awe, AWE_DATA_TYPE_ASR, aml_wake_engine_asr_data_handler,(void *)fout0);
-		AML_AWE_AddDataHandler(awe, AWE_DATA_TYPE_VOIP, aml_wake_engine_voip_data_handler,(void *)fout1);
-		AML_AWE_AddEventHandler(awe, AWE_EVENT_TYPE_WAKE, aml_wake_engine_event_handler, NULL);
-	}
+	AML_AWE_AddDataHandler(awe, AWE_DATA_TYPE_ASR, aml_wake_engine_asr_data_handler,(void *)fout0);
+	AML_AWE_AddDataHandler(awe, AWE_DATA_TYPE_VOIP, aml_wake_engine_voip_data_handler,(void *)fout1);
+	AML_AWE_AddEventHandler(awe, AWE_EVENT_TYPE_WAKE, aml_wake_engine_event_handler, NULL);
 
     awe_para.inputMode = AWE_DSP_INPUT_MODE;
     awe_ret = AML_AWE_SetParam(awe, AWE_PARA_INPUT_MODE, &awe_para);
@@ -1069,45 +1067,40 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 		ret = -1;
 		goto end_tab;
     }
+	printf("wake test start! ! freeRunMode:%d\n", freeRunMode);
 
-	//awe_para.freeRunMode = 1;
-	//awe_ret = AML_AWE_SetParam(awe, AWE_PARA_FREE_RUN_MODE, &awe_para);
-
-	printf("wake test start! !:%d\n", syncMode);
-	uint32_t i,j;
-    while (1) {
-		if (syncMode == 0) {
-			in[0] = 0;
-			in[1] = 0;
-			in[2] = 0;
-			inLen = 0;
-			out[0] = hOutBuf0;
-			out[1] = hOutBuf1;
-			outLen = VOICE_CHUNK_LEN_BYTE*4;
-			AML_AWE_Process(awe, in, &inLen, out, &outLen, &isWakeUp);
-			if (isWakeUp) {
-				printf("wake word detected ! \n");
-			}
-			AML_MEM_Invalidate(phy_out_buf0, outLen);
-			AML_MEM_Invalidate(phy_out_buf1, outLen);
-			fwrite(vir_out_buf0, 1, outLen, fout0);
-			fwrite(vir_out_buf1, 1, outLen, fout1);
-			/*if (outLen != VOICE_CHUNK_LEN_BYTE)
-			printf("outLen=%d, %d\n", outLen, VOICE_CHUNK_LEN_BYTE);*/
-		} else if (syncMode == 1) {
-			printf("work in async mode\n");
-			break;
-		} else {
-			printf("Invalide sync mode:%d\n", syncMode);
-			break;
+	if (freeRunMode) {
+		char user_cmd[16];
+		while (1) {
+			printf("Please input yes if you want to enter free run mode\n");
+			printf("Please input exit if you want to quit\n");
+			scanf("%s", user_cmd);
+			user_cmd[4] = '\0';
+			if(!strcmp(user_cmd, "exit"))
+				goto end_tab;
+			user_cmd[3] = '\0';
+			if(!strcmp(user_cmd, "yes"))
+				break;
 		}
-    }
-
-end_tab:
+		awe_para.freeRunMode = 1;
+		awe_ret = AML_AWE_SetParam(awe, AWE_PARA_FREE_RUN_MODE, &awe_para);
+		while (1) {
+			printf("Please input exit if you want to quit\n");
+			scanf("%s", user_cmd);
+			user_cmd[4] = '\0';
+			if(!strcmp(user_cmd, "exit"))
+				break;
+		}
+		awe_para.freeRunMode = 0;
+		awe_ret = AML_AWE_SetParam(awe, AWE_PARA_FREE_RUN_MODE, &awe_para);
+		uRecvChunk = 0;
+	}
 	while(uRecvChunk < uFeedChunk) {
 		printf("uRecvChunk:%d, uFeedChunk:%d\n", uRecvChunk, uFeedChunk);
 		sleep(1);
 	}
+
+end_tab:
 	if (awe)
 		AML_AWE_Close(awe);
 	if (awe)
@@ -1250,7 +1243,7 @@ static void usage()
 	printf ("\n");
 	printf ("vsp-awe-unit Usage: hifi4rpc_client_test --vsp-awe-unit $mic0 $mic1 $ref $out0 $out1 $syncMode[0:sync,1:async]\n");
 	printf ("\n");
-	printf ("vsp-awe-dspin Usage: hifi4rpc_client_test --vsp-awe-dspin $out0 $out1 $syncMode[0:sync,1:async]\n");
+	printf ("vsp-awe-dspin Usage: hifi4rpc_client_test --vsp-awe-dspin $out0 $out1 $enableFreeRun[0:disabe,1:enable]\n");
 	printf ("\n");
  }
 

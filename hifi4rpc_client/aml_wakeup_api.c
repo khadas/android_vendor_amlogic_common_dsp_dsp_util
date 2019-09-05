@@ -508,8 +508,13 @@ AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[],
                     int32_t *outLenInByte, uint32_t *isWaked)
 {
 	AWE_RET ret = AWE_RET_OK;
-    ret = internal_aml_awe_process(awe, in, inLenInByte, out, outLenInByte, isWaked);
-	return ret;
+    if (awe->inputMode == AWE_USER_INPUT_MODE)
+        ret = internal_aml_awe_process(awe, in, inLenInByte, out, outLenInByte, isWaked);
+    else {
+        printf("AWE is not worked at user input mode. current input mode:%s\n", awe->inputMode);
+        ret = AWE_RET_ERR_NOT_SUPPORT;
+    }
+    return ret;
 }
 
 AWE_RET AML_AWE_PushBuf(AWE *awe, const char *data, size_t size)
