@@ -320,7 +320,7 @@ int dsp_cmd_parse(int argc, char **argv, struct hifi4dsp_info_t *info)
 
 		case 'a': /*address*/
 			cmd |= 0x40;
-			sscanf(optarg, "%x", &(info->phy_addr));
+			sscanf(optarg, "%lx", &(info->phy_addr));
 			debug_pr("option=a, value=%s, info.phy_addr=0x%x\n", optarg, info->phy_addr);
 		break;
 		case 'h':
