@@ -87,6 +87,8 @@
 /** Pipeline test case */
 #define MP3PLAY_DEMO        0x0
 #define RECORDOPUS_DEMO     0x1
+#define STRESS_DEMO         0x2
+#define WAKE_ENGINE_DEMO    0x3
 
 /*******************************************************************************
  * Mssage Comopsition
@@ -139,6 +141,8 @@
 
 #define MBX_MP3_PLAY_DEMO       __MBX_COMPOSE_MSG(MBX_PIPELINE, MP3PLAY_DEMO)
 #define MBX_RECORD_OPUS_DEMO    __MBX_COMPOSE_MSG(MBX_PIPELINE, RECORDOPUS_DEMO)
+#define MBX_STRESS_DEMO         __MBX_COMPOSE_MSG(MBX_PIPELINE, STRESS_DEMO)
+#define MBX_WAKE_ENGINE_DEMO    __MBX_COMPOSE_MSG(MBX_PIPELINE, WAKE_ENGINE_DEMO)
 
 typedef uint64_t xpointer;
 

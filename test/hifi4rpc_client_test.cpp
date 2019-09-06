@@ -165,7 +165,7 @@ static int pcm_play_test(int argc, char* argv[])
 }
 
 
-#define PCM_CAPTURE_SAMPLES (48000*2)
+#define PCM_CAPTURE_SAMPLES (48000*20)
 static int pcm_capture_test(int argc, char* argv[])
 {
 	enum ALSA_DEVICE_IN device = DEVICE_TDMIN_B;
@@ -1235,166 +1235,180 @@ static int shm_uint_tset(void)
 
 }
 
+void aml_hifi_inside_wakeup()
+{
+    int handle = xAudio_Ipc_init();
+    xAIPC(handle, MBX_WAKE_ENGINE_DEMO, NULL, 0);
+    xAudio_Ipc_Deinit(handle);
+}
 
 static void usage()
 {
-	printf ("ipc unit test usage: hifi4rpc_client_test --ipc\n");
-	printf ("\n");
-	printf ("rpc unit test usage: hifi4rpc_client_test --rpc $func_code[1:dummy, 2:square] $input_param $sleep_time[ms]\n");
-	printf ("\n");
-	printf ("shared memory unit test usage: hifi4rpc_client_test --shm\n");
-	printf ("\n");
-	printf ("mp3dec Usage: hifi4rpc_client_test --mp3dec $input_file $output_file $bUserAllocShm\n");
-	printf ("\n");
-	printf ("aacdec Usage: hifi4rpc_client_test --aacdec $input_file $output_file $bUserAllocShm\n");
-	printf ("\n");
-	printf ("pcmplay Usage: hifi4rpc_client_test --pcmplay $pcm_file\n");
-	printf ("\n");
-	printf ("pcmcap Usage: hifi4rpc_client_test --pcmcap  $pcm_file $input_mode[1:tdmin,3:tdmin&loopback, 4:pdmin]\n");
-	printf ("\n");
-	printf ("pcmplay-buildin Usage: hifi4rpc_client_test --pcmplay-buildin\n");
-	printf ("\n");
-	printf ("vsp-rsp Usage: hifi4rpc_client_test --vsp-rsp $input_file $output_file $in_rate $out_rate\n");
-	printf ("\n");
-	printf ("vsp-awe-unit Usage: hifi4rpc_client_test --vsp-awe-unit $mic0 $mic1 $ref $out0 $out1 $syncMode[0:sync,1:async]\n");
-	printf ("\n");
-	printf ("vsp-awe-dspin Usage: hifi4rpc_client_test --vsp-awe-dspin $out0 $out1 $enableFreeRun[0:disabe,1:enable]\n");
-	printf ("\n");
- }
+    printf ("\033[1mipc unit test usage:\033[m hifi4rpc_client_test --ipc\n");
+
+    printf ("\033[1mrpc unit test usage:\033[m hifi4rpc_client_test --rpc $func_code[1:dummy, 2:square] $input_param $sleep_time[ms]\n");
+
+    printf ("\033[1mshared memory unit test usage:\033[m hifi4rpc_client_test --shm\n");
+
+    printf ("\033[1mmp3dec Usage:\033[m hifi4rpc_client_test --mp3dec $input_file $output_file $bUserAllocShm\n");
+
+    printf ("\033[1maacdec Usage:\033[m hifi4rpc_client_test --aacdec $input_file $output_file $bUserAllocShm\n");
+
+    printf ("\033[1mpcmplay Usage:\033[m hifi4rpc_client_test --pcmplay $pcm_file\n");
+
+    printf ("\033[1mpcmcap Usage:\033[m hifi4rpc_client_test --pcmcap  $pcm_file $input_mode[1:tdmin,3:tdmin&loopback, 4:pdmin]\n");
+
+    printf ("\033[1mpcmplay-buildin Usage:\033[m hifi4rpc_client_test --pcmplay-buildin\n");
+
+    printf ("\033[1mhifi inside wakeup test Usage:\033[m hifi4rpc_client_test --hifiwake\n");
+
+    printf ("\033[1mipc unit test usage:\033[m hifi4rpc_client_test --ipc\n");
+
+    printf ("\033[1mvsp-rsp Usage:\033[m hifi4rpc_client_test --vsp-rsp $input_file $output_file $in_rate $out_rate\n");
+
+    printf ("\033[1mvsp-awe-unit Usage:\033[m hifi4rpc_client_test --vsp-awe-unit $mic0 $mic1 $ref $out0 $out1 $syncMode[0:sync,1:async]\n");
+
+    printf ("\033[1mvsp-awe-dspin Usage:\033[m hifi4rpc_client_test --vsp-awe-dspin $out0 $out1 $enableFreeRun[0:disabe,1:enable]\n");
+
+}
 
 
 int main(int argc, char* argv[]) {
-	int c = -1;
-	int option_index = 0;
-	struct option long_options[] =
-	{
-	   {"help", no_argument, NULL, 0},
-	   {"ipc", no_argument, NULL, 1},
-	   {"shm", no_argument, NULL, 2},
-	   {"mp3dec", no_argument, NULL, 3},
-	   {"pcmplay", no_argument, NULL, 4},
-	   {"pcmcap", no_argument, NULL, 5},
-	   {"pcmplay-buildin", no_argument, NULL, 6},
-	   {"aacdec", no_argument, NULL, 7},
-	   {"vsp-rsp", no_argument, NULL, 8},
-	   {"rpc", no_argument, NULL, 9},
-	   {"vsp-awe-unit", no_argument, NULL, 10},
-	   {"vsp-awe-dspin", no_argument, NULL, 11},
- 	   {0, 0, 0, 0}
-	};
-	c = getopt_long (argc, argv, "hvV", long_options, &option_index);
-	if(-1 == c) {
-		printf("error options\n");
-	}
-	switch(c)
-	{
-		case 0:
-			usage();
-			break;
-		case 1:
-			{
-				TIC;
-				ipc_uint_tset();
-				TOC;
-				printf("ipc unit test use:%u ms\n", ms);
-			}
-			break;
-		case 2:
-			{
-				TIC;
-				shm_uint_tset();
-				TOC;
-				printf("shm unit test use %u ms\n", ms);
-			}
-			break;
-		case 3:
-			if (2 == argc - optind || 3 == argc - optind) {
-				TIC;
-				mp3_offload_dec(argc - optind, &argv[optind]);
-				TOC;
-				printf("mp3 offload decoder use:%u ms\n", ms);
-			}
-			else {
-				usage();
-				exit(1);
-			}
-			break;
-		case 4:
-			if (1 == argc - optind)
-				pcm_play_test(argc - optind, &argv[optind]);
-			else {
-				usage();
-				exit(1);
-			}
-			break;
-		case 5:
-			if (1 == argc - optind || 2 ==  argc - optind)
-				pcm_capture_test(argc - optind, &argv[optind]);
-			else {
-				usage();
-				exit(1);
-			}
-			break;
-		case 6:
-			pcm_play_buildin();
-		case 7:
-			if (2 == argc - optind || 3 == argc - optind) {
-				TIC;
-				aac_offload_dec(argc - optind, &argv[optind]);
-				TOC;
-				printf("aac offload decoder use:%u ms\n", ms);
-			}
-			else {
-				usage();
-				exit(1);
-			}
-			break;
-		case 8:
-			if (2 == argc - optind || 4 == argc - optind) {
-				TIC;
-				offload_vsp_rsp(argc - optind, &argv[optind]);
-				TOC;
-				printf("offload voice signal resampler use:%u ms\n", ms);
-			}
-			else {
-				usage();
-				exit(1);
-			}
-			break;
-		case 9:
-			if (3 == argc - optind){
-				TIC;
-				rpc_unit_tset(argc - optind, &argv[optind]);
-				TOC;
-				printf("rpc unit test use:%u ms\n", ms);
-			} else {
-				usage();
-				exit(1);
-			}
-			break;
-		case 10:
-			if (5 == argc - optind || 6 == argc - optind){
-				TIC;
-				aml_wake_engine_unit_test(argc - optind, &argv[optind]);
-				TOC;
-				printf("awe unit test use:%u ms\n", ms);
-			} else {
-				usage();
-				exit(1);
-			}
-			break;
-		case 11:
-			if (2 == argc - optind || 3 == argc - optind){
-				aml_wake_engine_dspin_test(argc - optind, &argv[optind]);
-			} else {
-				usage();
-				exit(1);
-			}
-			break;
- 		case '?':
-		   usage();
-		   exit(1);
-		   break;
-	}
-	return 0;
+    int c = -1;
+    int option_index = 0;
+    struct option long_options[] =
+    {
+        {"help", no_argument, NULL, 0},
+        {"ipc", no_argument, NULL, 1},
+        {"shm", no_argument, NULL, 2},
+        {"mp3dec", no_argument, NULL, 3},
+        {"pcmplay", no_argument, NULL, 4},
+        {"pcmcap", no_argument, NULL, 5},
+        {"pcmplay-buildin", no_argument, NULL, 6},
+        {"aacdec", no_argument, NULL, 7},
+        {"vsp-rsp", no_argument, NULL, 8},
+        {"rpc", no_argument, NULL, 9},
+        {"vsp-awe-unit", no_argument, NULL, 10},
+        {"vsp-awe-dspin", no_argument, NULL, 11},
+        {"hifiwake", no_argument, NULL, 12},
+        {0, 0, 0, 0}
+    };
+    c = getopt_long (argc, argv, "hvV", long_options, &option_index);
+    if(-1 == c) {
+        printf("error options\n");
+    }
+    switch(c)
+    {
+        case 0:
+            usage();
+            break;
+        case 1:
+            {
+                TIC;
+                ipc_uint_tset();
+                TOC;
+                printf("ipc unit test use:%u ms\n", ms);
+            }
+            break;
+        case 2:
+            {
+                TIC;
+                shm_uint_tset();
+                TOC;
+                printf("shm unit test use %u ms\n", ms);
+            }
+            break;
+        case 3:
+            if (2 == argc - optind || 3 == argc - optind) {
+                TIC;
+                mp3_offload_dec(argc - optind, &argv[optind]);
+                TOC;
+                printf("mp3 offload decoder use:%u ms\n", ms);
+            }
+            else {
+                usage();
+                exit(1);
+            }
+            break;
+        case 4:
+            if (1 == argc - optind)
+                pcm_play_test(argc - optind, &argv[optind]);
+                else {
+                usage();
+                exit(1);
+            }
+            break;
+        case 5:
+            if (1 == argc - optind || 2 ==  argc - optind)
+                pcm_capture_test(argc - optind, &argv[optind]);
+            else {
+                usage();
+                exit(1);
+            }
+            break;
+        case 6:
+            pcm_play_buildin();
+        case 7:
+            if (2 == argc - optind || 3 == argc - optind) {
+                TIC;
+                aac_offload_dec(argc - optind, &argv[optind]);
+                TOC;
+                printf("aac offload decoder use:%u ms\n", ms);
+            }
+            else {
+                usage();
+                exit(1);
+            }
+            break;
+        case 8:
+            if (2 == argc - optind || 4 == argc - optind) {
+                TIC;
+                offload_vsp_rsp(argc - optind, &argv[optind]);
+                TOC;
+                printf("offload voice signal resampler use:%u ms\n", ms);
+            }
+            else {
+                usage();
+                exit(1);
+            }
+            break;
+        case 9:
+            if (3 == argc - optind){
+                TIC;
+                rpc_unit_tset(argc - optind, &argv[optind]);
+                TOC;
+                printf("rpc unit test use:%u ms\n", ms);
+            } else {
+                usage();
+                exit(1);
+            }
+            break;
+        case 10:
+            if (5 == argc - optind || 6 == argc - optind){
+                TIC;
+                aml_wake_engine_unit_test(argc - optind, &argv[optind]);
+                TOC;
+                printf("awe unit test use:%u ms\n", ms);
+            } else {
+                usage();
+                exit(1);
+            }
+            break;
+        case 11:
+            if (2 == argc - optind || 3 == argc - optind){
+                aml_wake_engine_dspin_test(argc - optind, &argv[optind]);
+            } else {
+                usage();
+                exit(1);
+            }
+            break;
+        case 12:
+            aml_hifi_inside_wakeup();
+            break;
+        case '?':
+            usage();
+            exit(1);
+            break;
+    }
+    return 0;
 }
