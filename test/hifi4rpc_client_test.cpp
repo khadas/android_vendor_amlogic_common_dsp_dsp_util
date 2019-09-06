@@ -102,7 +102,7 @@ static int pcm_play_buildin()
 	pconfig->start_threshold = 1024;
 	pconfig->silence_threshold = 1024*2;
 	pconfig->stop_threshold = 1024*2;
-	tAmlPcmhdl p = pcm_client_open(0, 0, 0, pconfig);
+	tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMOUT_B, PCM_OUT, pconfig);
 	AML_MEM_HANDLE hShmBuf;
 
 	uint8_t *play_data = (uint8_t *)audio_play_data;
@@ -137,7 +137,7 @@ static int pcm_play_test(int argc, char* argv[])
 	pconfig->start_threshold = 1024;
 	pconfig->silence_threshold = 1024*2;
 	pconfig->stop_threshold = 1024*2;
-	tAmlPcmhdl p = pcm_client_open(0, 0, 0, pconfig);
+	tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMOUT_B, PCM_OUT, pconfig);
 	AML_MEM_HANDLE hShmBuf;
 
 	FILE *fileplay = fopen(argv[0], "rb");
