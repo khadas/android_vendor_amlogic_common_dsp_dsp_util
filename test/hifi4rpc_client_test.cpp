@@ -532,10 +532,7 @@ typedef struct {
 	int32_t   Bitdepth;
 } __attribute__((packed)) aml_vsp_meta_param;
 
-#define SAMPLE_PER_MS 48
-#define VOICE_MS 32
-#define VOICE_LEN (4*SAMPLE_PER_MS*VOICE_MS)
-
+#define VOICE_MS 48
 static int offload_vsp_rsp(int argc, char* argv[]) {
 	int ret = 0;
 	int Vsp_Err = 0;
@@ -549,12 +546,20 @@ static int offload_vsp_rsp(int argc, char* argv[]) {
 	void* paramphy = 0;
 	void* inputphy = 0;
 	void* outputphy = 0;
-	size_t bytesRead = VOICE_LEN;
+	size_t bytesRead = 0;
 	size_t bytesWrite = 0;
 	aml_vsp_st_param* st_param = NULL;
 	aml_vsp_meta_param* meta_param = NULL;
 	FILE* voicefile = NULL;
 	FILE* outfile = NULL;
+    int32_t inRate = 48000;
+    int32_t outRate = 16000;
+    if (argc == 4) {
+        inRate = atoi(argv[2]);
+        outRate = atoi(argv[3]);
+    }
+    int32_t samplePerMs = inRate/1000;
+    int32_t voiceChunkInByte = (2*samplePerMs*VOICE_MS);
 
     // Open the input voice file.
 	voicefile = fopen(argv[0], "rb");
@@ -576,12 +581,12 @@ static int offload_vsp_rsp(int argc, char* argv[]) {
 
 
 	// Allocate input buffer.
-	hShmInput = AML_MEM_Allocate(sizeof(aml_vsp_meta_param) + VOICE_LEN);
+	hShmInput = AML_MEM_Allocate(sizeof(aml_vsp_meta_param) + voiceChunkInByte);
 	inputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmInput);
 	inputphy = AML_MEM_GetPhyAddr(hShmInput);
 
 	// Allocate output buffer.
-	hShmOutput = AML_MEM_Allocate(VOICE_LEN/3);
+	hShmOutput = AML_MEM_Allocate(voiceChunkInByte*outRate/inRate);
 	outputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmOutput);
 	outputphy = AML_MEM_GetPhyAddr(hShmOutput);
 
@@ -592,8 +597,8 @@ static int offload_vsp_rsp(int argc, char* argv[]) {
 
     // Initialize the vsp-rsp.
 	st_param = (aml_vsp_st_param*)paramBuf;
-	st_param->Fs_Hz_in = 48000;
-	st_param->Fs_Hz_out = 16000;
+	st_param->Fs_Hz_in = inRate;
+	st_param->Fs_Hz_out = outRate;
 	AML_MEM_Clean(paramphy, sizeof(aml_vsp_st_param));
 	hdlvsp = AML_VSP_Init(AML_VSP_RESAMPLER, (void*)paramphy, sizeof(aml_vsp_st_param));
 	if (!hdlvsp) {
@@ -607,14 +612,15 @@ static int offload_vsp_rsp(int argc, char* argv[]) {
 		//example to show apply meta data associate with the buffer.
 		meta_param = (aml_vsp_meta_param*)inputBuf;
 		meta_param->Bitdepth = 16;
-		meta_param->Fs = 48000;
+		meta_param->Fs = inRate;
+        bytesRead = voiceChunkInByte;
         bytesRead = fread(inputBuf + sizeof(aml_vsp_meta_param), 1, bytesRead, voicefile);
         if (!bytesRead) {
 			printf("EOF\n");
             break;
         }
 
-		bytesWrite = bytesRead/3;
+		bytesWrite = bytesRead*outRate/inRate;
 		AML_MEM_Clean(inputphy, bytesRead + sizeof(aml_vsp_meta_param));
 		Vsp_Err = AML_VSP_Process(hdlvsp, inputphy, bytesRead + sizeof(aml_vsp_meta_param), outputphy, &bytesWrite);
 		AML_MEM_Invalidate(outputphy, bytesWrite);
@@ -1248,7 +1254,7 @@ static void usage()
 	printf ("\n");
 	printf ("pcmplay-buildin Usage: hifi4rpc_client_test --pcmplay-buildin\n");
 	printf ("\n");
-	printf ("vsp-rsp Usage: hifi4rpc_client_test --vsp-rsp $input_file $output_file\n");
+	printf ("vsp-rsp Usage: hifi4rpc_client_test --vsp-rsp $input_file $output_file $in_rate $out_rate\n");
 	printf ("\n");
 	printf ("vsp-awe-unit Usage: hifi4rpc_client_test --vsp-awe-unit $mic0 $mic1 $ref $out0 $out1 $syncMode[0:sync,1:async]\n");
 	printf ("\n");
@@ -1344,7 +1350,7 @@ int main(int argc, char* argv[]) {
 			}
 			break;
 		case 8:
-			if (2 == argc - optind) {
+			if (2 == argc - optind || 4 == argc - optind) {
 				TIC;
 				offload_vsp_rsp(argc - optind, &argv[optind]);
 				TOC;
