@@ -980,11 +980,7 @@ end_tab:
     return ret;
 }
 
-#define TOTAL_DURATION_MS (1000*10)
 int aml_wake_engine_dspin_test(int argc, char* argv[]) {
-	uFeedChunk = TOTAL_DURATION_MS/VOICE_CHUNK_LEN_MS;
-	uRecvChunk = 0;
-	int freeRunMode = 0;
 	AWE_PARA awe_para;
 	int ret = 0;
 	uint32_t isWakeUp = 0;
@@ -999,10 +995,7 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 	AML_MEM_HANDLE hOutBuf1 = 0;
 	void *vir_out_buf1 = NULL;
 	void *phy_out_buf1 = NULL;
-	
 	signal(SIGINT, &awe_test_sighandler);
-	if (argc == 3)
-		freeRunMode = atoi(argv[2]);
 
 	FILE *fout0 = fopen(argv[0], "w+b");
 	FILE *fout1 = fopen(argv[1], "w+b");
@@ -1083,38 +1076,33 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 		ret = -1;
 		goto end_tab;
     }
-	printf("wake test start! ! freeRunMode:%d\n", freeRunMode);
+    printf("wake test start in dsp input mode\n");
+    printf("Command Guide:\n");
+    printf("start - enter free run mode\n");
+    printf("stop - exit free run mode\n");
+    printf("exit - quit voice capture\n");
 
-	if (freeRunMode) {
-		char user_cmd[16];
-		while (1) {
-			printf("Please input yes if you want to enter free run mode\n");
-			printf("Please input exit if you want to quit\n");
-			scanf("%s", user_cmd);
-			user_cmd[4] = '\0';
-			if(!strcmp(user_cmd, "exit"))
-				goto end_tab;
-			user_cmd[3] = '\0';
-			if(!strcmp(user_cmd, "yes"))
-				break;
-		}
-		awe_para.freeRunMode = 1;
-		awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_FREE_RUN_MODE, &awe_para);
-		while (1) {
-			printf("Please input exit if you want to quit\n");
-			scanf("%s", user_cmd);
-			user_cmd[4] = '\0';
-			if(!strcmp(user_cmd, "exit"))
-				break;
-		}
-		awe_para.freeRunMode = 0;
-		awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_FREE_RUN_MODE, &awe_para);
-		uRecvChunk = 0;
-	}
-	while(uRecvChunk < uFeedChunk) {
-		printf("uRecvChunk:%d, uFeedChunk:%d\n", uRecvChunk, uFeedChunk);
-		sleep(1);
-	}
+    char user_cmd[16];
+    while (1) {
+        scanf("%s", user_cmd);
+        if (!strcmp(user_cmd, "start")) {
+            awe_para.freeRunMode = 1;
+            awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_FREE_RUN_MODE, &awe_para);
+            continue;
+        } else if(!strcmp(user_cmd, "stop")) {
+            awe_para.freeRunMode = 0;
+            awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_FREE_RUN_MODE, &awe_para);
+            continue;
+        } else if(!strcmp(user_cmd, "exit")) {
+            break;
+        }
+        else {
+            printf("Command Guide:\n");
+            printf("start - enter free run mode\n");
+            printf("stop - exit free run mode\n");
+            printf("exit - quit voice capture\n");
+        }
+    }
 
 end_tab:
 	if (gAwe)
@@ -1268,7 +1256,7 @@ static void usage()
 
     printf ("\033[1mvsp-awe-unit Usage:\033[m hifi4rpc_client_test --vsp-awe-unit $mic0 $mic1 $ref $out0 $out1 $syncMode[0:sync,1:async]\n");
 
-    printf ("\033[1mvsp-awe-dspin Usage:\033[m hifi4rpc_client_test --vsp-awe-dspin $out0 $out1 $enableFreeRun[0:disabe,1:enable]\n");
+    printf ("\033[1mvsp-awe-dspin Usage:\033[m hifi4rpc_client_test --vsp-awe-dspin $out0 $out1\n");
 
 }
 
@@ -1395,7 +1383,7 @@ int main(int argc, char* argv[]) {
             }
             break;
         case 11:
-            if (2 == argc - optind || 3 == argc - optind){
+            if (2 == argc - optind){
                 aml_wake_engine_dspin_test(argc - optind, &argv[optind]);
             } else {
                 usage();

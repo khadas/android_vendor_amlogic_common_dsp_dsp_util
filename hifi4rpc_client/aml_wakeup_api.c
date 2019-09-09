@@ -193,14 +193,14 @@ void awe_thread_process_data(void * data)
     int i;
     AWE* awe = (AWE*)data;
     char* virOut[AWE_MAX_OUT_CHANS];
-    uint32_t isWorked;
+    uint32_t isWaked;
     int32_t inLen;
     int32_t outLen;
     while(!awe->work_thread_exit) {
         if (awe->inputMode == AWE_USER_INPUT_MODE) {
             sem_wait(&awe->userFillSem);
             uint32_t numOfChunk = aml_awe_ring_buf_fullness(awe->userFillBufSize,
-                                            awe->userFillBufWr, awe->userFillBufRd)/(awe->inWorkBufLen*(awe->micInChannels + awe->refInChannels));
+                                           awe->userFillBufWr, awe->userFillBufRd)/(awe->inWorkBufLen*(awe->micInChannels + awe->refInChannels));
             //printf("%d, %d %d\n", numOfChunk, awe->inWorkBufLen, (awe->micInChannels + awe->refInChannels));
             /*wait sema here, thread unblock once user fill new pcm*/
             //printf("Need handle %d voice chunk, wr:%d, rd:%d\n", numOfChunk, awe->userFillBufWr, awe->userFillBufRd);
@@ -217,11 +217,11 @@ void awe_thread_process_data(void * data)
                                 awe->inWorkBufLenInSample, (awe->micInChannels + awe->refInChannels), i);
                     AML_MEM_Clean(awe->hinWorkBuf, awe->inWorkBufLen);
                 }
-                isWorked = 0;
+                isWaked = 0;
                 inLen =  awe->inWorkBufLen;
                 outLen = awe->outWorkBufLen;
                 internal_aml_awe_process(awe, awe->hinWorkBuf, &inLen,
-                                awe->houtWorkBuf, &outLen, &isWorked);
+                                awe->houtWorkBuf, &outLen, &isWaked);
                 awe->userFillBufRd = (awe->userFillBufRd + (awe->inWorkBufLen - inLen)*(awe->micInChannels + awe->refInChannels)) % awe->userFillBufSize;
 
                 for (i = 0; i < awe->outChannels; i++) {
@@ -247,7 +247,7 @@ void awe_thread_process_data(void * data)
                                      awe->awe_data_handler_userdata[AWE_DATA_TYPE_VOIP]);
 
                 /*throw out event*/
-                if (isWorked) {
+                if (isWaked) {
                         if (!awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE]) {
                         printf("Do not install wake up event handler callback\n");
                         exit(0);
@@ -257,11 +257,11 @@ void awe_thread_process_data(void * data)
                 }
             }
         } else if (awe->inputMode == AWE_DSP_INPUT_MODE) {
-            isWorked = 0;
+            isWaked = 0;
             inLen = 0;
             outLen = awe->outWorkBufLen;
             internal_aml_awe_process(awe, awe->hinWorkBuf, &inLen,
-                            awe->houtWorkBuf, &outLen, &isWorked);
+                            awe->houtWorkBuf, &outLen, &isWaked);
             for (i = 0; i < awe->outChannels; i++) {
                  virOut[i] = (char*)AML_MEM_GetVirtAddr(awe->houtWorkBuf[i]);
              }
@@ -270,7 +270,6 @@ void awe_thread_process_data(void * data)
                  printf("Do not install ASR data handler callback\n");
                  exit(0);
              }
-
              awe->awe_data_handler_func[AWE_DATA_TYPE_ASR](awe, AWE_DATA_TYPE_ASR,
                                              virOut[0], outLen,
                                              awe->awe_data_handler_userdata[AWE_DATA_TYPE_ASR]);
@@ -285,7 +284,7 @@ void awe_thread_process_data(void * data)
                                   awe->awe_data_handler_userdata[AWE_DATA_TYPE_VOIP]);
 
              /*throw out event*/
-             if (isWorked) {
+             if (isWaked) {
                  if (!awe->awe_event_handler_func[AWE_EVENT_TYPE_WAKE]) {
                      printf("Do not install wake up event handler callback\n");
                      exit(0);
