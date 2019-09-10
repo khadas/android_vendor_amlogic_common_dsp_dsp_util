@@ -50,35 +50,143 @@ extern "C" {
 #define PCM_OUTPUT_SIZE (AAC_MAX_CH_NUM*MAX_FRAME_SIZE*(SAMPLE_BITS>>3))
 
 
-
+/*aac decoder handler*/
 typedef void* tAmlAacDecHdl;
 
 typedef struct  {
+    /*see enum TRANSPORT_TYPE defined in FDK_audio.h*/
     uint32_t transportFmt;
-	uint32_t nrOfLayers;
+    /*Number of transport layers.*/
+    uint32_t nrOfLayers;
 } tAmlAacInitCtx;
 
 typedef struct  {
-	uint32_t sampleRate;
-	uint32_t bitDepth;
-	uint32_t frameSize;
-	uint32_t channelNum;
-	int chmask[0x24];
+    /*decoded pcm sample rate*/
+    uint32_t sampleRate;
+    /*decoded pcm bit depth*/
+    uint32_t bitDepth;
+    /*number of samples per channel*/
+    uint32_t frameSize;
+    /*number of channels*/
+    uint32_t channelNum;
+    /*see enum AUDIO_CHANNEL_TYPE, defined in aacdecoder_lib.h*/
+    int chmask[0x24];
 } tAmlAacOutputCtx;
 
+/**
+ * Create and initialize a aac decoder
+ *
+ * @param[in] See define of tAmlAacInitCtx
+ *
+ * @return aac decoder handler if success, otherwise return NULL
+ */
 tAmlAacDecHdl AmlACodecInit_AacDec(tAmlAacInitCtx *ctx);
+
+/**
+ * Destory aac decoder
+ *
+ * @param[in] Aac decdoer handler
+ *
+ * @return
+ */
 void AmlACodecDeInit_AacDec(tAmlAacDecHdl hdl);
+
+/**
+ * Decode a aac frame
+ *
+ * @param[in] aac decoder handler
+ *
+ * @param[in] input buffer
+ *
+ * @param[in] input buffer size
+ *
+ * @param[in] output buffer address
+ *
+ * @param[in/out] output buffer size
+ *
+ * @param[out] remained size of bytes in input buffer
+ *
+ * @param[out] See define of tAmlAacOutputCtx
+ *
+ * @return NO_DECODING_ERROR if success, otherwise see ERROR_CODE defined in aacdecoder_lib.h
+ */
 AAC_DECODER_ERROR AmlACodecExec_AacDec(tAmlAacDecHdl hAacDec, void* aac_input, uint32_t aac_input_size,
 										void* pcm_out, uint32_t* pcm_out_size, uint32_t* aac_input_left, tAmlAacOutputCtx* ctx);
 
+/**
+ * Decode a aac frame
+ * This API execute similar function as AmlACodecExec_AacDec.
+ * User need allocate in/out shared memory, user need clean
+ * input shared memory and invalidate output shared memory.
+ *
+ * @param[in] aac decoder handler
+ *
+ * @param[in] input shared memory physical address
+ *
+ * @param[in] input shared memory size
+ *
+ * @param[in] output shared memory physical address
+ *
+ * @param[in/out] output shared memory size
+ *
+ * @param[out] remained size of bytes in input buffer
+ *
+ * @param[out] See define of tAmlAacOutputCtx
+ *
+ * @return NO_DECODING_ERROR if success, otherwise see ERROR_CODE defined in aacdecoder_lib.h
+ */
 AAC_DECODER_ERROR AmlACodecExec_UserAllocIoShm_AacDec(tAmlAacDecHdl hAacDec, void* aac_input, uint32_t aac_input_size,
 									void* pcm_out, uint32_t* pcm_out_size, uint32_t* aac_input_left, tAmlAacOutputCtx* ctx);
 
+
+/**
+ * Set one single decoder parameter.
+ *
+ * @param[in] AAC decoder handle.
+ *
+ * @param[in] Parameter to be set, see enum AACDEC_PARAM defined in aacdecoder_lib.h
+ *
+ * @param[in] Value of the parameter
+ *
+ * @return NO_DECODING_ERROR if success, otherwise see ERROR_CODE defined in aacdecoder_lib.h
+ */
 AAC_DECODER_ERROR AmlACodecSetParam(tAmlAacDecHdl hAacDec, int32_t param, int32_t value);
 
 
+/**
+ * Initialize ancillary data buffer.
+ * This API is usually used in downmix case, this case
+ * need an ancillary downmix buffer.
+ *
+ * @param[in] AAC decoder handle.
+ *
+ * @param[in] Pointer to (external) ancillary data buffer. Physical address of a shared memory.
+ *
+ * @param[in] Size of the buffer pointed to by buffer.
+ *
+ * @return NO_DECODING_ERROR if success, otherwise see ERROR_CODE defined in aacdecoder_lib.h
+ */
 AAC_DECODER_ERROR AmlACodecAncInit(tAmlAacDecHdl hAacDec, void* buf, uint32_t size);
 
+
+/**
+ * Explicitly configure the decoder by passing a raw AudioSpecificConfig
+ * (ASC) or a StreamMuxConfig (SMC), contained in a binary buffer. This is
+ * required for MPEG-4 and Raw Packets file format bitstreams as well as for
+ * LATM bitstreams with no in-band SMC. If the transport format is LATM with or
+ * without LOAS, configuration is assumed to be an SMC, for all other file
+ * formats an ASC.
+ *
+ * @param[in] AAC decoder handle.
+ *
+ * @param[in] Pointer to an shared memory buffer containing the binary
+ * configuration buffer (either ASC or SMC). User need clean the shared
+ * memory before call this API
+ *
+ * @param[in] Length of the configuration buffer in bytes.
+ *
+ * @return NO_DECODING_ERROR if success, otherwise see ERROR_CODE defined in aacdecoder_lib.h
+ */
 AAC_DECODER_ERROR AmlACodecConfigRaw(tAmlAacDecHdl hAacDec, char** conf, uint32_t* length);
 
 

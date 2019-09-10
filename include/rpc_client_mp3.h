@@ -209,12 +209,16 @@ void AmlACodecDeInit_Mp3Dec(tAmlMp3DecHdl hMp3Dec);
 ERROR_CODE AmlACodecExec_Mp3Dec(tAmlMp3DecHdl hMp3, tAmlACodecConfig_Mp3DecExternal *pconfig);
 
 /**
- * Decode a mp3 frame, user allocate in/out shared memory,
- * and pass them through pconfig
+ * Decode a mp3 frame
+ * This API execute similar function as AmlACodecExec_Mp3Dec.
+ * User need allocate in/out shared memory, user need clean
+ * input shared memory and invalidate output shared memory.
  *
  * @param[in] mp3 decoder handler
  *
  * @param[in/out] see define of tAmlACodecConfig_Mp3DecExternal
+ * Note: The data structure member pInputBuffer and pOutputBuffer
+ * point to shared memory
  *
  * @return NO_DECODING_ERROR if success, otherwise see ERROR_CODE
  */
