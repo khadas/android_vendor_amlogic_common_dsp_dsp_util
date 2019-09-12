@@ -79,12 +79,17 @@ uint32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStar
     aprofiler_get_cur_timestamp(&end); \
     uint32_t ms = aprofiler_msec_duration(&end, &bgn)
 
-
+#if 1
 uint32_t audio_play_data[] = {
 //#include "sinewav_48k_24bits_stereo_l1k_r2k_1s.in"
 //#include "sinewav_48k_24bits_stereo_l1k_r2k_1s.in"
 #include "pyghlkn_48k_24bits_stereo_10s.in"
 };
+#else
+uint8_t audio_play_data[] = {
+#include "dtmf_48k_32bits_stereo.in"
+};
+#endif
 uint32_t audio_play_data_len = sizeof(audio_play_data);
 
 using namespace std;
