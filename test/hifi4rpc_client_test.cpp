@@ -456,12 +456,12 @@ static int aac_offload_dec(int argc, char* argv[]) {
 												&aac_input_left, &out_ctx);
 			//printf("aac_input_left:%dn", aac_input_left);
 			AML_MEM_Invalidate(outputphy, pcm_out_size);
-			fseek(aacfile, -aac_input_left, SEEK_CUR);
+			fseek(aacfile, -((long)aac_input_left), SEEK_CUR);
 		} else {
 			decoderErr = AmlACodecExec_AacDec(hdlAac, inputBuf, aac_input_size,
 											   outputBuf, &pcm_out_size,
 												&aac_input_left, &out_ctx);
-			fseek(aacfile, -aac_input_left, SEEK_CUR);
+			fseek(aacfile, -((long)aac_input_left), SEEK_CUR);
 		}
         if (decoderErr != AAC_DEC_OK) {
             fprintf(stderr, "Decoder encountered error:0x%x\n", decoderErr);
