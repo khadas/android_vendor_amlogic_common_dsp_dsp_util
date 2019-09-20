@@ -94,147 +94,150 @@ uint32_t audio_play_data_len = sizeof(audio_play_data);
 
 using namespace std;
 
-static void mp3_show_hex(char* samples, uint32 size)
+static void mp3_show_hex(char* samples, uint32_t size)
 {
-	int i;
-	for (i = 0; i < size; i++) {
-		printf("0x%x ", samples[i]);
-	}
-	printf("\n");
+    uint32_t i;
+    for (i = 0; i < size; i++) {
+        printf("0x%x ", samples[i]);
+    }
+    printf("\n");
 }
 
 static int pcm_play_buildin()
 {
-	rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
-	pconfig->channels = 2;
-	pconfig->rate = 48000;
-	pconfig->format = PCM_FORMAT_S32_LE;
-	pconfig->period_size = 1024;
-	pconfig->period_count = 2;
-	pconfig->start_threshold = 1024;
-	pconfig->silence_threshold = 1024*2;
-	pconfig->stop_threshold = 1024*2;
-	tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMOUT_B, PCM_OUT, pconfig);
-	AML_MEM_HANDLE hShmBuf;
+    rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
+    pconfig->channels = 2;
+    pconfig->rate = 48000;
+    pconfig->format = PCM_FORMAT_S32_LE;
+    pconfig->period_size = 1024;
+    pconfig->period_count = 2;
+    pconfig->start_threshold = 1024;
+    pconfig->silence_threshold = 1024*2;
+    pconfig->stop_threshold = 1024*2;
+    tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMOUT_B, PCM_OUT, pconfig);
+    AML_MEM_HANDLE hShmBuf;
 
-	uint8_t *play_data = (uint8_t *)audio_play_data;
-	int in_fr = pcm_client_bytes_to_frame(p, audio_play_data_len);
-	int i, fr = 0;
-	const int ms = 36;
-	const int oneshot = 48 * ms; // 1728 samples
-	uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
-	hShmBuf = AML_MEM_Allocate(size);
-	void *buf = AML_MEM_GetVirtAddr(hShmBuf);
-	void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
-	for (i = 0; i + oneshot <= in_fr; i += fr) {
-		memcpy(buf, play_data + pcm_client_frame_to_bytes(p, i), size);
-		AML_MEM_Clean(phybuf, size);
-		fr = pcm_client_writei(p, phybuf, oneshot);
-		//printf("%dms pcm_write i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
-			//  ms, i, p, buf, oneshot, fr);
-	}
-	pcm_client_close(p);
-	AML_MEM_Free(hShmBuf);
-	free(pconfig);
+    uint8_t *play_data = (uint8_t *)audio_play_data;
+    int in_fr = pcm_client_bytes_to_frame(p, audio_play_data_len);
+    int i, fr = 0;
+    const int ms = 36;
+    const int oneshot = 48 * ms; // 1728 samples
+    uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
+    hShmBuf = AML_MEM_Allocate(size);
+    void *buf = AML_MEM_GetVirtAddr(hShmBuf);
+    void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
+    for (i = 0; i + oneshot <= in_fr; i += fr) {
+        memcpy(buf, play_data + pcm_client_frame_to_bytes(p, i), size);
+        AML_MEM_Clean(phybuf, size);
+        fr = pcm_client_writei(p, phybuf, oneshot);
+        //printf("%dms pcm_write i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
+        //  ms, i, p, buf, oneshot, fr);
+    }
+    pcm_client_close(p);
+    AML_MEM_Free(hShmBuf);
+    free(pconfig);
+    return 0;
 }
 
 static int pcm_play_test(int argc, char* argv[])
 {
-	rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
-	pconfig->channels = 2;
-	pconfig->rate = 48000;
-	pconfig->format = PCM_FORMAT_S32_LE;
-	pconfig->period_size = 1024;
-	pconfig->period_count = 2;
-	pconfig->start_threshold = 1024;
-	pconfig->silence_threshold = 1024*2;
-	pconfig->stop_threshold = 1024*2;
-	tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMOUT_B, PCM_OUT, pconfig);
-	AML_MEM_HANDLE hShmBuf;
+    rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
+    pconfig->channels = 2;
+    pconfig->rate = 48000;
+    pconfig->format = PCM_FORMAT_S32_LE;
+    pconfig->period_size = 1024;
+    pconfig->period_count = 2;
+    pconfig->start_threshold = 1024;
+    pconfig->silence_threshold = 1024*2;
+    pconfig->stop_threshold = 1024*2;
+    tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMOUT_B, PCM_OUT, pconfig);
+    AML_MEM_HANDLE hShmBuf;
 
-	FILE *fileplay = fopen(argv[0], "rb");
-	if (fileplay == NULL) {
-		printf("failed to open played pcm file\n");
-		return -1;
-	}
-	int fr = 0;
-	const int ms = 36;
-	const int oneshot = 48 * ms; // 1728 samples
-	uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
-	hShmBuf = AML_MEM_Allocate(size);
-	void *buf = AML_MEM_GetVirtAddr(hShmBuf);
-	void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
-	while (size = fread(buf, 1, size, fileplay)) {
-		AML_MEM_Clean(phybuf, size);
-		fr = pcm_client_writei(p, phybuf, oneshot);
-		//printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
-			//   ms, p, buf, oneshot, fr);
-	}
-	pcm_client_close(p);
-	AML_MEM_Free(hShmBuf);
-	free(pconfig);
-	fclose(fileplay);
+    FILE *fileplay = fopen(argv[0], "rb");
+    if (fileplay == NULL) {
+        printf("failed to open played pcm file\n");
+        return -1;
+    }
+    int fr = 0;
+    const int ms = 36;
+    const int oneshot = 48 * ms; // 1728 samples
+    uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
+    hShmBuf = AML_MEM_Allocate(size);
+    void *buf = AML_MEM_GetVirtAddr(hShmBuf);
+    void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
+    while ((size = fread(buf, 1, size, fileplay))) {
+        AML_MEM_Clean(phybuf, size);
+        fr = pcm_client_writei(p, phybuf, oneshot);
+        //printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
+        //   ms, p, buf, oneshot, fr);
+    }
+    pcm_client_close(p);
+    AML_MEM_Free(hShmBuf);
+    free(pconfig);
+    fclose(fileplay);
+    return 0;
 }
 
 
 #define PCM_CAPTURE_SAMPLES (48000*20)
 static int pcm_capture_test(int argc, char* argv[])
 {
-	enum ALSA_DEVICE_IN device = DEVICE_TDMIN_B;
-	if (argc >= 2)
-		device = (enum ALSA_DEVICE_IN)atoi(argv[1]);
-	rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
-	pconfig->channels = (device == DEVICE_LOOPBACK)?4:2;
-	pconfig->rate = 48000;
-	pconfig->format = PCM_FORMAT_S32_LE;
-	pconfig->period_size = 1024;
-	pconfig->period_count = 4;
-	pconfig->start_threshold = 1024;
-	pconfig->silence_threshold = 1024*2;
-	pconfig->stop_threshold = 1024*2;
-	tAmlPcmhdl p = pcm_client_open(0, device, PCM_IN, pconfig);
-	AML_MEM_HANDLE hShmBuf;
+    enum ALSA_DEVICE_IN device = DEVICE_TDMIN_B;
+    if (argc >= 2)
+        device = (enum ALSA_DEVICE_IN)atoi(argv[1]);
+    rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
+    pconfig->channels = (device == DEVICE_LOOPBACK)?4:2;
+    pconfig->rate = 48000;
+    pconfig->format = PCM_FORMAT_S32_LE;
+    pconfig->period_size = 1024;
+    pconfig->period_count = 4;
+    pconfig->start_threshold = 1024;
+    pconfig->silence_threshold = 1024*2;
+    pconfig->stop_threshold = 1024*2;
+    tAmlPcmhdl p = pcm_client_open(0, device, PCM_IN, pconfig);
+    AML_MEM_HANDLE hShmBuf;
 
-	FILE *filecap = fopen(argv[0], "w+b");
-	if (filecap == NULL) {
-		printf("failed to open captured pcm file\n");
-		return -1;
-	}
+    FILE *filecap = fopen(argv[0], "w+b");
+    if (filecap == NULL) {
+        printf("failed to open captured pcm file\n");
+        return -1;
+    }
 
-	int in_fr = PCM_CAPTURE_SAMPLES;
-	int i, fr = 0;
-	const int ms = 36;
-	const int oneshot = 48 * ms; // 1728 samples
-	uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
-	hShmBuf = AML_MEM_Allocate(size);
-	void *buf = AML_MEM_GetVirtAddr(hShmBuf);
-	void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
-	for (i = 0; i + oneshot <= in_fr; i += fr) {
-		fr = pcm_client_readi(p, phybuf, oneshot);
-		AML_MEM_Invalidate(phybuf, size);
-		fwrite(buf, sizeof(char), size, filecap);
-		//printf("%dms pcm_read i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
-			//  ms, i, p, buf, oneshot, fr);
-	}
-	pcm_client_close(p);
-	AML_MEM_Free(hShmBuf);
-	free(pconfig);
-	fclose(filecap);
+    int in_fr = PCM_CAPTURE_SAMPLES;
+    int i, fr = 0;
+    const int ms = 36;
+    const int oneshot = 48 * ms; // 1728 samples
+    uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
+    hShmBuf = AML_MEM_Allocate(size);
+    void *buf = AML_MEM_GetVirtAddr(hShmBuf);
+    void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
+    for (i = 0; i + oneshot <= in_fr; i += fr) {
+        fr = pcm_client_readi(p, phybuf, oneshot);
+        AML_MEM_Invalidate(phybuf, size);
+        fwrite(buf, sizeof(char), size, filecap);
+        //printf("%dms pcm_read i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
+        //  ms, i, p, buf, oneshot, fr);
+    }
+    pcm_client_close(p);
+    AML_MEM_Free(hShmBuf);
+    free(pconfig);
+    fclose(filecap);
+    return 0;
 }
 
 static int mp3_offload_dec(int argc, char* argv[]) {
-	int bUserAllocShm = 1;
-	tAmlMp3DecHdl hdlmp3 = 0;
-	AML_MEM_HANDLE hShmInput =0;
-	AML_MEM_HANDLE hShmOutput = 0;
-	uint8_t *inputBuf = 0;
-	int16_t *outputBuf = 0;
-	void* inputphy = 0;
-	void* outputphy = 0;
+    int bUserAllocShm = 1;
+    tAmlMp3DecHdl hdlmp3 = 0;
+    AML_MEM_HANDLE hShmInput =0;
+    AML_MEM_HANDLE hShmOutput = 0;
+    uint8_t *inputBuf = 0;
+    int16_t *outputBuf = 0;
+    void* inputphy = 0;
+    void* outputphy = 0;
 
     // Initialize the config.
     tAmlACodecConfig_Mp3DecExternal config;
-	memset(&config, 0, sizeof(tAmlACodecConfig_Mp3DecExternal));
+    memset(&config, 0, sizeof(tAmlACodecConfig_Mp3DecExternal));
     config.equalizerType = flat;
     config.crcEnabled = false;
 
@@ -244,11 +247,11 @@ static int mp3_offload_dec(int argc, char* argv[]) {
 
     // Open the input file.
     Mp3Reader mp3Reader;
-	printf("Read mp3 file:%s\n", argv[0]);
+    printf("Read mp3 file:%s\n", argv[0]);
     uint32_t success = mp3Reader.init(argv[0]);
     if (!success) {
         fprintf(stderr, "Encountered error reading %s\n", argv[0]);
-		AmlACodecDeInit_Mp3Dec(hdlmp3);
+        AmlACodecDeInit_Mp3Dec(hdlmp3);
         return EXIT_FAILURE;
     }
     printf("Init mp3reader\n");
@@ -263,84 +266,84 @@ static int mp3_offload_dec(int argc, char* argv[]) {
     if (handle == NULL) {
         fprintf(stderr, "Encountered error writing %s\n", argv[1]);
         mp3Reader.close();
-		AmlACodecDeInit_Mp3Dec(hdlmp3);
+        AmlACodecDeInit_Mp3Dec(hdlmp3);
         return EXIT_FAILURE;
     }
     printf("Init outfile=%s\n", argv[1]);
 
     if (argc == 3)
-		bUserAllocShm = atoi(argv[2]);
+        bUserAllocShm = atoi(argv[2]);
     if (bUserAllocShm) {
-		// Allocate input buffer.
-		hShmInput = AML_MEM_Allocate(kInputBufferSize);
-		inputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmInput);
-		inputphy = AML_MEM_GetPhyAddr(hShmInput);
+        // Allocate input buffer.
+        hShmInput = AML_MEM_Allocate(kInputBufferSize);
+        inputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmInput);
+        inputphy = AML_MEM_GetPhyAddr(hShmInput);
 
-		// Allocate output buffer.
-		hShmOutput = AML_MEM_Allocate(kOutputBufferSize);
-		outputBuf = (int16_t*)AML_MEM_GetVirtAddr(hShmOutput);
-		outputphy = AML_MEM_GetPhyAddr(hShmOutput);
-		printf("Init in vir:%p phy:%p,  out vir:%p phy:%p\n",
-				inputBuf, inputphy, outputBuf, outputphy);
-	} else {
-		// Allocate input buffer.
-		inputBuf = (uint8_t*)malloc(kInputBufferSize);
+        // Allocate output buffer.
+        hShmOutput = AML_MEM_Allocate(kOutputBufferSize);
+        outputBuf = (int16_t*)AML_MEM_GetVirtAddr(hShmOutput);
+        outputphy = AML_MEM_GetPhyAddr(hShmOutput);
+        printf("Init in vir:%p phy:%p,  out vir:%p phy:%p\n",
+        inputBuf, inputphy, outputBuf, outputphy);
+    } else {
+        // Allocate input buffer.
+        inputBuf = (uint8_t*)malloc(kInputBufferSize);
 
-		// Allocate output buffer.
-		outputBuf = (int16_t*)malloc(kOutputBufferSize);
-		printf("Init input %p, output buffer %p\n", inputBuf, outputBuf);
+        // Allocate output buffer.
+        outputBuf = (int16_t*)malloc(kOutputBufferSize);
+        printf("Init input %p, output buffer %p\n", inputBuf, outputBuf);
 	}
 
     // Decode loop.
     int retVal = EXIT_SUCCESS;
     while (1) {
-        // Read input from the file.
-        uint32_t bytesRead;
-        success = mp3Reader.getFrame(inputBuf, &bytesRead);
-        if (!success) {
-			printf("EOF\n");
-            break;
-        }
+    // Read input from the file.
+    uint32_t bytesRead;
+    success = mp3Reader.getFrame(inputBuf, &bytesRead);
+    if (!success) {
+        printf("EOF\n");
+        break;
+    }
 
-        // Set the input config.
-        config.inputBufferCurrentLength = bytesRead;
-        config.inputBufferMaxLength = 0;
-        config.inputBufferUsedLength = 0;
-		if (bUserAllocShm) {
-			config.pInputBuffer = (uint8_t*)inputphy;
-			config.pOutputBuffer = (int16_t*)outputphy;
-		} else {
-			config.pInputBuffer = (uint8_t*)inputBuf;
-			config.pOutputBuffer = (int16_t*)outputBuf;
-		}
-        config.outputFrameSize = kOutputBufferSize / sizeof(int16_t);
-		/*INFO("inputBufferCurrentLength:0x%x, inputBufferMaxLength:0x%x, inputBufferUsedLength:0x%x,"
-			"pInputBuffer:0x%lx, pOutputBuffer:0x%lx, outputFrameSize:0x%x\n",
-			config.inputBufferCurrentLength, config.inputBufferMaxLength, config.inputBufferUsedLength,
-			config.pInputBuffer, config.pOutputBuffer, config.outputFrameSize);*/
-		/*INFO("\n=================================\n");
-		mp3_show_hex((char*)config.pInputBuffer, bytesRead);
-		INFO("\n=================================\n");*/
-        ERROR_CODE decoderErr;
-        //printf("config.outputFrameSize:%d\n", config.outputFrameSize);
-        if (bUserAllocShm) {
-			AML_MEM_Clean(inputphy, bytesRead);
-			decoderErr = AmlACodecExec_UserAllocIoShm_Mp3Dec(hdlmp3, &config);
-			AML_MEM_Invalidate(outputphy, config.outputFrameSize*sizeof(int16_t));
-	} else
-			decoderErr = AmlACodecExec_Mp3Dec(hdlmp3, &config);
+    // Set the input config.
+    config.inputBufferCurrentLength = bytesRead;
+    config.inputBufferMaxLength = 0;
+    config.inputBufferUsedLength = 0;
+    if (bUserAllocShm) {
+        config.pInputBuffer = (uint8_t*)inputphy;
+        config.pOutputBuffer = (int16_t*)outputphy;
+    } else {
+        config.pInputBuffer = (uint8_t*)inputBuf;
+        config.pOutputBuffer = (int16_t*)outputBuf;
+    }
+    config.outputFrameSize = kOutputBufferSize / sizeof(int16_t);
+    /*INFO("inputBufferCurrentLength:0x%x, inputBufferMaxLength:0x%x, inputBufferUsedLength:0x%x,"
+    "pInputBuffer:0x%lx, pOutputBuffer:0x%lx, outputFrameSize:0x%x\n",
+    config.inputBufferCurrentLength, config.inputBufferMaxLength, config.inputBufferUsedLength,
+    config.pInputBuffer, config.pOutputBuffer, config.outputFrameSize);*/
+    /*INFO("\n=================================\n");
+    mp3_show_hex((char*)config.pInputBuffer, bytesRead);
+    INFO("\n=================================\n");*/
+    ERROR_CODE decoderErr;
+    //printf("config.outputFrameSize:%d\n", config.outputFrameSize);
+    if (bUserAllocShm) {
+        AML_MEM_Clean(inputphy, bytesRead);
+        decoderErr = AmlACodecExec_UserAllocIoShm_Mp3Dec(hdlmp3, &config);
+        AML_MEM_Invalidate(outputphy, config.outputFrameSize*sizeof(int16_t));
+    } else
+        decoderErr = AmlACodecExec_Mp3Dec(hdlmp3, &config);
 
-        if (decoderErr != NO_DECODING_ERROR) {
-            fprintf(stderr, "Decoder encountered error:0x%x\n", decoderErr);
-            retVal = EXIT_FAILURE;
-            break;
-        }
-	    /*INFO("\n*************arm:%p**********************\n", outputBuf);
-		mp3_show_hex((char*)outputBuf, config.outputFrameSize*sizeof(int16_t));
-		INFO("\n***********************************\n");*/
-        //INFO("config.outputFrameSize:%d\n", config.outputFrameSize);
-        sf_writef_short(handle, outputBuf,
-                        config.outputFrameSize / sfInfo.channels);
+    if (decoderErr != NO_DECODING_ERROR) {
+        fprintf(stderr, "Decoder encountered error:0x%x\n", decoderErr);
+        retVal = EXIT_FAILURE;
+        break;
+    }
+    /*INFO("\n*************arm:%p**********************\n", outputBuf);
+    mp3_show_hex((char*)outputBuf, config.outputFrameSize*sizeof(int16_t));
+    INFO("\n***********************************\n");*/
+    //INFO("config.outputFrameSize:%d\n", config.outputFrameSize);
+    sf_writef_short(handle, outputBuf,
+            config.outputFrameSize / sfInfo.channels);
     }
     printf("mp3 decoder done\n");
 
@@ -351,219 +354,218 @@ static int mp3_offload_dec(int argc, char* argv[]) {
     printf("write clonse\n");
 
     // Free allocated memory.
-	if (bUserAllocShm) {
-		AML_MEM_Free((AML_MEM_HANDLE)hShmInput);
-		AML_MEM_Free((AML_MEM_HANDLE)hShmOutput);
-	} else {
-		free(inputBuf);
-		free(outputBuf);
-	}
+    if (bUserAllocShm) {
+        AML_MEM_Free((AML_MEM_HANDLE)hShmInput);
+        AML_MEM_Free((AML_MEM_HANDLE)hShmOutput);
+    } else {
+        free(inputBuf);
+        free(outputBuf);
+    }
     AmlACodecDeInit_Mp3Dec(hdlmp3);
-
     return retVal;
 }
 
 static int aac_offload_dec(int argc, char* argv[]) {
-	SNDFILE *handle = NULL;
-	FILE* pcmfile = NULL;
-	int bUserAllocShm = 1;
-	tAmlAacDecHdl hdlAac = 0;
-	AML_MEM_HANDLE hShmInput =0;
-	AML_MEM_HANDLE hShmOutput = 0;
-	uint8_t *inputBuf = 0;
-	int16_t *outputBuf = 0;
-	void* inputphy = 0;
-	void* outputphy = 0;
+    SNDFILE *handle = NULL;
+    FILE* pcmfile = NULL;
+    int bUserAllocShm = 1;
+    tAmlAacDecHdl hdlAac = 0;
+    AML_MEM_HANDLE hShmInput =0;
+    AML_MEM_HANDLE hShmOutput = 0;
+    uint8_t *inputBuf = 0;
+    int16_t *outputBuf = 0;
+    void* inputphy = 0;
+    void* outputphy = 0;
 
     // Initialize the decoder.
-	tAmlAacInitCtx config;
-	config.transportFmt = TT_MP4_ADTS;
-	config.nrOfLayers = 1;
+    tAmlAacInitCtx config;
+    config.transportFmt = TT_MP4_ADTS;
+    config.nrOfLayers = 1;
     hdlAac = AmlACodecInit_AacDec(&config);
     printf("Init aacdec hdl=%p\n", hdlAac);
 
     // Open the input file.
-	FILE* aacfile = fopen(argv[0], "rb");
+    FILE* aacfile = fopen(argv[0], "rb");
     if (!aacfile) {
         fprintf(stderr, "Encountered error reading %s\n", argv[0]);
-		AmlACodecDeInit_AacDec(hdlAac);
+        AmlACodecDeInit_AacDec(hdlAac);
         return EXIT_FAILURE;
     }
     printf("Open aac file\n");
 
-	//AmlACodecSetParam(hdlAac, AAC_DRC_REFERENCE_LEVEL, 54);
-	//AmlACodecSetParam(hdlAac, AAC_DRC_ATTENUATION_FACTOR, 32);
-	//AmlACodecSetParam(hdlAac, AAC_PCM_LIMITER_ENABLE, 1);
+    //AmlACodecSetParam(hdlAac, AAC_DRC_REFERENCE_LEVEL, 54);
+    //AmlACodecSetParam(hdlAac, AAC_DRC_ATTENUATION_FACTOR, 32);
+    //AmlACodecSetParam(hdlAac, AAC_PCM_LIMITER_ENABLE, 1);
 
 
     if (argc == 3)
-		bUserAllocShm = atoi(argv[2]);
+        bUserAllocShm = atoi(argv[2]);
     if (bUserAllocShm) {
-		// Allocate input buffer.
-		hShmInput = AML_MEM_Allocate(AAC_INPUT_SIZE);
-		printf("hShmInput:%p\n", hShmInput);
-		inputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmInput);
-		inputphy = AML_MEM_GetPhyAddr(hShmInput);
+        // Allocate input buffer.
+        hShmInput = AML_MEM_Allocate(AAC_INPUT_SIZE);
+        printf("hShmInput:%p\n", hShmInput);
+        inputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmInput);
+        inputphy = AML_MEM_GetPhyAddr(hShmInput);
 
-		// Allocate output buffer.
-		hShmOutput = AML_MEM_Allocate(PCM_OUTPUT_SIZE);
-		outputBuf = (int16_t*)AML_MEM_GetVirtAddr(hShmOutput);
-		printf("hShmOutput:%p\n", hShmOutput);
-		outputphy = AML_MEM_GetPhyAddr(hShmOutput);
-		printf("===Init in vir:%p phy:%p,  out vir:%p phy:%p====\n",
-				inputBuf, inputphy, outputBuf, outputphy);
-		if (!hShmOutput || !hShmInput){
-			fprintf(stderr, "Encountered memory allocation issue\n");
-			fclose(aacfile);
-			AmlACodecDeInit_AacDec(hdlAac);
-			return EXIT_FAILURE;
-		}
-	} else {
-		// Allocate input buffer.
-		inputBuf = (uint8_t*)malloc(AAC_INPUT_SIZE);
+        // Allocate output buffer.
+        hShmOutput = AML_MEM_Allocate(PCM_OUTPUT_SIZE);
+        outputBuf = (int16_t*)AML_MEM_GetVirtAddr(hShmOutput);
+        printf("hShmOutput:%p\n", hShmOutput);
+        outputphy = AML_MEM_GetPhyAddr(hShmOutput);
+        printf("===Init in vir:%p phy:%p,  out vir:%p phy:%p====\n",
+        inputBuf, inputphy, outputBuf, outputphy);
+        if (!hShmOutput || !hShmInput){
+            fprintf(stderr, "Encountered memory allocation issue\n");
+            fclose(aacfile);
+            AmlACodecDeInit_AacDec(hdlAac);
+            return EXIT_FAILURE;
+        }
+    } else {
+        // Allocate input buffer.
+        inputBuf = (uint8_t*)malloc(AAC_INPUT_SIZE);
 
-		// Allocate output buffer.
-		outputBuf = (int16_t*)malloc(PCM_OUTPUT_SIZE);
-		printf("Init input %p, output buffer %p\n", inputBuf, outputBuf);
-		if (!inputBuf || !outputBuf) {
-			fprintf(stderr, "Encountered memory allocation issue\n");
-			fclose(aacfile);
-			AmlACodecDeInit_AacDec(hdlAac);
-			return EXIT_FAILURE;
-		}
-	}
+        // Allocate output buffer.
+        outputBuf = (int16_t*)malloc(PCM_OUTPUT_SIZE);
+        printf("Init input %p, output buffer %p\n", inputBuf, outputBuf);
+        if (!inputBuf || !outputBuf) {
+            fprintf(stderr, "Encountered memory allocation issue\n");
+            fclose(aacfile);
+            AmlACodecDeInit_AacDec(hdlAac);
+            return EXIT_FAILURE;
+        }
+    }
 
     // Decode loop.
     int retVal = EXIT_SUCCESS;
     while (1) {
-        // Read input from the file.
-        uint32_t bytesRead = AAC_INPUT_SIZE;
-		uint32_t aac_input_size, pcm_out_size, aac_input_left;
-		tAmlAacOutputCtx out_ctx;
-        bytesRead = fread(inputBuf, 1, bytesRead, aacfile);
-        if (!bytesRead) {
-			printf("EOF\n");
-            break;
+    // Read input from the file.
+    uint32_t bytesRead = AAC_INPUT_SIZE;
+    uint32_t aac_input_size, pcm_out_size, aac_input_left;
+    tAmlAacOutputCtx out_ctx;
+    bytesRead = fread(inputBuf, 1, bytesRead, aacfile);
+    if (!bytesRead) {
+        printf("EOF\n");
+        break;
+    }
+
+    aac_input_size = bytesRead;
+    pcm_out_size = PCM_OUTPUT_SIZE;
+    AAC_DECODER_ERROR decoderErr;
+    if (bUserAllocShm) {
+        AML_MEM_Clean(inputphy, bytesRead);
+        decoderErr = AmlACodecExec_UserAllocIoShm_AacDec(hdlAac, inputphy, aac_input_size,
+                            outputphy, &pcm_out_size,
+                            &aac_input_left, &out_ctx);
+        //printf("aac_input_left:%dn", aac_input_left);
+        AML_MEM_Invalidate(outputphy, pcm_out_size);
+        fseek(aacfile, -((long)aac_input_left), SEEK_CUR);
+    } else {
+        decoderErr = AmlACodecExec_AacDec(hdlAac, inputBuf, aac_input_size,
+                            outputBuf, &pcm_out_size,
+                            &aac_input_left, &out_ctx);
+        fseek(aacfile, -((long)aac_input_left), SEEK_CUR);
+    }
+    if (decoderErr != AAC_DEC_OK) {
+        fprintf(stderr, "Decoder encountered error:0x%x\n", decoderErr);
+        retVal = EXIT_FAILURE;
+        break;
+    }
+
+    if (pcmfile == NULL) {
+        // Open the output file.
+        printf("=======Decode first aac frame:======\n");
+        printf("channels: %d, sampleRate:%d, frameSize:%d\n"
+        "channal mask - front:%d side:%d back:%d lfe:%d top:%d\n",
+        out_ctx.channelNum, out_ctx.sampleRate, out_ctx.frameSize,
+        out_ctx.chmask[ACT_FRONT], out_ctx.chmask[ACT_SIDE],
+        out_ctx.chmask[ACT_BACK],  out_ctx.chmask[ACT_LFE],
+        out_ctx.chmask[ACT_FRONT_TOP] + out_ctx.chmask[ACT_SIDE_TOP] +
+        out_ctx.chmask[ACT_BACK_TOP]  + out_ctx.chmask[ACT_TOP]);
+        printf("Init outfile=%s\n", argv[1]);
+        SF_INFO sfInfo;
+        memset(&sfInfo, 0, sizeof(SF_INFO));
+        sfInfo.channels = out_ctx.channelNum;
+        sfInfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;//FDK limited to 16bit per samples
+        sfInfo.samplerate = out_ctx.sampleRate;
+        //handle = sf_open(argv[1], SFM_WRITE, &sfInfo);
+        pcmfile = fopen(argv[1], "w+b");
+        if (pcmfile == NULL) {
+            fprintf(stderr, "Encountered error writing %s\n", argv[1]);
+            goto tab_end;
         }
+    }
 
-        aac_input_size = bytesRead;
-		pcm_out_size = PCM_OUTPUT_SIZE;
-        AAC_DECODER_ERROR decoderErr;
-        if (bUserAllocShm) {
-			AML_MEM_Clean(inputphy, bytesRead);
-			decoderErr = AmlACodecExec_UserAllocIoShm_AacDec(hdlAac, inputphy, aac_input_size,
-											   outputphy, &pcm_out_size,
-												&aac_input_left, &out_ctx);
-			//printf("aac_input_left:%dn", aac_input_left);
-			AML_MEM_Invalidate(outputphy, pcm_out_size);
-			fseek(aacfile, -((long)aac_input_left), SEEK_CUR);
-		} else {
-			decoderErr = AmlACodecExec_AacDec(hdlAac, inputBuf, aac_input_size,
-											   outputBuf, &pcm_out_size,
-												&aac_input_left, &out_ctx);
-			fseek(aacfile, -((long)aac_input_left), SEEK_CUR);
-		}
-        if (decoderErr != AAC_DEC_OK) {
-            fprintf(stderr, "Decoder encountered error:0x%x\n", decoderErr);
-            retVal = EXIT_FAILURE;
-            break;
-        }
-
-		if (pcmfile == NULL) {
-			// Open the output file.
-			printf("=======Decode first aac frame:======\n");
-			printf("channels: %d, sampleRate:%d, frameSize:%d\n"
-					"channal mask - front:%d side:%d back:%d lfe:%d top:%d\n",
-				   out_ctx.channelNum, out_ctx.sampleRate, out_ctx.frameSize,
-				   out_ctx.chmask[ACT_FRONT], out_ctx.chmask[ACT_SIDE],
-				   out_ctx.chmask[ACT_BACK],  out_ctx.chmask[ACT_LFE],
-				   out_ctx.chmask[ACT_FRONT_TOP] + out_ctx.chmask[ACT_SIDE_TOP] +
-				   out_ctx.chmask[ACT_BACK_TOP]  + out_ctx.chmask[ACT_TOP]);
-			printf("Init outfile=%s\n", argv[1]);
-			SF_INFO sfInfo;
-			memset(&sfInfo, 0, sizeof(SF_INFO));
-			sfInfo.channels = out_ctx.channelNum;
-			sfInfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;//FDK limited to 16bit per samples
-			sfInfo.samplerate = out_ctx.sampleRate;
-			//handle = sf_open(argv[1], SFM_WRITE, &sfInfo);
-			pcmfile = fopen(argv[1], "w+b");
-			if (pcmfile == NULL) {
-				fprintf(stderr, "Encountered error writing %s\n", argv[1]);
-				goto tab_end;
-			}
-		}
-
-	    /*INFO("\n*************arm:%p**********************\n", outputBuf);
-		mp3_show_hex((char*)outputBuf, config.outputFrameSize*sizeof(int16_t));
-		INFO("\n***********************************\n");*/
-        //INFO("config.outputFrameSize:%d\n", config.outputFrameSize);
-		//if (handle)
-	      //  sf_writef_short(handle, outputBuf,pcm_out_size/SF_FORMAT_PCM_16);
-	    if (pcmfile)
-			fwrite(outputBuf, 1, out_ctx.frameSize*out_ctx.channelNum*SF_FORMAT_PCM_16, pcmfile);
+    /*INFO("\n*************arm:%p**********************\n", outputBuf);
+    mp3_show_hex((char*)outputBuf, config.outputFrameSize*sizeof(int16_t));
+    INFO("\n***********************************\n");*/
+    //INFO("config.outputFrameSize:%d\n", config.outputFrameSize);
+    //if (handle)
+    //  sf_writef_short(handle, outputBuf,pcm_out_size/SF_FORMAT_PCM_16);
+    if (pcmfile)
+        fwrite(outputBuf, 1, out_ctx.frameSize*out_ctx.channelNum*SF_FORMAT_PCM_16, pcmfile);
     }
 
     // Close input reader and output writer.
     printf("aac decoder done\n");
 
-tab_end:
-	if (aacfile) {
-		fclose(aacfile);
-		printf("aac file close\n");
-	}
-	if (handle) {
-		sf_close(handle);
-		printf("write close\n");
-	}
-	fclose(pcmfile);
+    tab_end:
+    if (aacfile) {
+        fclose(aacfile);
+        printf("aac file close\n");
+    }
+    if (handle) {
+        sf_close(handle);
+        printf("write close\n");
+    }
+    fclose(pcmfile);
     // Free allocated memory.
-	if (bUserAllocShm) {
-		if (hShmInput)
-			AML_MEM_Free((AML_MEM_HANDLE)hShmInput);
-		if (hShmOutput)
-			AML_MEM_Free((AML_MEM_HANDLE)hShmOutput);
-	} else {
-		if (inputBuf)
-			free(inputBuf);
-		if (outputBuf)
-			free(outputBuf);
-	}
-	if (hdlAac)
-		AmlACodecDeInit_AacDec(hdlAac);
+    if (bUserAllocShm) {
+        if (hShmInput)
+            AML_MEM_Free((AML_MEM_HANDLE)hShmInput);
+        if (hShmOutput)
+            AML_MEM_Free((AML_MEM_HANDLE)hShmOutput);
+    } else {
+        if (inputBuf)
+            free(inputBuf);
+        if (outputBuf)
+            free(outputBuf);
+    }
+    if (hdlAac)
+        AmlACodecDeInit_AacDec(hdlAac);
     return retVal;
 }
 
 typedef struct {
-	int32_t	  Fs_Hz_in;
-	int32_t	  Fs_Hz_out;
+    int32_t	  Fs_Hz_in;
+    int32_t	  Fs_Hz_out;
 } __attribute__((packed)) aml_vsp_st_param;
 
 /*Just an example show how to apply meta data*/
 typedef struct {
-	int32_t	  Fs;
-	int32_t   Bitdepth;
+    int32_t	  Fs;
+    int32_t   Bitdepth;
 } __attribute__((packed)) aml_vsp_meta_param;
 
 #define VOICE_MS 48
 static int offload_vsp_rsp(int argc, char* argv[]) {
-	int ret = 0;
-	int Vsp_Err = 0;
-	AML_VSP_HANDLE hdlvsp = 0;
-	AML_MEM_HANDLE hParam = 0;
-	AML_MEM_HANDLE hShmInput =0;
-	AML_MEM_HANDLE hShmOutput = 0;
-	uint8_t *paramBuf = 0;
-	uint8_t *inputBuf = 0;
-	uint8_t *outputBuf = 0;
-	void* paramphy = 0;
-	void* inputphy = 0;
-	void* outputphy = 0;
-	size_t bytesRead = 0;
-	size_t bytesWrite = 0;
-	aml_vsp_st_param* st_param = NULL;
-	aml_vsp_meta_param* meta_param = NULL;
-	FILE* voicefile = NULL;
-	FILE* outfile = NULL;
+    int ret = 0;
+    int Vsp_Err = 0;
+    AML_VSP_HANDLE hdlvsp = 0;
+    AML_MEM_HANDLE hParam = 0;
+    AML_MEM_HANDLE hShmInput =0;
+    AML_MEM_HANDLE hShmOutput = 0;
+    uint8_t *paramBuf = 0;
+    uint8_t *inputBuf = 0;
+    uint8_t *outputBuf = 0;
+    void* paramphy = 0;
+    void* inputphy = 0;
+    void* outputphy = 0;
+    size_t bytesRead = 0;
+    size_t bytesWrite = 0;
+    aml_vsp_st_param* st_param = NULL;
+    aml_vsp_meta_param* meta_param = NULL;
+    FILE* voicefile = NULL;
+    FILE* outfile = NULL;
     int32_t inRate = 48000;
     int32_t outRate = 16000;
     if (argc == 4) {
@@ -574,95 +576,95 @@ static int offload_vsp_rsp(int argc, char* argv[]) {
     int32_t voiceChunkInByte = (2*samplePerMs*VOICE_MS);
 
     // Open the input voice file.
-	voicefile = fopen(argv[0], "rb");
+    voicefile = fopen(argv[0], "rb");
     if (!voicefile) {
         printf("Open input file failure %s\n", argv[0]);
         ret = -1;
-		goto tab_end;
+        goto tab_end;
     }
     printf("Open voice file\n");
 
-	outfile = fopen(argv[1], "w+b");
+    outfile = fopen(argv[1], "w+b");
     if (!outfile) {
         printf("Open output file failure %s\n", argv[1]);
         ret = -1;
-		goto tab_end;
+        goto tab_end;
     }
     printf("Open output file\n");
 
 
 
-	// Allocate input buffer.
-	hShmInput = AML_MEM_Allocate(sizeof(aml_vsp_meta_param) + voiceChunkInByte);
-	inputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmInput);
-	inputphy = AML_MEM_GetPhyAddr(hShmInput);
+    // Allocate input buffer.
+    hShmInput = AML_MEM_Allocate(sizeof(aml_vsp_meta_param) + voiceChunkInByte);
+    inputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmInput);
+    inputphy = AML_MEM_GetPhyAddr(hShmInput);
 
-	// Allocate output buffer.
-	hShmOutput = AML_MEM_Allocate(voiceChunkInByte*outRate/inRate);
-	outputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmOutput);
-	outputphy = AML_MEM_GetPhyAddr(hShmOutput);
+    // Allocate output buffer.
+    hShmOutput = AML_MEM_Allocate(voiceChunkInByte*outRate/inRate);
+    outputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmOutput);
+    outputphy = AML_MEM_GetPhyAddr(hShmOutput);
 
-	// Allocate static param buffer, the param is used to initialize vsp
-	hParam = AML_MEM_Allocate(sizeof(aml_vsp_st_param));
-	paramBuf = (uint8_t*)AML_MEM_GetVirtAddr(hParam);
-	paramphy = AML_MEM_GetPhyAddr(hParam);
+    // Allocate static param buffer, the param is used to initialize vsp
+    hParam = AML_MEM_Allocate(sizeof(aml_vsp_st_param));
+    paramBuf = (uint8_t*)AML_MEM_GetVirtAddr(hParam);
+    paramphy = AML_MEM_GetPhyAddr(hParam);
 
     // Initialize the vsp-rsp.
-	st_param = (aml_vsp_st_param*)paramBuf;
-	st_param->Fs_Hz_in = inRate;
-	st_param->Fs_Hz_out = outRate;
-	AML_MEM_Clean(paramphy, sizeof(aml_vsp_st_param));
-	hdlvsp = AML_VSP_Init(AML_VSP_RESAMPLER, (void*)paramphy, sizeof(aml_vsp_st_param));
-	if (!hdlvsp) {
+    st_param = (aml_vsp_st_param*)paramBuf;
+    st_param->Fs_Hz_in = inRate;
+    st_param->Fs_Hz_out = outRate;
+    AML_MEM_Clean(paramphy, sizeof(aml_vsp_st_param));
+    hdlvsp = AML_VSP_Init(AML_VSP_RESAMPLER, (void*)paramphy, sizeof(aml_vsp_st_param));
+    if (!hdlvsp) {
         printf("Initialize vsp failure\n");
         ret = -1;
-		goto tab_end;
-	}
+        goto tab_end;
+    }
     printf("Init vsp-rsp hdl=%p\n", hdlvsp);
 
     while (1) {
-		//example to show apply meta data associate with the buffer.
-		meta_param = (aml_vsp_meta_param*)inputBuf;
-		meta_param->Bitdepth = 16;
-		meta_param->Fs = inRate;
+        //example to show apply meta data associate with the buffer.
+        meta_param = (aml_vsp_meta_param*)inputBuf;
+        meta_param->Bitdepth = 16;
+        meta_param->Fs = inRate;
         bytesRead = voiceChunkInByte;
         bytesRead = fread(inputBuf + sizeof(aml_vsp_meta_param), 1, bytesRead, voicefile);
         if (!bytesRead) {
-			printf("EOF\n");
+            printf("EOF\n");
             break;
         }
 
-		bytesWrite = bytesRead*outRate/inRate;
-		AML_MEM_Clean(inputphy, bytesRead + sizeof(aml_vsp_meta_param));
-		Vsp_Err = AML_VSP_Process(hdlvsp, inputphy, bytesRead + sizeof(aml_vsp_meta_param), outputphy, &bytesWrite);
-		AML_MEM_Invalidate(outputphy, bytesWrite);
+        bytesWrite = bytesRead*outRate/inRate;
+        AML_MEM_Clean(inputphy, bytesRead + sizeof(aml_vsp_meta_param));
+        Vsp_Err = AML_VSP_Process(hdlvsp, inputphy, bytesRead + sizeof(aml_vsp_meta_param), outputphy, &bytesWrite);
+        AML_MEM_Invalidate(outputphy, bytesWrite);
 
         if (Vsp_Err != 0) {
             printf("Decoder encountered error:0x%x\n", Vsp_Err);
             ret = -1;
             break;
         }
-	    if (outfile)
-			fwrite(outputBuf, 1, bytesWrite, outfile);
+        if (outfile)
+            fwrite(outputBuf, 1, bytesWrite, outfile);
     }
     printf("voice signal resampling done\n");
 
-tab_end:
+    tab_end:
     // Close input reader and output writer.
-	if (voicefile)
-		fclose(voicefile);
-	if (outfile)
-		fclose(outfile);
+    if (voicefile)
+        fclose(voicefile);
+    if (outfile)
+        fclose(outfile);
 
     // Free allocated memory.
     if (hShmInput)
-		AML_MEM_Free((AML_MEM_HANDLE)hShmInput);
-	if (hShmOutput)
-		AML_MEM_Free((AML_MEM_HANDLE)hShmOutput);
-	if (hParam)
-		AML_MEM_Free((AML_MEM_HANDLE)hParam);
-	if (hdlvsp)
-		AML_VSP_Deinit(hdlvsp);
+        AML_MEM_Free((AML_MEM_HANDLE)hShmInput);
+    if (hShmOutput)
+        AML_MEM_Free((AML_MEM_HANDLE)hShmOutput);
+    if (hParam)
+        AML_MEM_Free((AML_MEM_HANDLE)hParam);
+    if (hdlvsp)
+        AML_VSP_Deinit(hdlvsp);
 
     return ret;
 }
@@ -679,28 +681,28 @@ static uint32_t uTotalBytesWrite = 0;
 void aml_wake_engine_asr_data_handler(AWE *awe, const AWE_DATA_TYPE type,
                                             char* out, size_t size, void *user_data)
 {
-	FILE* fout = (FILE*)user_data;
-	if (AWE_DATA_TYPE_ASR == type) {
-		fwrite(out, 1, size, fout);
-		uRecvChunk++;
-		uTotalBytesWrite += size;
-	}
+    FILE* fout = (FILE*)user_data;
+    if (AWE_DATA_TYPE_ASR == type) {
+        fwrite(out, 1, size, fout);
+        uRecvChunk++;
+        uTotalBytesWrite += size;
+    }
 }
 
 void aml_wake_engine_voip_data_handler(AWE *awe, const AWE_DATA_TYPE type,
                                             char* out, size_t size, void *user_data)
 {
-	FILE* fout = (FILE*)user_data;
-	if (AWE_DATA_TYPE_VOIP == type) {
-		fwrite(out, 1, size, fout);
-	}
+    FILE* fout = (FILE*)user_data;
+    if (AWE_DATA_TYPE_VOIP == type) {
+        fwrite(out, 1, size, fout);
+    }
 }
 
 void aml_wake_engine_event_handler(AWE *awe, const AWE_EVENT_TYPE type, int32_t code,
                                              const void *payload, void *user_data)
 {
-	if (type == AWE_EVENT_TYPE_WAKE)
-		printf("wake word detected !!!! \n");
+    if (type == AWE_EVENT_TYPE_WAKE)
+        printf("wake word detected !!!! \n");
 }
 
 static AWE *gAwe = NULL;
@@ -715,378 +717,378 @@ void awe_test_sighandler(int signum)
 }
 
 int aml_wake_engine_unit_test(int argc, char* argv[]) {
-	uFeedChunk = 0;
-	uRecvChunk = 0;
-	uTotalBytesRead = 0;
-	uTotalBytesWrite = 0;
-	int syncMode = 0;
-	AWE_PARA awe_para;
-	int ret = 0;
-	uint32_t isWakeUp = 0;
-	AWE_RET awe_ret = AWE_RET_OK;
-	int32_t inLen = 0, outLen = 0;
-	void *in[4], *out[2];
+    uFeedChunk = 0;
+    uRecvChunk = 0;
+    uTotalBytesRead = 0;
+    uTotalBytesWrite = 0;
+    int syncMode = 0;
+    AWE_PARA awe_para;
+    int ret = 0;
+    uint32_t isWakeUp = 0;
+    AWE_RET awe_ret = AWE_RET_OK;
+    int32_t inLen = 0, outLen = 0;
+    void *in[4], *out[2];
 
-	AML_MEM_HANDLE hMic0Buf = 0;
-	void *vir_mic0_buf = NULL;
-	void *phy_mic0_buf = NULL;
+    AML_MEM_HANDLE hMic0Buf = 0;
+    void *vir_mic0_buf = NULL;
+    void *phy_mic0_buf = NULL;
 
-	AML_MEM_HANDLE hMic1Buf = 0;
-	void *vir_mic1_buf = NULL;
-	void *phy_mic1_buf = NULL;
+    AML_MEM_HANDLE hMic1Buf = 0;
+    void *vir_mic1_buf = NULL;
+    void *phy_mic1_buf = NULL;
 
-	AML_MEM_HANDLE hRef0Buf = 0;
-	void *vir_ref0_buf = NULL;
-	void *phy_ref0_buf = NULL;
+    AML_MEM_HANDLE hRef0Buf = 0;
+    void *vir_ref0_buf = NULL;
+    void *phy_ref0_buf = NULL;
 
-	void *vir_interleave_buf = NULL;
+    void *vir_interleave_buf = NULL;
 
-	AML_MEM_HANDLE hOutBuf0 = 0;
-	void *vir_out0_buf = NULL;
-	void *phy_out0_buf = NULL;
+    AML_MEM_HANDLE hOutBuf0 = 0;
+    void *vir_out0_buf = NULL;
+    void *phy_out0_buf = NULL;
 
-	AML_MEM_HANDLE hOutBuf1 = 0;
-	void *vir_out1_buf = NULL;
-	void *phy_out1_buf = NULL;
+    AML_MEM_HANDLE hOutBuf1 = 0;
+    void *vir_out1_buf = NULL;
+    void *phy_out1_buf = NULL;
 
-	signal(SIGINT, &awe_test_sighandler);
-	if (argc == 6)
-		syncMode = atoi(argv[5]);
+    signal(SIGINT, &awe_test_sighandler);
+    if (argc == 6)
+        syncMode = atoi(argv[5]);
 
-	FILE *fmic0 = fopen(argv[0], "rb");
-	FILE *fmic1 = fopen(argv[1], "rb");
-	FILE *fref0 = fopen(argv[2], "rb");
-	FILE *fout0 = fopen(argv[3], "w+b");
-	FILE *fout1 = fopen(argv[4], "w+b");
-	if ( !fmic0 || !fmic1|| !fref0 || !fout0 || !fout1) {
-		printf("Can not open io file:%p %p %p %p %p\n",
-				fmic0, fmic1, fref0, fout0, fout1);
-		ret = -1;
-		goto end_tab;
-	}
+    FILE *fmic0 = fopen(argv[0], "rb");
+    FILE *fmic1 = fopen(argv[1], "rb");
+    FILE *fref0 = fopen(argv[2], "rb");
+    FILE *fout0 = fopen(argv[3], "w+b");
+    FILE *fout1 = fopen(argv[4], "w+b");
+    if ( !fmic0 || !fmic1|| !fref0 || !fout0 || !fout1) {
+        printf("Can not open io file:%p %p %p %p %p\n",
+        fmic0, fmic1, fref0, fout0, fout1);
+        ret = -1;
+        goto end_tab;
+    }
 
-	if (syncMode == 1) {
-		vir_interleave_buf = malloc(3*VOICE_CHUNK_LEN_BYTE);
-		if (!vir_interleave_buf) {
-			printf("Can not allocate interleave buffer:%p\n", vir_interleave_buf);
-			ret = -1;
-			goto end_tab;
-		}
-		vir_mic0_buf = malloc(VOICE_CHUNK_LEN_BYTE);
-		vir_mic1_buf = malloc(VOICE_CHUNK_LEN_BYTE);
-		vir_ref0_buf = malloc(VOICE_CHUNK_LEN_BYTE);
-	} else {
-		hMic0Buf = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE);
-		vir_mic0_buf = AML_MEM_GetVirtAddr(hMic0Buf);
-		phy_mic0_buf = AML_MEM_GetPhyAddr(hMic0Buf);
+    if (syncMode == 1) {
+        vir_interleave_buf = malloc(3*VOICE_CHUNK_LEN_BYTE);
+        if (!vir_interleave_buf) {
+            printf("Can not allocate interleave buffer:%p\n", vir_interleave_buf);
+            ret = -1;
+            goto end_tab;
+        }
+        vir_mic0_buf = malloc(VOICE_CHUNK_LEN_BYTE);
+        vir_mic1_buf = malloc(VOICE_CHUNK_LEN_BYTE);
+        vir_ref0_buf = malloc(VOICE_CHUNK_LEN_BYTE);
+    } else {
+        hMic0Buf = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE);
+        vir_mic0_buf = AML_MEM_GetVirtAddr(hMic0Buf);
+        phy_mic0_buf = AML_MEM_GetPhyAddr(hMic0Buf);
 
-		hMic1Buf = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE);
-		vir_mic1_buf = AML_MEM_GetVirtAddr(hMic1Buf);
-		phy_mic1_buf = AML_MEM_GetPhyAddr(hMic1Buf);
+        hMic1Buf = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE);
+        vir_mic1_buf = AML_MEM_GetVirtAddr(hMic1Buf);
+        phy_mic1_buf = AML_MEM_GetPhyAddr(hMic1Buf);
 
-		hRef0Buf = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE);
-		vir_ref0_buf = AML_MEM_GetVirtAddr(hRef0Buf);
-		phy_ref0_buf = AML_MEM_GetPhyAddr(hRef0Buf);
-		if (!hMic0Buf|| !hMic1Buf || !hRef0Buf) {
-			printf("Can not allocate none interleave buffer:%p %p %p\n",
-					hMic0Buf, hMic1Buf, hRef0Buf);
-			ret = -1;
-			goto end_tab;
-		} else {
-			printf("mic0buf:%p, mic1buf:%p, ref0buf:%p\n",
-				phy_mic0_buf, phy_mic1_buf, phy_ref0_buf);
-		}
-	}
+        hRef0Buf = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE);
+        vir_ref0_buf = AML_MEM_GetVirtAddr(hRef0Buf);
+        phy_ref0_buf = AML_MEM_GetPhyAddr(hRef0Buf);
+        if (!hMic0Buf|| !hMic1Buf || !hRef0Buf) {
+            printf("Can not allocate none interleave buffer:%p %p %p\n",
+            hMic0Buf, hMic1Buf, hRef0Buf);
+            ret = -1;
+            goto end_tab;
+        } else {
+            printf("mic0buf:%p, mic1buf:%p, ref0buf:%p\n",
+            phy_mic0_buf, phy_mic1_buf, phy_ref0_buf);
+        }
+    }
 
-	hOutBuf0 = AML_MEM_Allocate(2048);
-	vir_out0_buf = AML_MEM_GetVirtAddr(hOutBuf0);
-	phy_out0_buf = AML_MEM_GetPhyAddr(hOutBuf0);
+    hOutBuf0 = AML_MEM_Allocate(2048);
+    vir_out0_buf = AML_MEM_GetVirtAddr(hOutBuf0);
+    phy_out0_buf = AML_MEM_GetPhyAddr(hOutBuf0);
 
-	hOutBuf1 = AML_MEM_Allocate(2048);
-	vir_out1_buf = AML_MEM_GetVirtAddr(hOutBuf1);
-	phy_out1_buf = AML_MEM_GetPhyAddr(hOutBuf1);
+    hOutBuf1 = AML_MEM_Allocate(2048);
+    vir_out1_buf = AML_MEM_GetVirtAddr(hOutBuf1);
+    phy_out1_buf = AML_MEM_GetPhyAddr(hOutBuf1);
 
 
-	if (!hOutBuf0 || !hOutBuf1) {
-		printf("Can not allocate output buffer:%p, %p\n", hOutBuf0, hOutBuf1);
-		ret = -1;
-		goto end_tab;
-	} else {
-		printf("outbuf:%p,%p\n", phy_out0_buf, phy_out1_buf);
-	}
+    if (!hOutBuf0 || !hOutBuf1) {
+        printf("Can not allocate output buffer:%p, %p\n", hOutBuf0, hOutBuf1);
+        ret = -1;
+        goto end_tab;
+    } else {
+        printf("outbuf:%p,%p\n", phy_out0_buf, phy_out1_buf);
+    }
 
     awe_ret = AML_AWE_Create(&gAwe);
     if (awe_ret != AWE_RET_OK) {
-		printf("Can not create Hifi AWE service\n");
-		ret = -1;
-		goto end_tab;
+        printf("Can not create Hifi AWE service\n");
+        ret = -1;
+        goto end_tab;
     }
 
-	if (syncMode == 1) {
-		AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_ASR, aml_wake_engine_asr_data_handler,(void *)fout0);
-		AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_VOIP, aml_wake_engine_voip_data_handler,(void *)fout1);
-		AML_AWE_AddEventHandler(gAwe, AWE_EVENT_TYPE_WAKE, aml_wake_engine_event_handler, NULL);
-	}
+    if (syncMode == 1) {
+        AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_ASR, aml_wake_engine_asr_data_handler,(void *)fout0);
+        AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_VOIP, aml_wake_engine_voip_data_handler,(void *)fout1);
+        AML_AWE_AddEventHandler(gAwe, AWE_EVENT_TYPE_WAKE, aml_wake_engine_event_handler, NULL);
+    }
 
     awe_para.inputMode = AWE_USER_INPUT_MODE;
     awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_INPUT_MODE, &awe_para);
     if (awe_ret != AWE_RET_OK) {
-		printf("Set input mode fail:%d\n", awe_ret);
-		ret = -1;
-		goto end_tab;
+        printf("Set input mode fail:%d\n", awe_ret);
+        ret = -1;
+        goto end_tab;
     }
 
     awe_ret = AML_AWE_GetParam(gAwe, AWE_PARA_SUPPORT_SAMPLE_RATES, &awe_para);
     if (awe_ret != AWE_RET_OK) {
-		printf("Get supported samperate fail:%d\n", awe_ret);
-		ret = -1;
-		goto end_tab;
+        printf("Get supported samperate fail:%d\n", awe_ret);
+        ret = -1;
+        goto end_tab;
     }
 
     awe_para.inSampRate = awe_para.supportSampRates[0];
-	printf("awe_para.inSampRate:%d\n", awe_para.inSampRate);
+    printf("awe_para.inSampRate:%d\n", awe_para.inSampRate);
     awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_IN_SAMPLE_RATE, &awe_para);
     if (awe_ret != AWE_RET_OK) {
-		printf("Set samperate fail:%d\n", awe_ret);
-		ret = -1;
-		goto end_tab;
+        printf("Set samperate fail:%d\n", awe_ret);
+        ret = -1;
+        goto end_tab;
     }
 
     awe_ret = AML_AWE_GetParam(gAwe, AWE_PARA_SUPPORT_SAMPLE_BITS, &awe_para);
     if (awe_ret != AWE_RET_OK) {
-		printf("Failed to get sample bits:%d\n", awe_ret);
-		ret = -1;
-		goto end_tab;
+        printf("Failed to get sample bits:%d\n", awe_ret);
+        ret = -1;
+        goto end_tab;
     }
 
     awe_para.inSampBits = awe_para.supportSampBits[0];
     awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_IN_SAMPLE_BITS, &awe_para);
     if (awe_ret != AWE_RET_OK) {
-		printf("Failed to set sample bits:%d\n", awe_ret);
-		ret = -1;
-		goto end_tab;
+        printf("Failed to set sample bits:%d\n", awe_ret);
+        ret = -1;
+        goto end_tab;
     }
 
     awe_ret = AML_AWE_Open(gAwe);
     if (awe_ret != AWE_RET_OK) {
-		printf("Failed to open AWE:%d\n", awe_ret);
-		ret = -1;
-		goto end_tab;
+        printf("Failed to open AWE:%d\n", awe_ret);
+        ret = -1;
+        goto end_tab;
     }
     printf("wake test start! !\n");
-	uint32_t i,j;
+    uint32_t i,j;
     while (1) {
-		int32_t nbyteRead = VOICE_CHUNK_LEN_BYTE;
-		int32_t nbyteMic0 = 0;
-		int32_t nbyteMic1 = 0;
-		int32_t nbyteRef0 = 0;
-		nbyteMic0 = fread(vir_mic0_buf, 1, nbyteRead, fmic0);
-		nbyteMic1 = fread(vir_mic1_buf, 1, nbyteRead, fmic1);
-		nbyteRef0 = fread(vir_ref0_buf, 1, nbyteRead, fref0);
+        uint32_t nbyteRead = VOICE_CHUNK_LEN_BYTE;
+        uint32_t nbyteMic0 = 0;
+        uint32_t nbyteMic1 = 0;
+        uint32_t nbyteRef0 = 0;
+        nbyteMic0 = fread(vir_mic0_buf, 1, nbyteRead, fmic0);
+        nbyteMic1 = fread(vir_mic1_buf, 1, nbyteRead, fmic1);
+        nbyteRef0 = fread(vir_ref0_buf, 1, nbyteRead, fref0);
         if (nbyteMic0 < nbyteRead || nbyteMic1 < nbyteRead || nbyteRef0 < nbyteRead) {
             printf("EOF\n");
             break;
         }
 
-		if (syncMode == 0) {
-			AML_MEM_Clean(phy_mic0_buf, nbyteRead);
-			AML_MEM_Clean(phy_mic1_buf, nbyteRead);
-			AML_MEM_Clean(phy_ref0_buf, nbyteRead);
+        if (syncMode == 0) {
+        AML_MEM_Clean(phy_mic0_buf, nbyteRead);
+        AML_MEM_Clean(phy_mic1_buf, nbyteRead);
+        AML_MEM_Clean(phy_ref0_buf, nbyteRead);
 
-			in[0] = hMic0Buf;
-			in[1] = hMic1Buf;
-			in[2] = hRef0Buf;
-			inLen = nbyteRead;
-			out[0] = hOutBuf0;
-			out[1] = hOutBuf1;
-			outLen = 2048;
-			AML_AWE_Process(gAwe, in, &inLen, out, &outLen, &isWakeUp);
-			if (isWakeUp) {
-				printf("wake word detected ! \n");
-			}
-			if (!inLen) {
-				fseek(fmic0, -inLen, SEEK_CUR);
-				fseek(fmic1, -inLen, SEEK_CUR);
-				fseek(fref0, -inLen, SEEK_CUR);
-			}
-			AML_MEM_Invalidate(phy_out0_buf, outLen);
-			AML_MEM_Invalidate(phy_out1_buf, outLen);
-			fwrite(vir_out0_buf, 1, outLen, fout0);
-			fwrite(vir_out1_buf, 1, outLen, fout1);
-			uTotalBytesWrite += outLen;
-			uTotalBytesRead += nbyteRead;
-		} else if (syncMode == 1) {
-		    /*interleave mic0,mic1,ref0*/
-			short* pMic0 = (short*)vir_mic0_buf;
-			short* pMic1 = (short*)vir_mic1_buf;
-			short* pRef0 = (short*)vir_ref0_buf;
-			short* pInterleave = (short*)vir_interleave_buf;
-			for (i = 0; i < (nbyteRead/2); i++) {
-				*pInterleave = *pMic0++;
-				pInterleave++;
-				*pInterleave = *pMic1++;
-				pInterleave++;
-				*pInterleave = *pRef0++;
-				pInterleave++;
-			}
-			ret = AML_AWE_PushBuf(gAwe, (const char*)vir_interleave_buf, nbyteRead*3);
-			if (AWE_RET_ERR_NO_MEM == ret) {
-				fseek(fmic0, -nbyteRead, SEEK_CUR);
-				fseek(fmic1, -nbyteRead, SEEK_CUR);
-				fseek(fref0, -nbyteRead, SEEK_CUR);
-				usleep(500);
-			}
-			else if (ret != AWE_RET_OK) {
-				printf("Unknow error when execute AML_AWE_PushBuf, ret=%d\n", ret);
-				break;
-			} else {
-				uFeedChunk++;
-				uTotalBytesRead += nbyteRead;
-			}
-		} else {
-			printf("Invalide sync mode:%d\n", syncMode);
-			break;
-		}
+        in[0] = hMic0Buf;
+        in[1] = hMic1Buf;
+        in[2] = hRef0Buf;
+        inLen = nbyteRead;
+        out[0] = hOutBuf0;
+        out[1] = hOutBuf1;
+        outLen = 2048;
+        AML_AWE_Process(gAwe, in, &inLen, out, &outLen, &isWakeUp);
+        if (isWakeUp) {
+            printf("wake word detected ! \n");
+        }
+        if (!inLen) {
+            fseek(fmic0, -inLen, SEEK_CUR);
+            fseek(fmic1, -inLen, SEEK_CUR);
+            fseek(fref0, -inLen, SEEK_CUR);
+        }
+        AML_MEM_Invalidate(phy_out0_buf, outLen);
+        AML_MEM_Invalidate(phy_out1_buf, outLen);
+        fwrite(vir_out0_buf, 1, outLen, fout0);
+        fwrite(vir_out1_buf, 1, outLen, fout1);
+        uTotalBytesWrite += outLen;
+        uTotalBytesRead += nbyteRead;
+        } else if (syncMode == 1) {
+            /*interleave mic0,mic1,ref0*/
+            short* pMic0 = (short*)vir_mic0_buf;
+            short* pMic1 = (short*)vir_mic1_buf;
+            short* pRef0 = (short*)vir_ref0_buf;
+            short* pInterleave = (short*)vir_interleave_buf;
+            for (i = 0; i < (nbyteRead/2); i++) {
+                *pInterleave = *pMic0++;
+                pInterleave++;
+                *pInterleave = *pMic1++;
+                pInterleave++;
+                *pInterleave = *pRef0++;
+                pInterleave++;
+            }
+            ret = AML_AWE_PushBuf(gAwe, (const char*)vir_interleave_buf, nbyteRead*3);
+            if (AWE_RET_ERR_NO_MEM == ret) {
+                fseek(fmic0, -nbyteRead, SEEK_CUR);
+                fseek(fmic1, -nbyteRead, SEEK_CUR);
+                fseek(fref0, -nbyteRead, SEEK_CUR);
+                usleep(500);
+            }
+            else if (ret != AWE_RET_OK) {
+                printf("Unknow error when execute AML_AWE_PushBuf, ret=%d\n", ret);
+                break;
+            } else {
+                uFeedChunk++;
+                uTotalBytesRead += nbyteRead;
+            }
+        } else {
+            printf("Invalide sync mode:%d\n", syncMode);
+            break;
+        }
     }
 
-end_tab:
-	while(uRecvChunk < uFeedChunk) {
-		printf("uRecvChunk:%d, uFeedChunk:%d\n", uRecvChunk, uFeedChunk);
-		usleep(5000);
-	}
-	printf("Read: %d Kbytes, Write %d Kbytes\n", uTotalBytesRead/1024, uTotalBytesWrite/1024);
-	if (gAwe)
-    	AML_AWE_Close(gAwe);
-	if (gAwe)
-		AML_AWE_Destroy(gAwe);
-	if (hOutBuf0)
-		AML_MEM_Free(hOutBuf0);
-	if (hOutBuf1)
-		AML_MEM_Free(hOutBuf1);
-	if (syncMode == 0) {
-		if (hMic0Buf)
-			AML_MEM_Free(hMic0Buf);
-		if (hMic1Buf)
-			AML_MEM_Free(hMic1Buf);
-		if (hRef0Buf)
-			AML_MEM_Free(hRef0Buf);
-	}
+    end_tab:
+    while(uRecvChunk < uFeedChunk) {
+        printf("uRecvChunk:%d, uFeedChunk:%d\n", uRecvChunk, uFeedChunk);
+        usleep(5000);
+    }
+    printf("Read: %d Kbytes, Write %d Kbytes\n", uTotalBytesRead/1024, uTotalBytesWrite/1024);
+    if (gAwe)
+        AML_AWE_Close(gAwe);
+    if (gAwe)
+        AML_AWE_Destroy(gAwe);
+    if (hOutBuf0)
+        AML_MEM_Free(hOutBuf0);
+    if (hOutBuf1)
+        AML_MEM_Free(hOutBuf1);
+    if (syncMode == 0) {
+        if (hMic0Buf)
+            AML_MEM_Free(hMic0Buf);
+        if (hMic1Buf)
+            AML_MEM_Free(hMic1Buf);
+        if (hRef0Buf)
+            AML_MEM_Free(hRef0Buf);
+    }
 
-	if (vir_interleave_buf) {
-		free(vir_interleave_buf);
-		free(vir_mic0_buf);
-		free(vir_mic1_buf);
-		free(vir_ref0_buf);
-	}
+    if (vir_interleave_buf) {
+        free(vir_interleave_buf);
+        free(vir_mic0_buf);
+        free(vir_mic1_buf);
+        free(vir_ref0_buf);
+    }
 
-	if (fmic0)
-		fclose(fmic0);
-	if (fmic1)
-		fclose(fmic1);
-	if (fref0)
-		fclose(fref0);
-	if (fout0)
-		fclose(fout0);
-	if (fout1)
-		fclose(fout1);
+    if (fmic0)
+        fclose(fmic0);
+    if (fmic1)
+        fclose(fmic1);
+    if (fref0)
+        fclose(fref0);
+    if (fout0)
+        fclose(fout0);
+    if (fout1)
+        fclose(fout1);
     return ret;
 }
 
 int aml_wake_engine_dspin_test(int argc, char* argv[]) {
-	AWE_PARA awe_para;
-	int ret = 0;
-	uint32_t isWakeUp = 0;
-	AWE_RET awe_ret = AWE_RET_OK;
-	int32_t inLen = 0, outLen = 0;
-	void *in[4], *out[2];
+    AWE_PARA awe_para;
+    int ret = 0;
+    uint32_t isWakeUp = 0;
+    AWE_RET awe_ret = AWE_RET_OK;
+    int32_t inLen = 0, outLen = 0;
+    void *in[4], *out[2];
 
-	AML_MEM_HANDLE hOutBuf0 = 0;
-	void *vir_out_buf0 = NULL;
-	void *phy_out_buf0 = NULL;
+    AML_MEM_HANDLE hOutBuf0 = 0;
+    void *vir_out_buf0 = NULL;
+    void *phy_out_buf0 = NULL;
 
-	AML_MEM_HANDLE hOutBuf1 = 0;
-	void *vir_out_buf1 = NULL;
-	void *phy_out_buf1 = NULL;
-	signal(SIGINT, &awe_test_sighandler);
+    AML_MEM_HANDLE hOutBuf1 = 0;
+    void *vir_out_buf1 = NULL;
+    void *phy_out_buf1 = NULL;
+    signal(SIGINT, &awe_test_sighandler);
 
-	FILE *fout0 = fopen(argv[0], "w+b");
-	FILE *fout1 = fopen(argv[1], "w+b");
-	if (!fout0 || !fout1) {
-		printf("Can not open output file:%p, %p\n", fout0, fout1);
-		ret = -1;
-		goto end_tab;
-	}
+    FILE *fout0 = fopen(argv[0], "w+b");
+    FILE *fout1 = fopen(argv[1], "w+b");
+    if (!fout0 || !fout1) {
+        printf("Can not open output file:%p, %p\n", fout0, fout1);
+        ret = -1;
+        goto end_tab;
+    }
 
-	hOutBuf0 = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE*4);
-	vir_out_buf0 = AML_MEM_GetVirtAddr(hOutBuf0);
-	phy_out_buf0 = AML_MEM_GetPhyAddr(hOutBuf0);
+    hOutBuf0 = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE*4);
+    vir_out_buf0 = AML_MEM_GetVirtAddr(hOutBuf0);
+    phy_out_buf0 = AML_MEM_GetPhyAddr(hOutBuf0);
 
-	hOutBuf1 = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE*4);
-	vir_out_buf1 = AML_MEM_GetVirtAddr(hOutBuf1);
-	phy_out_buf1 = AML_MEM_GetPhyAddr(hOutBuf1);
+    hOutBuf1 = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE*4);
+    vir_out_buf1 = AML_MEM_GetVirtAddr(hOutBuf1);
+    phy_out_buf1 = AML_MEM_GetPhyAddr(hOutBuf1);
 
-	if (!hOutBuf0 || !hOutBuf1) {
-		printf("Can not allocate output buffer:%p %p\n", hOutBuf0, hOutBuf1);
-		ret = -1;
-		goto end_tab;
-	} else {
-		printf("outbuf:%p %p\n", phy_out_buf0, phy_out_buf1);
-	}
+    if (!hOutBuf0 || !hOutBuf1) {
+        printf("Can not allocate output buffer:%p %p\n", hOutBuf0, hOutBuf1);
+        ret = -1;
+        goto end_tab;
+    } else {
+        printf("outbuf:%p %p\n", phy_out_buf0, phy_out_buf1);
+    }
 
     awe_ret = AML_AWE_Create(&gAwe);
     if (awe_ret != AWE_RET_OK) {
-		printf("Can not create Hifi AWE service\n");
-		ret = -1;
-		goto end_tab;
+        printf("Can not create Hifi AWE service\n");
+        ret = -1;
+        goto end_tab;
     }
 
-	AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_ASR, aml_wake_engine_asr_data_handler,(void *)fout0);
-	AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_VOIP, aml_wake_engine_voip_data_handler,(void *)fout1);
-	AML_AWE_AddEventHandler(gAwe, AWE_EVENT_TYPE_WAKE, aml_wake_engine_event_handler, NULL);
+    AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_ASR, aml_wake_engine_asr_data_handler,(void *)fout0);
+    AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_VOIP, aml_wake_engine_voip_data_handler,(void *)fout1);
+    AML_AWE_AddEventHandler(gAwe, AWE_EVENT_TYPE_WAKE, aml_wake_engine_event_handler, NULL);
 
     awe_para.inputMode = AWE_DSP_INPUT_MODE;
     awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_INPUT_MODE, &awe_para);
     if (awe_ret != AWE_RET_OK) {
-		printf("Set input mode fail\n");
-		ret = -1;
-		goto end_tab;
+        printf("Set input mode fail\n");
+        ret = -1;
+        goto end_tab;
     }
 
     awe_ret = AML_AWE_GetParam(gAwe, AWE_PARA_SUPPORT_SAMPLE_RATES, &awe_para);
     if (awe_ret != AWE_RET_OK) {
-		printf("Get supported samperate fail\n");
-		ret = -1;
-		goto end_tab;
+        printf("Get supported samperate fail\n");
+        ret = -1;
+        goto end_tab;
     }
 
     awe_para.inSampRate = awe_para.supportSampRates[0];
     awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_IN_SAMPLE_RATE, &awe_para);
     if (awe_ret != AWE_RET_OK) {
-		printf("Set samperate fail\n");
-		ret = -1;
-		goto end_tab;
+        printf("Set samperate fail\n");
+        ret = -1;
+        goto end_tab;
     }
 
     awe_ret = AML_AWE_GetParam(gAwe, AWE_PARA_SUPPORT_SAMPLE_BITS, &awe_para);
     if (awe_ret != AWE_RET_OK) {
-		printf("Failed to get sample bits\n");
-		ret = -1;
-		goto end_tab;
+        printf("Failed to get sample bits\n");
+        ret = -1;
+        goto end_tab;
     }
 
     awe_para.inSampBits = awe_para.supportSampBits[0];
     awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_IN_SAMPLE_BITS, &awe_para);
     if (awe_ret != AWE_RET_OK) {
-		printf("Failed to set sample bits\n");
-		ret = -1;
-		goto end_tab;
+        printf("Failed to set sample bits\n");
+        ret = -1;
+        goto end_tab;
     }
 
     awe_ret = AML_AWE_Open(gAwe);
     if (awe_ret != AWE_RET_OK) {
-		printf("Failed to open AWE\n");
-		ret = -1;
-		goto end_tab;
+        printf("Failed to open AWE\n");
+        ret = -1;
+        goto end_tab;
     }
     printf("wake test start in dsp input mode\n");
     printf("Command Guide:\n");
@@ -1116,123 +1118,122 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
         }
     }
 
-end_tab:
-	if (gAwe)
-		AML_AWE_Close(gAwe);
-	if (gAwe)
-		AML_AWE_Destroy(gAwe);
-	if (hOutBuf0)
-		AML_MEM_Free(hOutBuf0);
-	if (hOutBuf1)
-		AML_MEM_Free(hOutBuf1);
+    end_tab:
+    if (gAwe)
+        AML_AWE_Close(gAwe);
+    if (gAwe)
+        AML_AWE_Destroy(gAwe);
+    if (hOutBuf0)
+        AML_MEM_Free(hOutBuf0);
+    if (hOutBuf1)
+        AML_MEM_Free(hOutBuf1);
 
-	if (fout0)
-		fclose(fout0);
-	if (fout1)
-		fclose(fout1);
+    if (fout0)
+        fclose(fout0);
+    if (fout1)
+        fclose(fout1);
     return ret;
 }
 
 
 #define IPC_UNIT_TEST_REPEAT 50
 static int ipc_uint_tset(void) {
-	unsigned int i;
-	int num_repeat = IPC_UNIT_TEST_REPEAT;
-	const char send_samples[16] = {
-		0x1, 0xf, 0x2, 0xe, 0x3, 0xd, 0x4, 0xc, 0x5, 0xb, 0x6, 0xa, 0x7, 0x9, 0x0, 0x8
-	};
-	const char recv_samples[16] = {
-		0x11, 0xf1, 0x21, 0x1e, 0x13, 0x1d, 0x14, 0xc2, 0x52, 0xb2, 0x62, 0x2a, 0x27, 0x29, 0x20, 0x38
-	};
-	char ipc_data[16];
-	int arpchdl = xAudio_Ipc_init();
-	while(num_repeat--) {
-		memcpy(ipc_data, send_samples, sizeof(ipc_data));
-		xAIPC(arpchdl, MBX_CMD_IPC_TEST, (void*)ipc_data, sizeof(ipc_data));
-		for (i = 0; i < sizeof(recv_samples); i++) {
-			if(recv_samples[i] != ipc_data[i])
-				break;
-		}
-		if (i < sizeof(recv_samples)) {
-			printf("arm ack: ipc unittest fail:%d, ipc data:\n", IPC_UNIT_TEST_REPEAT - num_repeat);
-			for(i = 0; i < sizeof(recv_samples); i++)
-				printf("0x%x ", ipc_data[i]);
-			printf("\n");
-			break;
-		}
-	}
-	if(num_repeat <= 0)
-		printf("ipc unittest pass, repeat: %d\n", IPC_UNIT_TEST_REPEAT);
-	xAudio_Ipc_Deinit(arpchdl);
-	return 0;
+    unsigned int i;
+    int num_repeat = IPC_UNIT_TEST_REPEAT;
+    const uint8_t send_samples[16] = {
+        0x1, 0xf, 0x2, 0xe, 0x3, 0xd, 0x4, 0xc, 0x5, 0xb, 0x6, 0xa, 0x7, 0x9, 0x0, 0x8
+    };
+    const uint8_t recv_samples[16] = {
+        0x11, 0xf1, 0x21, 0x1e, 0x13, 0x1d, 0x14, 0xc2, 0x52, 0xb2, 0x62, 0x2a, 0x27, 0x29, 0x20, 0x38
+    };
+    char ipc_data[16];
+    int arpchdl = xAudio_Ipc_init();
+    while(num_repeat--) {
+        memcpy(ipc_data, send_samples, sizeof(ipc_data));
+        xAIPC(arpchdl, MBX_CMD_IPC_TEST, (void*)ipc_data, sizeof(ipc_data));
+        for (i = 0; i < sizeof(recv_samples); i++) {
+            if(recv_samples[i] != ipc_data[i])
+            break;
+        }
+        if (i < sizeof(recv_samples)) {
+            printf("arm ack: ipc unittest fail:%d, ipc data:\n", IPC_UNIT_TEST_REPEAT - num_repeat);
+            for(i = 0; i < sizeof(recv_samples); i++)
+                printf("0x%x ", ipc_data[i]);
+            printf("\n");
+            break;
+        }
+    }
+    if(num_repeat <= 0)
+        printf("ipc unittest pass, repeat: %d\n", IPC_UNIT_TEST_REPEAT);
+    xAudio_Ipc_Deinit(arpchdl);
+    return 0;
 }
 
 #define RPC_FUNC_DUMMY 0x1
 #define RPC_FUNC_SQUARE 0x2
 static int rpc_unit_tset(int argc, char* argv[]) {
-	tAmlDummyRpc dummy_rpc_param;
-	int ret = 0;
-	int arpchdl = 0;
-	if (argc != 3) {
-		printf("invalid param number:%d\n", argc);
-		return -1;
-	}
-	dummy_rpc_param.func_code = atoi(argv[0]);
-	dummy_rpc_param.input_param = atoi(argv[1]);
-	dummy_rpc_param.task_sleep_ms = atoi(argv[2]);
-	dummy_rpc_param.task_id = getpid();
-	arpchdl = xAudio_Ipc_init();
-	xAIPC(arpchdl, MBX_CMD_RPC_TEST, &dummy_rpc_param, sizeof(dummy_rpc_param));
-	xAudio_Ipc_Deinit(arpchdl);
-	if (dummy_rpc_param.func_code == RPC_FUNC_SQUARE
-		&& (dummy_rpc_param.input_param*dummy_rpc_param.input_param) != dummy_rpc_param.output_param) {
-		ret = -1;
-	}
-	printf("RPC unit test %s, func code:%d, input param:%d, output param:%d, task id:%d, sleep: %d ms\n",
-		(ret==0)?"SUCESS":"FAILE",
-		dummy_rpc_param.func_code, dummy_rpc_param.input_param,
-		dummy_rpc_param.output_param, dummy_rpc_param.task_id,
-		dummy_rpc_param.task_sleep_ms);
-	return 0;
+    tAmlDummyRpc dummy_rpc_param;
+    int ret = 0;
+    int arpchdl = 0;
+    if (argc != 3) {
+        printf("invalid param number:%d\n", argc);
+        return -1;
+    }
+    dummy_rpc_param.func_code = atoi(argv[0]);
+    dummy_rpc_param.input_param = atoi(argv[1]);
+    dummy_rpc_param.task_sleep_ms = atoi(argv[2]);
+    dummy_rpc_param.task_id = getpid();
+    arpchdl = xAudio_Ipc_init();
+    xAIPC(arpchdl, MBX_CMD_RPC_TEST, &dummy_rpc_param, sizeof(dummy_rpc_param));
+    xAudio_Ipc_Deinit(arpchdl);
+    if (dummy_rpc_param.func_code == RPC_FUNC_SQUARE
+        && (dummy_rpc_param.input_param*dummy_rpc_param.input_param) != dummy_rpc_param.output_param) {
+        ret = -1;
+    }
+    printf("RPC unit test %s, func code:%d, input param:%d, output param:%d, task id:%d, sleep: %d ms\n",
+            (ret==0)?"SUCESS":"FAILE",
+    dummy_rpc_param.func_code, dummy_rpc_param.input_param,
+    dummy_rpc_param.output_param, dummy_rpc_param.task_id,
+    dummy_rpc_param.task_sleep_ms);
+    return 0;
 }
 
 
 #define SHM_UNIT_TEST_REPEAT 50
 static int shm_uint_tset(void)
 {
-	unsigned int i;
-	int num_repeat = SHM_UNIT_TEST_REPEAT;
-	char samples[16] = {0};
-	void* pVirSrc = NULL;
-	void* pVirDst = NULL;
-	while(num_repeat--) {
-		AML_MEM_HANDLE hDst, hSrc;
-		hDst = AML_MEM_Allocate(sizeof(samples));
-		hSrc = AML_MEM_Allocate(sizeof(samples));
-		memset((void*)samples, num_repeat, sizeof(samples));
-		pVirSrc = AML_MEM_GetVirtAddr(hSrc);
-		memcpy((void*)pVirSrc, samples, sizeof(samples));
-		AML_MEM_Clean(hSrc, sizeof(samples));
-		Aml_ACodecMemory_Transfer(hDst, hSrc, sizeof(samples));
-		AML_MEM_Invalidate(hDst, sizeof(samples));
-		pVirDst = AML_MEM_GetVirtAddr(hSrc);
-		if (memcmp((void*)pVirDst, samples, sizeof(samples))) {
-			printf("shm unit test fail, repeat:%d\n",
-				SHM_UNIT_TEST_REPEAT - num_repeat);
-			break;
-		} else {
-			/*char* k = (char*)pVirDst;
-			for(i = 0; i < sizeof(samples); i++)
-				printf("0x%x ", k[i]);
-			printf("\n");*/
-		}
-		AML_MEM_Free(hSrc);
-		AML_MEM_Free(hDst);
-	}
-	if(num_repeat <= 0)
-		printf("ipc unittest pass, repeat %d\n", SHM_UNIT_TEST_REPEAT);
-	return 0;
-
+    unsigned int i;
+    int num_repeat = SHM_UNIT_TEST_REPEAT;
+    char samples[16] = {0};
+    void* pVirSrc = NULL;
+    void* pVirDst = NULL;
+    while(num_repeat--) {
+        AML_MEM_HANDLE hDst, hSrc;
+        hDst = AML_MEM_Allocate(sizeof(samples));
+        hSrc = AML_MEM_Allocate(sizeof(samples));
+        memset((void*)samples, num_repeat, sizeof(samples));
+        pVirSrc = AML_MEM_GetVirtAddr(hSrc);
+        memcpy((void*)pVirSrc, samples, sizeof(samples));
+        AML_MEM_Clean(hSrc, sizeof(samples));
+        Aml_ACodecMemory_Transfer(hDst, hSrc, sizeof(samples));
+        AML_MEM_Invalidate(hDst, sizeof(samples));
+        pVirDst = AML_MEM_GetVirtAddr(hSrc);
+            if (memcmp((void*)pVirDst, samples, sizeof(samples))) {
+            printf("shm unit test fail, repeat:%d\n",
+            SHM_UNIT_TEST_REPEAT - num_repeat);
+            break;
+        } else {
+            /*char* k = (char*)pVirDst;
+            for(i = 0; i < sizeof(samples); i++)
+            printf("0x%x ", k[i]);
+            printf("\n");*/
+        }
+        AML_MEM_Free(hSrc);
+        AML_MEM_Free(hDst);
+    }
+    if(num_repeat <= 0)
+        printf("ipc unittest pass, repeat %d\n", SHM_UNIT_TEST_REPEAT);
+    return 0;
 }
 
 void aml_hifi_inside_wakeup()

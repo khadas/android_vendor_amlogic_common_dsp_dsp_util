@@ -47,139 +47,141 @@
 #include "hifi4dsp_api.h"
 
 struct _ACodecShmPoolInfo_t_ {
-	int rpchdl;
-	int fd;
-	void* ShmVirBase;
-	long ShmPhyBase;
-	size_t size;
-	pthread_mutex_t mutex;
+    int rpchdl;
+    int fd;
+    void* ShmVirBase;
+    long ShmPhyBase;
+    size_t size;
+    pthread_mutex_t mutex;
 };
 
 struct _ACodecShmPoolInfo_t_ gACodecShmPoolInfo = {
-	.rpchdl = -1,
-	.fd = -1,
-	.ShmVirBase = 0,
-	.ShmPhyBase = 0,
-	.size = 0,
-	.mutex = PTHREAD_MUTEX_INITIALIZER,
+    .rpchdl = -1,
+    .fd = -1,
+    .ShmVirBase = 0,
+    .ShmPhyBase = 0,
+    .size = 0,
+    .mutex = PTHREAD_MUTEX_INITIALIZER,
 };
 
 static int Aml_ACodecMemory_Init(void)
 {
-	int ret = 0;
-	struct hifi4dsp_info_t info;
-	pthread_mutex_lock(&gACodecShmPoolInfo.mutex);
+    int ret = 0;
+    struct hifi4dsp_info_t info;
+    pthread_mutex_lock(&gACodecShmPoolInfo.mutex);
 
-	if (gACodecShmPoolInfo.fd >= 0) {
-		ret = 0;
-		goto tab_end;
-	}
+    if (gACodecShmPoolInfo.fd >= 0) {
+        ret = 0;
+        goto tab_end;
+    }
 
-	gACodecShmPoolInfo.fd = open("/dev/hifi4dsp0", O_RDWR);
-	if (gACodecShmPoolInfo.fd < 0)
-	{
-		printf("open fail:%s\n", strerror(errno));
-		ret = -1;
-		goto tab_end;
-	}
+    gACodecShmPoolInfo.fd = open("/dev/hifi4dsp0", O_RDWR);
+    if (gACodecShmPoolInfo.fd < 0)
+    {
+        printf("open fail:%s\n", strerror(errno));
+        ret = -1;
+        goto tab_end;
+    }
 
-	memset(&info, 0, sizeof(info));
-	if ((ret = ioctl(gACodecShmPoolInfo.fd, HIFI4DSP_GET_INFO, &info)) < 0)
-	{
-		printf("ioctl invalidate cache fail:%s\n", strerror(errno));
-		ret = -1;
-		goto tab_end;
-	}
-	gACodecShmPoolInfo.ShmPhyBase = info.phy_addr;
-	gACodecShmPoolInfo.size = info.size;
+    memset(&info, 0, sizeof(info));
+    if ((ret = ioctl(gACodecShmPoolInfo.fd, HIFI4DSP_GET_INFO, &info)) < 0)
+    {
+        printf("ioctl invalidate cache fail:%s\n", strerror(errno));
+        ret = -1;
+        goto tab_end;
+    }
+    gACodecShmPoolInfo.ShmPhyBase = info.phy_addr;
+    gACodecShmPoolInfo.size = info.size;
 
-	gACodecShmPoolInfo.ShmVirBase =  mmap(NULL,
-			gACodecShmPoolInfo.size, PROT_READ | PROT_WRITE, MAP_SHARED,
-			gACodecShmPoolInfo.fd, 0);
+    gACodecShmPoolInfo.ShmVirBase =  mmap(NULL,
+                                gACodecShmPoolInfo.size,
+                                PROT_READ | PROT_WRITE, MAP_SHARED,
+                                gACodecShmPoolInfo.fd, 0);
 
-	gACodecShmPoolInfo.rpchdl = xAudio_Ipc_init();
-	printf("fd = %d, Vir: %p, Phy:0x%lx, size:%zu\n",
-		gACodecShmPoolInfo.fd, gACodecShmPoolInfo.ShmVirBase,
-		gACodecShmPoolInfo.ShmPhyBase, gACodecShmPoolInfo.size);
+    gACodecShmPoolInfo.rpchdl = xAudio_Ipc_init();
+    printf("fd = %d, Vir: %p, Phy:0x%lx, size:%zu\n",
+    gACodecShmPoolInfo.fd, gACodecShmPoolInfo.ShmVirBase,
+    gACodecShmPoolInfo.ShmPhyBase, gACodecShmPoolInfo.size);
 tab_end:
-	pthread_mutex_unlock(&gACodecShmPoolInfo.mutex);
+    pthread_mutex_unlock(&gACodecShmPoolInfo.mutex);
 
-	return ret;
+    return ret;
 }
 
 AML_MEM_HANDLE AML_MEM_Allocate(size_t size)
 {
-	int ret = 0;
-	acodec_shm_alloc_st arg;
-	arg.size = size;
-	if (gACodecShmPoolInfo.fd < 0) {
-		if(Aml_ACodecMemory_Init()) {
-			printf("Initialize audio codec shm pool fail\n");
-			return NULL;
-		}
-	}
+    int ret = 0;
+    acodec_shm_alloc_st arg;
+    arg.size = size;
+    if (gACodecShmPoolInfo.fd < 0) {
+        if(Aml_ACodecMemory_Init()) {
+            printf("Initialize audio codec shm pool fail\n");
+            return NULL;
+        }
+    }
 
-	xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_ALLOC, &arg, sizeof(arg));
-	return (AML_MEM_HANDLE)arg.hShm;
+    xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_ALLOC, &arg, sizeof(arg));
+    return (AML_MEM_HANDLE)arg.hShm;
 }
 
 void AML_MEM_Free(AML_MEM_HANDLE hShm)
 {
-	acodec_shm_free_st arg;
-	arg.hShm = (AML_MEM_HANDLERpc)hShm;
-	xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_FREE, &arg, sizeof(arg));
+    acodec_shm_free_st arg;
+    arg.hShm = (AML_MEM_HANDLERpc)hShm;
+    xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_FREE, &arg, sizeof(arg));
 }
 
 void Aml_ACodecMemory_Transfer(AML_MEM_HANDLE hDst, AML_MEM_HANDLE hSrc, size_t size)
 {
-	acodec_shm_transfer_st arg;
-	arg.hSrc = (AML_MEM_HANDLERpc)hSrc;
-	arg.hDst = (AML_MEM_HANDLERpc)hDst;
-	arg.size = size;
-	xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_TRANSFER, &arg, sizeof(arg));
+    acodec_shm_transfer_st arg;
+    arg.hSrc = (AML_MEM_HANDLERpc)hSrc;
+    arg.hDst = (AML_MEM_HANDLERpc)hDst;
+    arg.size = size;
+    xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_TRANSFER, &arg, sizeof(arg));
 }
 
 
 void* AML_MEM_GetVirtAddr(AML_MEM_HANDLE hShm)
 {
-	void* pVir = NULL;
-	pVir = (void*)(((long)hShm - gACodecShmPoolInfo.ShmPhyBase) + (long)gACodecShmPoolInfo.ShmVirBase);
+    void* pVir = NULL;
+    pVir = (void*)(((long)hShm - gACodecShmPoolInfo.ShmPhyBase) + (long)gACodecShmPoolInfo.ShmVirBase);
+    return pVir;
 }
 
 
 void* AML_MEM_GetPhyAddr(AML_MEM_HANDLE hShm)
 {
-	return hShm;
+    return hShm;
 }
 
 uint32_t AML_MEM_Clean(AML_MEM_HANDLE phy, size_t size)
 {
-	int ret = 0;
-	struct hifi4_shm_info_t info;
-	info.addr = (long)phy;
-	info.size = size;
+    int ret = 0;
+    struct hifi4_shm_info_t info;
+    info.addr = (long)phy;
+    info.size = size;
 
-	if ((ret = ioctl(gACodecShmPoolInfo.fd, HIFI4DSP_SHM_CLEAN, &info)) < 0)
-	{
-		printf("ioctl clean cache fail:%s\n", strerror(errno));
-		return -1;
-	}
-	return 0;
+    if ((ret = ioctl(gACodecShmPoolInfo.fd, HIFI4DSP_SHM_CLEAN, &info)) < 0)
+    {
+        printf("ioctl clean cache fail:%s\n", strerror(errno));
+        return -1;
+    }
+    return 0;
 }
 
 uint32_t AML_MEM_Invalidate(AML_MEM_HANDLE phy, size_t size)
 {
-	int ret = 0;
-	struct hifi4_shm_info_t info;
-	info.addr = (long)phy;
-	info.size = size;
+    int ret = 0;
+    struct hifi4_shm_info_t info;
+    info.addr = (long)phy;
+    info.size = size;
 
-	if ((ret = ioctl(gACodecShmPoolInfo.fd, HIFI4DSP_SHM_INV, &info)) < 0)
-	{
-		printf("ioctl invalidate cache fail:%s\n", strerror(errno));
-		return -1;
-	}
-	return 0;
+    if ((ret = ioctl(gACodecShmPoolInfo.fd, HIFI4DSP_SHM_INV, &info)) < 0)
+    {
+        printf("ioctl invalidate cache fail:%s\n", strerror(errno));
+        return -1;
+    }
+    return 0;
 }
 
 

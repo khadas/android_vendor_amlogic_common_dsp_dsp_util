@@ -86,13 +86,14 @@ int audio_dump(int argc, char* argv[]) {
         usleep(1000);
     }
 end_tab:
-    if (pbuf)
+    if (pbuf) {
         free(pbuf);
-	if (hCbuf)
-    	AML_CBUF_Destory(hCbuf);
+    }
+    if (hCbuf)
+        AML_CBUF_Destory(hCbuf);
 
-	if (faudio_dump)
-		fclose(faudio_dump);
+    if (faudio_dump)
+        fclose(faudio_dump);
 
     return ret;
 }

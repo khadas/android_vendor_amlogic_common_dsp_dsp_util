@@ -35,8 +35,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <pthread.h>
 #include <semaphore.h>
+#include <pthread.h>
 #include "rpc_client_aipc.h"
 #include "rpc_client_vsp.h"
 #include "rpc_client_shm.h"
@@ -94,33 +94,33 @@ struct _AWE {
 };
 
 typedef struct {
-	int32_t    numInChn;
-	int32_t    lenInByte;
-	uint64_t   pChanIn[AWE_MAX_IN_CHANS];
-	int32_t    numOutChn;
-	int32_t    lenOutByte;
-	uint64_t   pChanOut[AWE_MAX_OUT_CHANS];
+    int32_t    numInChn;
+    int32_t    lenInByte;
+    uint64_t   pChanIn[AWE_MAX_IN_CHANS];
+    int32_t    numOutChn;
+    int32_t    lenOutByte;
+    uint64_t   pChanOut[AWE_MAX_OUT_CHANS];
 } __attribute__((packed)) aml_vsp_awe_process_param_in;
 
 typedef struct {
-	int32_t    lenInByte;
-	int32_t    lenOutByte;
-	uint32_t   isWaked;
+    int32_t    lenInByte;
+    int32_t    lenOutByte;
+    uint32_t   isWaked;
 } __attribute__((packed)) aml_vsp_awe_process_param_out;
 
 /*for PCM_OUT*/
 static uint32_t aml_awe_ring_buf_fullness(uint32_t size,
         uint32_t wr, uint32_t rd)
 {
-	return (wr >= rd) ? (wr - rd) : (size + wr - rd);
+    return (wr >= rd) ? (wr - rd) : (size + wr - rd);
 }
 
 /*for PCM_OUT*/
 static uint32_t aml_awe_ring_buf_space(uint32_t size,
         uint32_t wr, uint32_t rd)
 {
-	return (wr > rd) ? (size + rd - wr - 1) :
-	       (rd - wr - 1);
+    return (wr > rd) ? (size + rd - wr - 1) :
+        (rd - wr - 1);
 }
 
 static void aml_ch_extract_s16le(int16_t *dst, int16_t *src, uint32_t nSample,
@@ -443,8 +443,8 @@ AWE_RET AML_AWE_Open(AWE *awe)
         goto table_failure_handling;
     }
     awe->work_thread_exit  = 0;
-	ret = pthread_create(&awe->work_thread, NULL, (void*)&awe_thread_process_data, (void*)awe);
-	if (ret != 0)
+    ret = pthread_create(&awe->work_thread, NULL, (void*)&awe_thread_process_data, (void*)awe);
+    if (ret != 0)
     {
         printf("create working thread error. %d: %s\n",ret,strerror(ret));
         goto table_failure_handling;
@@ -498,38 +498,39 @@ AWE_RET AML_AWE_Close(AWE *awe)
         free(awe->userFillBuf);
     if (awe->hVsp)
         ret = AML_VSP_Close(awe->hVsp);
-    if (&awe->userFillSem)
+    if (&awe->userFillSem) {
         sem_destroy(&awe->userFillSem);
-	return ret;
+    }
+    return ret;
 }
 
 AWE_RET AML_AWE_SetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para)
 {
     AWE_CHECK_NULL(awe);
     AWE_CHECK_NULL(para);
-	char* pParam = (char*)AML_MEM_GetVirtAddr(awe->hParam);
-	memcpy(pParam, para, sizeof(AWE_PARA));
-	AML_MEM_Clean(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
-	return AML_VSP_SetParam(awe->hVsp, (int32_t)paraId, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    char* pParam = (char*)AML_MEM_GetVirtAddr(awe->hParam);
+    memcpy(pParam, para, sizeof(AWE_PARA));
+    AML_MEM_Clean(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    return AML_VSP_SetParam(awe->hVsp, (int32_t)paraId, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
 }
 
 AWE_RET AML_AWE_GetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para)
 {
-	AWE_RET ret = AWE_RET_OK;
+    AWE_RET ret = AWE_RET_OK;
     AWE_CHECK_NULL(awe);
     AWE_CHECK_NULL(para);
-	ret = AML_VSP_GetParam(awe->hVsp, (int32_t)paraId, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
-	AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
-	char* pParam = (char*)AML_MEM_GetVirtAddr(awe->hParam);
-	memcpy(para, pParam, sizeof(AWE_PARA));
-	return ret;
+    ret = AML_VSP_GetParam(awe->hVsp, (int32_t)paraId, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    char* pParam = (char*)AML_MEM_GetVirtAddr(awe->hParam);
+    memcpy(para, pParam, sizeof(AWE_PARA));
+    return ret;
 }
 
 AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[],
                     int32_t *inLenInByte, AML_MEM_HANDLE out[],
                     int32_t *outLenInByte, uint32_t *isWaked)
 {
-	AWE_RET ret = AWE_RET_OK;
+    AWE_RET ret = AWE_RET_OK;
     AWE_CHECK_NULL(awe);
     AWE_CHECK_NULL(inLenInByte);
     AWE_CHECK_NULL(outLenInByte);
