@@ -52,7 +52,6 @@ int audio_dump(int argc, char* argv[]) {
     int ret = 0;
     AML_CBUF_HANDLE hCbuf = NULL;
 	FILE *faudio_dump = NULL;
-    pthread_t audio_dump_thread;
     int32_t totalSize = 0;
     char* pbuf = NULL;
 	if (argc != 3) {

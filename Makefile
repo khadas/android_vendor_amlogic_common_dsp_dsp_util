@@ -6,7 +6,7 @@ CROSS_PREFIX=armv8l-linux-gnueabihf-
 endif
 CC?=$(CROSS_PREFIX)gcc
 CXX?=$(CROSS_PREFIX)g++
-CFLAGS = -fPIC -I ./include/ -I ./mp3tools/ -Wall -Werror=sequence-point -Werror=return-type -Werror=non-virtual-dtor -Werror=address -Wno-unused
+CFLAGS = -fPIC -I./include/ -I./mp3tools/ -Wall -Werror=sequence-point -Werror=return-type -Werror=non-virtual-dtor -Werror=address -Werror=unused-variable -Werror=unused-parameter
 #CPPFLAGS+= $(CFLAGS)
 LIBDIR:= .
 
@@ -85,7 +85,7 @@ $(LIBMP3TOOLS): $(LIBMP3TOOLS_OBJ)
 	$(CXX) -shared -fPIC $(CFLAGS) $^ -o $(LIBMP3TOOLS)
 
 $(LIBHIFI4RPC): $(LIBHIFI4RPC_OBJ)
-	$(CC) -shared -fPIC -I ./include $^ -o $(LIBHIFI4RPC)
+	$(CC) -shared -fPIC $(CFLAGS) $^ -o $(LIBHIFI4RPC)
 
 #applications compile
 $(HIFI4_TOOL): $(HIFI4_TOOL_OBJ)

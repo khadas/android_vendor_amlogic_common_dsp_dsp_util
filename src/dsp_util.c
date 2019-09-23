@@ -55,7 +55,6 @@ static struct option longOpts[] = {
 	{ "help", no_argument, NULL, 'h' },
 	{ 0, 0, 0, 0 }
 };
-static char optString[]="lrSskwd:f:a:012h";
 
 void showUsage() {
 	printf("Usage:[options]\n");
@@ -76,7 +75,7 @@ void showUsage() {
 
 int dsp_ctl(struct hifi4dsp_info_t *info, unsigned int cmd)
 {
-	int i=0,ret=0;
+	int ret=0;
 	int fd;
 	char path[64];
 	sprintf(path, "/dev/hifi4dsp%d", info->id);
@@ -98,10 +97,8 @@ int dsp_ctl(struct hifi4dsp_info_t *info, unsigned int cmd)
 
 bool dsp_dev_is_exist(struct hifi4dsp_info_t *info)
 {
-	int ret = -1;
 	const char *pathname;
 	char path[256];
-	int fd;
 	if ((info->id != 0 )&&(info->id != 1 )) {
 		printf("param error: invalid dsp id (info->id=%d)\n",info->id);
 		return 0;
@@ -120,10 +117,7 @@ bool dsp_dev_is_exist(struct hifi4dsp_info_t *info)
 
 bool dsp_firmware_is_exist(struct hifi4dsp_info_t *info)
 {
-	int ret = -1;
-	const char *pathname;
 	char path[256];
-	int fd;
 	strcpy(path, "/lib/firmware/");
 	strcat(path, info->fw_name);
 	if (strlen(info->fw_name) == 0) {
@@ -210,7 +204,7 @@ int dsp_wake(struct hifi4dsp_info_t *info)
 
 int hifi4dsp_load()
 {
-	int i=0,ret=0;
+	int ret=0;
 	struct hifi4dsp_info_t *info=malloc(sizeof(struct hifi4dsp_info_t));
 	int fd = open("/dev/hifi4dsp0", O_RDWR);
 	if (fd < 0)

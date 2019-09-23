@@ -53,6 +53,8 @@
 #include "rpc_client_vsp.h"
 #include "aml_wakeup_api.h"
 
+#define UNUSED(x) (void)(x)
+
 #define MSECS_PER_SEC (1000L)
 #define NSECS_PER_MSEC (1000000L)
 
@@ -93,15 +95,6 @@ uint8_t audio_play_data[] = {
 uint32_t audio_play_data_len = sizeof(audio_play_data);
 
 using namespace std;
-
-static void mp3_show_hex(char* samples, uint32_t size)
-{
-    uint32_t i;
-    for (i = 0; i < size; i++) {
-        printf("0x%x ", samples[i]);
-    }
-    printf("\n");
-}
 
 static int pcm_play_buildin()
 {
@@ -153,12 +146,16 @@ static int pcm_play_test(int argc, char* argv[])
     tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMOUT_B, PCM_OUT, pconfig);
     AML_MEM_HANDLE hShmBuf;
 
+    if (argc != 0) {
+        printf("Invalid paremeter number, argc=%d\n", argc);
+        return -1;
+    }
+
     FILE *fileplay = fopen(argv[0], "rb");
     if (fileplay == NULL) {
         printf("failed to open played pcm file\n");
         return -1;
     }
-    int fr = 0;
     const int ms = 36;
     const int oneshot = 48 * ms; // 1728 samples
     uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
@@ -167,7 +164,7 @@ static int pcm_play_test(int argc, char* argv[])
     void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
     while ((size = fread(buf, 1, size, fileplay))) {
         AML_MEM_Clean(phybuf, size);
-        fr = pcm_client_writei(p, phybuf, oneshot);
+        pcm_client_writei(p, phybuf, oneshot);
         //printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
         //   ms, p, buf, oneshot, fr);
     }
@@ -681,6 +678,7 @@ static uint32_t uTotalBytesWrite = 0;
 void aml_wake_engine_asr_data_handler(AWE *awe, const AWE_DATA_TYPE type,
                                             char* out, size_t size, void *user_data)
 {
+    UNUSED(awe);
     FILE* fout = (FILE*)user_data;
     if (AWE_DATA_TYPE_ASR == type) {
         fwrite(out, 1, size, fout);
@@ -692,6 +690,7 @@ void aml_wake_engine_asr_data_handler(AWE *awe, const AWE_DATA_TYPE type,
 void aml_wake_engine_voip_data_handler(AWE *awe, const AWE_DATA_TYPE type,
                                             char* out, size_t size, void *user_data)
 {
+    UNUSED(awe);
     FILE* fout = (FILE*)user_data;
     if (AWE_DATA_TYPE_VOIP == type) {
         fwrite(out, 1, size, fout);
@@ -701,6 +700,10 @@ void aml_wake_engine_voip_data_handler(AWE *awe, const AWE_DATA_TYPE type,
 void aml_wake_engine_event_handler(AWE *awe, const AWE_EVENT_TYPE type, int32_t code,
                                              const void *payload, void *user_data)
 {
+    UNUSED(awe);
+    UNUSED(code);
+    UNUSED(payload);
+    UNUSED(user_data);
     if (type == AWE_EVENT_TYPE_WAKE)
         printf("wake word detected !!!! \n");
 }
@@ -708,6 +711,7 @@ void aml_wake_engine_event_handler(AWE *awe, const AWE_EVENT_TYPE type, int32_t 
 static AWE *gAwe = NULL;
 void awe_test_sighandler(int signum)
 {
+    UNUSED(signum);
     if (gAwe)
         AML_AWE_Close(gAwe);
     if (gAwe)
@@ -876,7 +880,7 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
         goto end_tab;
     }
     printf("wake test start! !\n");
-    uint32_t i,j;
+    uint32_t i;
     while (1) {
         uint32_t nbyteRead = VOICE_CHUNK_LEN_BYTE;
         uint32_t nbyteMic0 = 0;
@@ -995,19 +999,15 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
 }
 
 int aml_wake_engine_dspin_test(int argc, char* argv[]) {
+    UNUSED(argc);
     AWE_PARA awe_para;
     int ret = 0;
-    uint32_t isWakeUp = 0;
     AWE_RET awe_ret = AWE_RET_OK;
-    int32_t inLen = 0, outLen = 0;
-    void *in[4], *out[2];
 
     AML_MEM_HANDLE hOutBuf0 = 0;
-    void *vir_out_buf0 = NULL;
     void *phy_out_buf0 = NULL;
 
     AML_MEM_HANDLE hOutBuf1 = 0;
-    void *vir_out_buf1 = NULL;
     void *phy_out_buf1 = NULL;
     signal(SIGINT, &awe_test_sighandler);
 
@@ -1020,11 +1020,9 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
     }
 
     hOutBuf0 = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE*4);
-    vir_out_buf0 = AML_MEM_GetVirtAddr(hOutBuf0);
     phy_out_buf0 = AML_MEM_GetPhyAddr(hOutBuf0);
 
     hOutBuf1 = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE*4);
-    vir_out_buf1 = AML_MEM_GetVirtAddr(hOutBuf1);
     phy_out_buf1 = AML_MEM_GetPhyAddr(hOutBuf1);
 
     if (!hOutBuf0 || !hOutBuf1) {
@@ -1202,7 +1200,6 @@ static int rpc_unit_tset(int argc, char* argv[]) {
 #define SHM_UNIT_TEST_REPEAT 50
 static int shm_uint_tset(void)
 {
-    unsigned int i;
     int num_repeat = SHM_UNIT_TEST_REPEAT;
     char samples[16] = {0};
     void* pVirSrc = NULL;

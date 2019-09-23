@@ -110,7 +110,6 @@ tab_end:
 
 AML_MEM_HANDLE AML_MEM_Allocate(size_t size)
 {
-    int ret = 0;
     acodec_shm_alloc_st arg;
     arg.size = size;
     if (gACodecShmPoolInfo.fd < 0) {

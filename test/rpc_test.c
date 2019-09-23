@@ -117,7 +117,6 @@ int main(int argc, char *argv[])
 	}
 
 	while (1) {
-		int this_option_optind = optind ? optind : 1;
 		c = getopt_long(argc, argv, optString,
 				longOpts, &option_index);
 		if (c < 0)

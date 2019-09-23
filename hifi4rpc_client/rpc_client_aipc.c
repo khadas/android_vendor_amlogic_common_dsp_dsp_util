@@ -39,7 +39,7 @@ int xAudio_Ipc_init(void) {
 }
 
 void xAudio_Ipc_Deinit(int handle) {
-
+    handle = handle;
 }
 
 int xAIPC(int handle, unsigned int cmd, void *buf, size_t size) {
