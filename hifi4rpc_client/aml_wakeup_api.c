@@ -456,8 +456,7 @@ table_failure_handling:
     awe->work_thread_exit = 1;
     sem_post(&awe->userFillSem);
     pthread_join(awe->work_thread,NULL);
-    if (&awe->userFillSem)
-        sem_destroy(&awe->userFillSem);
+    sem_destroy(&awe->userFillSem);
     if (awe->userFillBuf)
         free(awe->userFillBuf);
 
