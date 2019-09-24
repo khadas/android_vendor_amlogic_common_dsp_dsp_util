@@ -223,7 +223,7 @@ static int pcm_capture_test(int argc, char* argv[])
 }
 
 static int mp3_offload_dec(int argc, char* argv[]) {
-    int bUserAllocShm = 1;
+    int bUserAllocShm = 0;
     tAmlMp3DecHdl hdlmp3 = 0;
     AML_MEM_HANDLE hShmInput =0;
     AML_MEM_HANDLE hShmOutput = 0;
@@ -365,7 +365,7 @@ static int mp3_offload_dec(int argc, char* argv[]) {
 static int aac_offload_dec(int argc, char* argv[]) {
     SNDFILE *handle = NULL;
     FILE* pcmfile = NULL;
-    int bUserAllocShm = 1;
+    int bUserAllocShm = 0;
     tAmlAacDecHdl hdlAac = 0;
     AML_MEM_HANDLE hShmInput =0;
     AML_MEM_HANDLE hShmOutput = 0;
@@ -725,7 +725,7 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
     uRecvChunk = 0;
     uTotalBytesRead = 0;
     uTotalBytesWrite = 0;
-    int syncMode = 0;
+    int syncMode = 1;
     AWE_PARA awe_para;
     int ret = 0;
     uint32_t isWakeUp = 0;
@@ -895,32 +895,32 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
         }
 
         if (syncMode == 0) {
-        AML_MEM_Clean(phy_mic0_buf, nbyteRead);
-        AML_MEM_Clean(phy_mic1_buf, nbyteRead);
-        AML_MEM_Clean(phy_ref0_buf, nbyteRead);
+            AML_MEM_Clean(phy_mic0_buf, nbyteRead);
+            AML_MEM_Clean(phy_mic1_buf, nbyteRead);
+            AML_MEM_Clean(phy_ref0_buf, nbyteRead);
 
-        in[0] = hMic0Buf;
-        in[1] = hMic1Buf;
-        in[2] = hRef0Buf;
-        inLen = nbyteRead;
-        out[0] = hOutBuf0;
-        out[1] = hOutBuf1;
-        outLen = 2048;
-        AML_AWE_Process(gAwe, in, &inLen, out, &outLen, &isWakeUp);
-        if (isWakeUp) {
-            printf("wake word detected ! \n");
-        }
-        if (!inLen) {
-            fseek(fmic0, -inLen, SEEK_CUR);
-            fseek(fmic1, -inLen, SEEK_CUR);
-            fseek(fref0, -inLen, SEEK_CUR);
-        }
-        AML_MEM_Invalidate(phy_out0_buf, outLen);
-        AML_MEM_Invalidate(phy_out1_buf, outLen);
-        fwrite(vir_out0_buf, 1, outLen, fout0);
-        fwrite(vir_out1_buf, 1, outLen, fout1);
-        uTotalBytesWrite += outLen;
-        uTotalBytesRead += nbyteRead;
+            in[0] = hMic0Buf;
+            in[1] = hMic1Buf;
+            in[2] = hRef0Buf;
+            inLen = nbyteRead;
+            out[0] = hOutBuf0;
+            out[1] = hOutBuf1;
+            outLen = 2048;
+            AML_AWE_Process(gAwe, in, &inLen, out, &outLen, &isWakeUp);
+            if (isWakeUp) {
+                printf("wake word detected ! \n");
+            }
+            if (!inLen) {
+                fseek(fmic0, -((long)inLen), SEEK_CUR);
+                fseek(fmic1, -((long)inLen), SEEK_CUR);
+                fseek(fref0, -((long)inLen), SEEK_CUR);
+            }
+            AML_MEM_Invalidate(phy_out0_buf, outLen);
+            AML_MEM_Invalidate(phy_out1_buf, outLen);
+            fwrite(vir_out0_buf, 1, outLen, fout0);
+            fwrite(vir_out1_buf, 1, outLen, fout1);
+            uTotalBytesWrite += outLen;
+            uTotalBytesRead += nbyteRead;
         } else if (syncMode == 1) {
             /*interleave mic0,mic1,ref0*/
             short* pMic0 = (short*)vir_mic0_buf;
@@ -937,9 +937,9 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
             }
             ret = AML_AWE_PushBuf(gAwe, (const char*)vir_interleave_buf, nbyteRead*3);
             if (AWE_RET_ERR_NO_MEM == ret) {
-                fseek(fmic0, -nbyteRead, SEEK_CUR);
-                fseek(fmic1, -nbyteRead, SEEK_CUR);
-                fseek(fref0, -nbyteRead, SEEK_CUR);
+                fseek(fmic0, -((long)nbyteRead), SEEK_CUR);
+                fseek(fmic1, -((long)nbyteRead), SEEK_CUR);
+                fseek(fref0, -((long)nbyteRead), SEEK_CUR);
                 usleep(500);
             }
             else if (ret != AWE_RET_OK) {
@@ -1248,9 +1248,9 @@ static void usage()
 
     printf ("\033[1mshared memory unit test usage:\033[m hifi4rpc_client_test --shm\n");
 
-    printf ("\033[1mmp3dec Usage:\033[m hifi4rpc_client_test --mp3dec $input_file $output_file $bUserAllocShm\n");
+    printf ("\033[1mmp3dec Usage:\033[m hifi4rpc_client_test --mp3dec $input_file $output_file\n");
 
-    printf ("\033[1maacdec Usage:\033[m hifi4rpc_client_test --aacdec $input_file $output_file $bUserAllocShm\n");
+    printf ("\033[1maacdec Usage:\033[m hifi4rpc_client_test --aacdec $input_file $output_file\n");
 
     printf ("\033[1mpcmplay Usage:\033[m hifi4rpc_client_test --pcmplay $pcm_file\n");
 
@@ -1264,9 +1264,9 @@ static void usage()
 
     printf ("\033[1mvsp-rsp Usage:\033[m hifi4rpc_client_test --vsp-rsp $input_file $output_file $in_rate $out_rate\n");
 
-    printf ("\033[1mvsp-awe-unit Usage:\033[m hifi4rpc_client_test --vsp-awe-unit $mic0 $mic1 $ref $out0 $out1 $syncMode[0:sync,1:async]\n");
+    printf ("\033[1mvsp-awe-unit Usage:\033[m hifi4rpc_client_test --vsp-awe-unit $mic0.pcm $mic1.pcm $ref.pcm $out_asr.pcm $out_voip.pcm\n");
 
-    printf ("\033[1mvsp-awe-dspin Usage:\033[m hifi4rpc_client_test --vsp-awe-dspin $out0 $out1\n");
+    printf ("\033[1mvsp-awe-dspin Usage:\033[m hifi4rpc_client_test --vsp-awe-dspin $out_asr.pcm $out_voip.pcm\n");
 
 }
 
