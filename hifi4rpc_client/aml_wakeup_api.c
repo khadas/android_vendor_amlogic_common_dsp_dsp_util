@@ -497,9 +497,7 @@ AWE_RET AML_AWE_Close(AWE *awe)
         free(awe->userFillBuf);
     if (awe->hVsp)
         ret = AML_VSP_Close(awe->hVsp);
-    if (&awe->userFillSem) {
-        sem_destroy(&awe->userFillSem);
-    }
+    sem_destroy(&awe->userFillSem);
     return ret;
 }
 
