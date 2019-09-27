@@ -84,7 +84,6 @@ uint32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStar
 #if 1
 uint32_t audio_play_data[] = {
 //#include "sinewav_48k_24bits_stereo_l1k_r2k_1s.in"
-//#include "sinewav_48k_24bits_stereo_l1k_r2k_1s.in"
 #include "pyghlkn_48k_24bits_stereo_10s.in"
 };
 #else
@@ -1154,7 +1153,7 @@ static int ipc_uint_tset(void) {
             break;
         }
         if (i < sizeof(recv_samples)) {
-            printf("arm ack: ipc unittest fail:%d, ipc data:\n", IPC_UNIT_TEST_REPEAT - num_repeat);
+            printf("arm ack: ipc unit test fail:%d, ipc data:\n", IPC_UNIT_TEST_REPEAT - num_repeat);
             for(i = 0; i < sizeof(recv_samples); i++)
                 printf("0x%x ", ipc_data[i]);
             printf("\n");
@@ -1162,7 +1161,7 @@ static int ipc_uint_tset(void) {
         }
     }
     if(num_repeat <= 0)
-        printf("ipc unittest pass, repeat: %d\n", IPC_UNIT_TEST_REPEAT);
+        printf("ipc unit test pass, repeat: %d\n", IPC_UNIT_TEST_REPEAT);
     xAudio_Ipc_Deinit(arpchdl);
     return 0;
 }
@@ -1229,7 +1228,7 @@ static int shm_uint_tset(void)
         AML_MEM_Free(hDst);
     }
     if(num_repeat <= 0)
-        printf("ipc unittest pass, repeat %d\n", SHM_UNIT_TEST_REPEAT);
+        printf("shm unit test pass, repeat %d\n", SHM_UNIT_TEST_REPEAT);
     return 0;
 }
 
