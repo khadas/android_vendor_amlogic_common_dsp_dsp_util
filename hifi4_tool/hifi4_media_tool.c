@@ -40,42 +40,52 @@
 #include <getopt.h>
 #include <math.h>
 #include <time.h>
-#include <pthread.h>
+#include <signal.h>
 #include "aipc_type.h"
 #include "rpc_client_cbuf.h"
 #include "rpc_client_shm.h"
 
+#define UNUSED(x) (void)(x)
 
 #define DUMP_LENTH (16000)
 #define CCBUF_LENTH (DUMP_LENTH*4)
+int32_t bDumpExit = 0;
+void audio_dump_sighandler(int signum)
+{
+    UNUSED(signum);
+    bDumpExit = 1;
+}
+
 int audio_dump(int argc, char* argv[]) {
     int ret = 0;
     AML_CBUF_HANDLE hCbuf = NULL;
-	FILE *faudio_dump = NULL;
+    FILE *faudio_dump = NULL;
     int32_t totalSize = 0;
     char* pbuf = NULL;
-	if (argc != 3) {
-		printf("Invalid parameter number\n");
-		return -1;
-	}
+    if (argc != 3) {
+        printf("Invalid parameter number\n");
+        return -1;
+    }
+    signal(SIGTERM, &audio_dump_sighandler);
+    signal(SIGINT, &audio_dump_sighandler);
     pbuf = malloc(DUMP_LENTH);
     totalSize = atoi(argv[2]);
 
     faudio_dump = fopen(argv[1], "w+b");
-	if ( !faudio_dump) {
-		printf("Can not create dump file:%p\n", faudio_dump);
-		ret = -1;
-		goto end_tab;
-	}
+    if ( !faudio_dump) {
+        printf("Can not create dump file:%p\n", faudio_dump);
+        ret = -1;
+        goto end_tab;
+    }
 
-	hCbuf = AML_CBUF_Create(atoi(argv[0]), CCBUF_LENTH, CCBUF_LENTH);
-	if (!hCbuf) {
-		printf("Can not create CC buffer\n");
-		ret = -1;
-		goto end_tab;
-	}
+    hCbuf = AML_CBUF_Create(atoi(argv[0]), CCBUF_LENTH, CCBUF_LENTH);
+    if (!hCbuf) {
+        printf("Can not create CC buffer\n");
+        ret = -1;
+        goto end_tab;
+    }
 
-    while(totalSize >= 0) {
+    while(!bDumpExit && totalSize >= 0) {
         size_t nbyteRead = DUMP_LENTH;
         nbyteRead = AML_CBUF_Read(hCbuf, pbuf,nbyteRead);
         if (nbyteRead > 0) {
@@ -99,9 +109,9 @@ end_tab:
 
 static void usage()
 {
-	printf ("media-dump Usage: hifi4_media_tool --media-dump $id $file $size\n");
-	printf ("\n");
- }
+    printf ("media-dump Usage: hifi4_media_tool --media-dump $id $file $size\n");
+    printf ("\n");
+}
 
 
 int main(int argc, char* argv[]) {
@@ -137,7 +147,5 @@ int main(int argc, char* argv[]) {
         }
     return 0;
 }
-
-
 
 
