@@ -1003,11 +1003,6 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
     int ret = 0;
     AWE_RET awe_ret = AWE_RET_OK;
 
-    AML_MEM_HANDLE hOutBuf0 = 0;
-    void *phy_out_buf0 = NULL;
-
-    AML_MEM_HANDLE hOutBuf1 = 0;
-    void *phy_out_buf1 = NULL;
     signal(SIGINT, &awe_test_sighandler);
 
     FILE *fout0 = fopen(argv[0], "w+b");
@@ -1016,20 +1011,6 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
         printf("Can not open output file:%p, %p\n", fout0, fout1);
         ret = -1;
         goto end_tab;
-    }
-
-    hOutBuf0 = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE*4);
-    phy_out_buf0 = AML_MEM_GetPhyAddr(hOutBuf0);
-
-    hOutBuf1 = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE*4);
-    phy_out_buf1 = AML_MEM_GetPhyAddr(hOutBuf1);
-
-    if (!hOutBuf0 || !hOutBuf1) {
-        printf("Can not allocate output buffer:%p %p\n", hOutBuf0, hOutBuf1);
-        ret = -1;
-        goto end_tab;
-    } else {
-        printf("outbuf:%p %p\n", phy_out_buf0, phy_out_buf1);
     }
 
     awe_ret = AML_AWE_Create(&gAwe);
@@ -1120,10 +1101,6 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
         AML_AWE_Close(gAwe);
     if (gAwe)
         AML_AWE_Destroy(gAwe);
-    if (hOutBuf0)
-        AML_MEM_Free(hOutBuf0);
-    if (hOutBuf1)
-        AML_MEM_Free(hOutBuf1);
 
     if (fout0)
         fclose(fout0);

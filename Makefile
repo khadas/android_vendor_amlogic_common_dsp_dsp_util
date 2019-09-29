@@ -6,7 +6,7 @@ CROSS_PREFIX=armv8l-linux-gnueabihf-
 endif
 CC?=$(CROSS_PREFIX)gcc
 CXX?=$(CROSS_PREFIX)g++
-CFLAGS = -fPIC -I./include/ -I./mp3tools/ -Wall -Werror=sequence-point -Werror=return-type -Werror=non-virtual-dtor -Werror=address -Werror=unused-variable -Werror=unused-parameter
+CFLAGS = -fPIC -I./include/ -I./mp3tools/ -Wall -Wno-unused-function -Werror=sequence-point -Werror=return-type -Werror=non-virtual-dtor -Werror=address -Werror=unused-variable -Werror=unused-parameter -D_GNU_SOURCE
 #CPPFLAGS+= $(CFLAGS)
 LIBDIR:= .
 
