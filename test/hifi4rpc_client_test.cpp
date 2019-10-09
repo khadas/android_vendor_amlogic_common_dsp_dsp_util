@@ -1072,6 +1072,7 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
     printf("Command Guide:\n");
     printf("start - enter free run mode\n");
     printf("stop - exit free run mode\n");
+    printf("suspend - suspend and resume from voice wake up\n");
     printf("exit - quit voice capture\n");
 
     char user_cmd[16];
@@ -1085,13 +1086,24 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
             awe_para.freeRunMode = 0;
             awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_FREE_RUN_MODE, &awe_para);
             continue;
-        } else if(!strcmp(user_cmd, "exit")) {
+        } else if(!strcmp(user_cmd, "suspend")) {
+            system("amixer cset numid=7 1");
+            system("amixer cset numid=21 1");
+            system("arecord -Dhw:0,2 -c 2 -r 16000 -f S32_LE /data/aa.wav &");
+            sleep(4);
+            awe_para.freeRunMode = 1;
+            awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_FREE_RUN_MODE, &awe_para);
+            system("echo mem > /sys/power/state");
+            awe_para.freeRunMode = 0;
+            awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_FREE_RUN_MODE, &awe_para);
+        }else if(!strcmp(user_cmd, "exit")) {
             break;
         }
         else {
             printf("Command Guide:\n");
             printf("start - enter free run mode\n");
             printf("stop - exit free run mode\n");
+            printf("suspend - suspend and resume from voice wake up\n");
             printf("exit - quit voice capture\n");
         }
     }
