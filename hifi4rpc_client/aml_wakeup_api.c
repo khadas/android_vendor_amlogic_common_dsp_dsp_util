@@ -91,6 +91,7 @@ struct _AWE {
     sem_t userFillSem;
     pthread_t work_thread;
     uint32_t aweStatus;
+    uint32_t bKickFreeRun;
 };
 
 typedef struct {
@@ -257,6 +258,10 @@ void awe_thread_process_data(void * data)
                 }
             }
         } else if (awe->inputMode == AWE_DSP_INPUT_MODE) {
+            if (awe->bKickFreeRun == 1) {
+                awe->bKickFreeRun = 0;
+                sem_wait(&awe->userFillSem);
+            }
             isWaked = 0;
             inLen = 0;
             outLen = awe->outWorkBufLen;
@@ -312,12 +317,12 @@ AWE_RET AML_AWE_Create(AWE **awe)
         return AWE_RET_ERR_NO_MEM;
     }
     memset(pawe, 0, sizeof(AWE));
-    pawe->hParam = AML_MEM_Allocate(sizeof(AWE_PARA));
-    pawe->param_size = sizeof(AWE_PARA);
     pawe->hInput = AML_MEM_Allocate(sizeof(aml_vsp_awe_process_param_in));
     pawe->input_size = sizeof(aml_vsp_awe_process_param_in);
     pawe->hOutput = AML_MEM_Allocate(sizeof(aml_vsp_awe_process_param_out));
     pawe->output_size = sizeof(aml_vsp_awe_process_param_out);
+    pawe->hParam = AML_MEM_Allocate(sizeof(AWE_PARA));
+    pawe->param_size = sizeof(AWE_PARA);
     pawe->hVsp = AML_VSP_Init(AML_VSP_AWE, NULL, 0);
 
     if (pawe->hParam && pawe->hInput && pawe->hOutput && pawe->hVsp) {
@@ -350,11 +355,11 @@ AWE_RET AML_AWE_Destroy(AWE *awe)
     }
     if (awe->hInput) {
         AML_MEM_Free(awe->hInput);
-        awe->hOutput = NULL;
+        awe->hInput= NULL;
     }
     if (awe->hParam) {
         AML_MEM_Free(awe->hParam);
-        awe->hOutput = NULL;
+        awe->hParam= NULL;
     }
     if (awe->hVsp) {
         AML_VSP_Deinit(awe->hVsp);
@@ -443,6 +448,7 @@ AWE_RET AML_AWE_Open(AWE *awe)
         goto table_failure_handling;
     }
     awe->work_thread_exit  = 0;
+    awe->bKickFreeRun = 0;
     ret = pthread_create(&awe->work_thread, NULL, (void*)&awe_thread_process_data, (void*)awe);
     if (ret != 0)
     {
@@ -503,12 +509,26 @@ AWE_RET AML_AWE_Close(AWE *awe)
 
 AWE_RET AML_AWE_SetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para)
 {
+    AWE_RET ret = AWE_RET_OK;
     AWE_CHECK_NULL(awe);
     AWE_CHECK_NULL(para);
     char* pParam = (char*)AML_MEM_GetVirtAddr(awe->hParam);
     memcpy(pParam, para, sizeof(AWE_PARA));
     AML_MEM_Clean(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
-    return AML_VSP_SetParam(awe->hVsp, (int32_t)paraId, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+
+    if (paraId == AWE_PARA_FREE_RUN_MODE) {
+        if(para->freeRunMode == 1) {
+            awe->bKickFreeRun = 1;
+            while(awe->bKickFreeRun)
+                NULL;
+            ret = AML_VSP_SetParam(awe->hVsp, (int32_t)paraId, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+        } else {
+            ret = AML_VSP_SetParam(awe->hVsp, (int32_t)paraId, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+            sem_post(&awe->userFillSem);
+        }
+    } else
+        ret = AML_VSP_SetParam(awe->hVsp, (int32_t)paraId, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    return ret;
 }
 
 AWE_RET AML_AWE_GetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para)
