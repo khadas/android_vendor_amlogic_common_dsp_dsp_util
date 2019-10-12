@@ -1078,7 +1078,7 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
         if(!strcmp(user_cmd, "suspend")) {
             system("amixer cset numid=7 1");
             system("amixer cset numid=21 1");
-            system("arecord -Dhw:0,2 -c 2 -r 16000 -f S32_LE /data/aa.wav &");
+            system("arecord -Dhw:0,2 -c 2 -r 16000 -f S32_LE /tmp/aa.wav &");
             printf("Start awe freeRun mode\n");
             awe_para.freeRunMode = 1;
             awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_FREE_RUN_MODE, &awe_para);
