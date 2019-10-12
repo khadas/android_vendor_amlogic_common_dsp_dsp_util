@@ -145,7 +145,7 @@ static int pcm_play_test(int argc, char* argv[])
     tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMOUT_B, PCM_OUT, pconfig);
     AML_MEM_HANDLE hShmBuf;
 
-    if (argc != 0) {
+    if (argc != 1) {
         printf("Invalid paremeter number, argc=%d\n", argc);
         return -1;
     }
