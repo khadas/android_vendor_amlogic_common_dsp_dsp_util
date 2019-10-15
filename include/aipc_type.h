@@ -242,6 +242,11 @@ typedef struct {
     uint32_t cbuf_id;
 } __attribute__((packed)) aml_cbuf_destory_st;
 
+/*hifi4 register dump*/
+typedef struct {
+    uint32_t reg_addr;
+    uint32_t size;
+} __attribute__((packed)) aml_hifi4reg_dump_st;
 
 /*tinyalsa*/
 typedef xpointer tAcodecPcmSrvHdl;

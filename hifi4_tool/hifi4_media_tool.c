@@ -44,6 +44,7 @@
 #include "aipc_type.h"
 #include "rpc_client_cbuf.h"
 #include "rpc_client_shm.h"
+#include "rpc_client_aipc.h"
 
 #define UNUSED(x) (void)(x)
 
@@ -107,9 +108,26 @@ end_tab:
     return ret;
 }
 
+int reg_dump(int argc, char* argv[]) {
+    aml_hifi4reg_dump_st reg_dump;
+    if (argc != 2) {
+        printf("Invalid parameter number\n");
+        return -1;
+    }
+    reg_dump.reg_addr = strtoul(argv[0], 0, 0);
+    reg_dump.size = strtoul(argv[1], 0, 0);
+    printf("dump reg:0x%x, size:0x%x\n", reg_dump.reg_addr, reg_dump.size);
+    int arpchdl = xAudio_Ipc_init();
+    xAIPC(arpchdl, MBX_CMD_REG_DUMP, (void*)&reg_dump, sizeof(reg_dump));
+    xAudio_Ipc_Deinit(arpchdl);
+    return 0;
+}
+
+
 static void usage()
 {
     printf ("media-dump Usage: hifi4_media_tool --media-dump $id $file $size\n");
+    printf ("reg-dump Usage: hifi4_media_tool --reg-dump $addr $size\n");
     printf ("\n");
 }
 
@@ -121,6 +139,7 @@ int main(int argc, char* argv[]) {
     {
         {"help", no_argument, NULL, 0},
         {"media-dump", no_argument, NULL, 1},
+        {"reg-dump", no_argument, NULL, 2},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -135,6 +154,14 @@ int main(int argc, char* argv[]) {
         case 1:
             if (3 == argc - optind){
                 audio_dump(argc - optind, &argv[optind]);
+            } else {
+            usage();
+                exit(1);
+            }
+            break;
+        case 2:
+            if (2 == argc - optind){
+                reg_dump(argc - optind, &argv[optind]);
             } else {
             usage();
                 exit(1);
