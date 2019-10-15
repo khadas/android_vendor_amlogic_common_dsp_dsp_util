@@ -1070,19 +1070,19 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
     }
     printf("wake test start in dsp input mode\n");
     char user_cmd[16];
+    system("amixer cset numid=7 1");
+    system("amixer cset numid=21 1");
+    system("arecord -Dhw:0,2 -c 2 -r 16000 -f S32_LE /tmp/aa.wav &");
     while (1) {
         printf("Command Guide:\n");
         printf("suspend - suspend and resume from voice wake up\n");
         printf("exit - quit voice capture\n");
         scanf("%s", user_cmd);
         if(!strcmp(user_cmd, "suspend")) {
-            system("amixer cset numid=7 1");
-            system("amixer cset numid=21 1");
-            system("arecord -Dhw:0,2 -c 2 -r 16000 -f S32_LE /tmp/aa.wav &");
-            sleep(2);
             printf("Start awe freeRun mode\n");
             awe_para.freeRunMode = 1;
             awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_FREE_RUN_MODE, &awe_para);
+            system("echo "" > /sys/kernel/config/usb_gadget/amlogic/UDC");
             system("echo mem > /sys/power/state");
             awe_para.freeRunMode = 0;
             awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_FREE_RUN_MODE, &awe_para);
