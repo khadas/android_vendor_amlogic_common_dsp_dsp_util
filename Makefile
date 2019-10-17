@@ -62,7 +62,8 @@ EXPORT_HEADERFILES = ./include/rpc_client_mp3.h \
 	./include/machine_type.h \
 	./include/rpc_client_aac.h \
 	./include/syslib_channelMapDescr.h \
-	./include/aml_wakeup_api.h
+	./include/aml_wakeup_api.h \
+	./include/aml_audio_util.h
 
 # rules
 all: $(LIBS) $(APPS)

@@ -308,4 +308,4 @@ typedef struct {
 }
 #endif
 
-#endif // end _OFFLOAD_ACODEC_MP3_H_
+#endif // end _AIPC_TYPE_H_

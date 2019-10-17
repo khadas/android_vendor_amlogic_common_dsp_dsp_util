@@ -32,6 +32,10 @@
  * - 0.1        init
  */
 
+#include <fcntl.h>
+#include <sys/time.h>
+#include <errno.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -52,6 +56,7 @@
 #include "rpc_client_pcm.h"
 #include "rpc_client_vsp.h"
 #include "aml_wakeup_api.h"
+#include "aml_audio_util.h"
 
 #define UNUSED(x) (void)(x)
 
@@ -288,7 +293,7 @@ static int mp3_offload_dec(int argc, char* argv[]) {
         // Allocate output buffer.
         outputBuf = (int16_t*)malloc(kOutputBufferSize);
         printf("Init input %p, output buffer %p\n", inputBuf, outputBuf);
-	}
+    }
 
     // Decode loop.
     int retVal = EXIT_SUCCESS;
@@ -997,18 +1002,152 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
     return ret;
 }
 
+#define VOIP_DATA_FIFO "/tmp/voip_data_fifo"
+#define VOIP_CMD_FIFO "/tmp/voip_cmd_fifo"
+#define VOIP_CMD_DATA_INVALID 0
+#define VOIP_CMD_DATA_EOF 0xffffffff
+#define VOIP_CMD_DATA_AVAIL 1
+
+void aml_wake_engine_voip_data_receiver(char* strVoip)
+{
+    FILE* fout_voip = NULL;
+    int fifo_reader_fd = -1;
+    int fifo_cmdrev_fd = -1;
+    uint32_t nread = 0;
+    uint32_t cmd = 0;
+    int nReadFail = 0;
+    void* pReadBuf = NULL;
+    void* pWriteBuf = NULL;
+    void* hsrc = NULL;
+
+    fifo_reader_fd = open(VOIP_DATA_FIFO ,O_RDONLY|O_NONBLOCK,0);
+    if(fifo_reader_fd < 0)
+    {
+        printf("Voip data fifo open failed in receiver side\n");
+        goto receiver_end;
+    }
+
+    fifo_cmdrev_fd = open(VOIP_CMD_FIFO ,O_RDONLY,0);
+    if(fifo_cmdrev_fd < 0)
+    {
+        printf("Voip command fifo open failed in receiver side\n");
+        goto receiver_end;
+    }
+
+    fout_voip = fopen(strVoip, "w+b");
+    if (fout_voip == NULL) {
+        printf("Voip dump file open failed in receiver side\n");
+        goto receiver_end;
+    }
+
+    hsrc = AML_SRCS16LE_Init(16000, 8000, 1);
+    pReadBuf = malloc(VOICE_CHUNK_LEN_BYTE);
+    pWriteBuf = malloc(VOICE_CHUNK_LEN_BYTE/2);
+    while(1) {
+        read(fifo_cmdrev_fd, &cmd, sizeof(cmd));
+        if (cmd == VOIP_CMD_DATA_EOF) {
+            printf("Exit voip receiver process\n");
+            break;
+        } else if (cmd == VOIP_CMD_DATA_AVAIL) {
+            nread = read(fifo_reader_fd, pReadBuf, VOICE_CHUNK_LEN_BYTE);
+            if (nread != VOICE_CHUNK_LEN_BYTE) {
+                nReadFail++;
+                if (nReadFail > 50) {
+                    printf("Too much data fifo read error, exit voip receiver process\n");
+                    break;
+                }
+                continue;
+            }
+            nReadFail = 0;
+            AML_SRCS16LE_Exec(hsrc, (int16_t*)pWriteBuf, VOICE_CHUNK_LEN_BYTE/(2*sizeof(int16_t)), (int16_t*)pReadBuf, VOICE_CHUNK_LEN_BYTE/sizeof(int16_t));
+            fwrite(pWriteBuf, 1, VOICE_CHUNK_LEN_BYTE/2, fout_voip);
+            usleep(20*1000);
+        } else {
+            printf("Invalid voip command, exit voip receiver process\n");
+            break;
+        }
+    }
+    AML_SRCS16LE_DeInit(hsrc);
+    free(pWriteBuf);
+    free(pReadBuf);
+
+receiver_end:
+    if (fout_voip)
+        fclose(fout_voip);
+    if (fifo_reader_fd > 0)
+        close(fifo_reader_fd);
+}
+
+void aml_wake_engine_voip_data_transfer(AWE *awe, const AWE_DATA_TYPE type,
+                                            char* out, size_t size, void *user_data)
+{
+    UNUSED(awe);
+    int* pfifo = (int*)user_data;
+    int fifo_writer_fd = pfifo[0];
+    int fifo_cmdsend_fd = pfifo[1];
+    if (AWE_DATA_TYPE_VOIP == type) {
+        uint32_t cmd = VOIP_CMD_DATA_AVAIL;
+        write(fifo_writer_fd, out, size);
+        write(fifo_cmdsend_fd, &cmd, sizeof(cmd));
+    }
+}
+
 int aml_wake_engine_dspin_test(int argc, char* argv[]) {
     UNUSED(argc);
     AWE_PARA awe_para;
     int ret = 0;
     AWE_RET awe_ret = AWE_RET_OK;
+    pid_t pid = -1;
+    FILE *fout_asr = NULL;
+    int fifo_writer_fd = -1;
+    int fifo_cmdsend_fd = -1;
+    int fifo_array[2] = {0};
+    uint32_t cmd = VOIP_CMD_DATA_INVALID;
+
+    if((mkfifo(VOIP_DATA_FIFO ,O_CREAT|O_EXCL|O_RDWR)<0)&&(errno!=EEXIST)) {
+        printf("Can not create voip data fifo\n");
+        goto end_tab;
+    }
+
+    if((mkfifo(VOIP_CMD_FIFO ,O_CREAT|O_EXCL|O_RDWR)<0)&&(errno!=EEXIST)) {
+        printf("Can not create voip command fifo\n");
+        goto end_tab;
+    }
+
+    /* fork a child process */
+    pid = fork();
+    if (pid < 0) { /* error occurred */\
+        printf("Fork Failed");
+        return 1;
+    }
+    else if (pid == 0) { /* child process */
+        printf("Start voip receiver process, pid=%d\n", getpid());
+        sleep(1);
+        aml_wake_engine_voip_data_receiver(argv[1]);
+        return 0;
+    }
+    else { /* parent process */
+        printf("Continue parent process\n");
+    }
 
     signal(SIGINT, &awe_test_sighandler);
+    fifo_writer_fd = open(VOIP_DATA_FIFO, O_RDWR | O_NONBLOCK, 0);
+    if (fifo_writer_fd < 0) {
+        printf("Can not open voip data fifo writer fd:%d\n", fifo_writer_fd);
+        goto end_tab;
+    }
 
-    FILE *fout0 = fopen(argv[0], "w+b");
-    FILE *fout1 = fopen(argv[1], "w+b");
-    if (!fout0 || !fout1) {
-        printf("Can not open output file:%p, %p\n", fout0, fout1);
+    fifo_cmdsend_fd = open(VOIP_CMD_FIFO, O_RDWR | O_NONBLOCK, 0);
+    if (fifo_cmdsend_fd < 0) {
+        printf("Can not open voip command fifo writer fd:%d\n", fifo_writer_fd);
+        goto end_tab;
+    }
+    fifo_array[0] = fifo_writer_fd;
+    fifo_array[1] = fifo_cmdsend_fd;
+
+    fout_asr = fopen(argv[0], "w+b");
+    if (!fout_asr) {
+        printf("Can not open asr output file:%p\n", fout_asr);
         ret = -1;
         goto end_tab;
     }
@@ -1020,8 +1159,8 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
         goto end_tab;
     }
 
-    AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_ASR, aml_wake_engine_asr_data_handler,(void *)fout0);
-    AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_VOIP, aml_wake_engine_voip_data_handler,(void *)fout1);
+    AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_ASR, aml_wake_engine_asr_data_handler,(void *)fout_asr);
+    AML_AWE_AddDataHandler(gAwe, AWE_DATA_TYPE_VOIP, aml_wake_engine_voip_data_transfer,(void *)fifo_array);
     AML_AWE_AddEventHandler(gAwe, AWE_EVENT_TYPE_WAKE, aml_wake_engine_event_handler, NULL);
 
     awe_para.inputMode = AWE_DSP_INPUT_MODE;
@@ -1095,16 +1234,23 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
         }
     }
 
-    end_tab:
+    cmd = VOIP_CMD_DATA_EOF;
+    write(fifo_cmdsend_fd, &cmd, sizeof(cmd));
+
+end_tab:
     if (gAwe)
         AML_AWE_Close(gAwe);
     if (gAwe)
         AML_AWE_Destroy(gAwe);
 
-    if (fout0)
-        fclose(fout0);
-    if (fout1)
-        fclose(fout1);
+    if (fout_asr)
+        fclose(fout_asr);
+
+    if (fifo_writer_fd > 0)
+        close(fifo_writer_fd);
+
+    unlink(VOIP_CMD_FIFO);
+    unlink(VOIP_DATA_FIFO);
     return ret;
 }
 
