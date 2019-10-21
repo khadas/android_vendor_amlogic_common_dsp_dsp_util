@@ -204,6 +204,7 @@ typedef xpointer AML_MEM_HANDLERpc;
 typedef struct {
     AML_MEM_HANDLERpc hShm;
     xsize_t size;
+    int32_t pid;
 } __attribute__((packed)) acodec_shm_alloc_st;
 
 typedef struct {
@@ -215,6 +216,10 @@ typedef struct {
     AML_MEM_HANDLERpc hSrc;
     xsize_t size;
 } __attribute__((packed)) acodec_shm_transfer_st;
+
+typedef struct {
+    int32_t pid;
+} __attribute__((packed)) acodec_shm_recycle_st;
 
 /*hifi circular buffer*/
 typedef xpointer tAmlCBufHdlRpc;

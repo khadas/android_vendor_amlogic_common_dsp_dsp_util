@@ -1351,6 +1351,15 @@ static int shm_uint_tset(void)
     }
     if(num_repeat <= 0)
         printf("shm unit test pass, repeat %d\n", SHM_UNIT_TEST_REPEAT);
+
+    num_repeat = SHM_UNIT_TEST_REPEAT;
+    while(num_repeat--) {
+        AML_MEM_HANDLE hShm = AML_MEM_Allocate(sizeof(samples));
+        printf("Allocate shm:%p\n", hShm);
+    }
+    sleep(1);
+    AML_MEM_Recycle((int)getpid());
+
     return 0;
 }
 

@@ -77,6 +77,16 @@ void AML_MEM_Free(AML_MEM_HANDLE hShm);
  */
 void Aml_ACodecMemory_Transfer(AML_MEM_HANDLE hDst, AML_MEM_HANDLE hSrc, size_t size);
 
+
+/**
+ * Recycle all shared memory allocated by the process
+ *
+ * @param[in] process id
+ *
+ * @return
+ */
+void AML_MEM_Recycle(int pid);
+
 /**
  * Get the virtual address of a shared memory
  *

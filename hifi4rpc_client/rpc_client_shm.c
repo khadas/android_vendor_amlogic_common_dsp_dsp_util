@@ -40,6 +40,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <unistd.h>
 #include <pthread.h>
 #include "aipc_type.h"
 #include "rpc_client_shm.h"
@@ -112,6 +113,7 @@ AML_MEM_HANDLE AML_MEM_Allocate(size_t size)
 {
     acodec_shm_alloc_st arg;
     arg.size = size;
+    arg.pid = getpid();
     if (gACodecShmPoolInfo.fd < 0) {
         if(Aml_ACodecMemory_Init()) {
             printf("Initialize audio codec shm pool fail\n");
@@ -139,6 +141,12 @@ void Aml_ACodecMemory_Transfer(AML_MEM_HANDLE hDst, AML_MEM_HANDLE hSrc, size_t 
     xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_TRANSFER, &arg, sizeof(arg));
 }
 
+void AML_MEM_Recycle(int pid)
+{
+    acodec_shm_recycle_st arg;
+    arg.pid = pid;
+    xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_RECYCLE, &arg, sizeof(arg));
+}
 
 void* AML_MEM_GetVirtAddr(AML_MEM_HANDLE hShm)
 {
