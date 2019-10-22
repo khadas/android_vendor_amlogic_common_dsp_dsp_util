@@ -31,6 +31,7 @@
  * Version:
  * - 0.1        init
  */
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -55,6 +56,22 @@ static inline int16_t linear_interp(int16_t a, int16_t b, int32_t num, int32_t d
     return c;
 }
 
+static uint32_t gcd(uint32_t a, uint32_t b) {
+    if (a == 0 && b == 0) {
+        return 0;
+    }
+    uint32_t t;
+    while (1) {
+        if (b == 0) {
+            return a;
+        }
+        t = a;
+        a = b;
+        b = t % a;
+    }
+    printf("gcd implementation issue\n");
+}
+
 void *AML_SRCS16LE_Init(int32_t in_rate, int32_t out_rate, uint32_t channel) {
     size_t len = sizeof(srcs16le_t) + sizeof(int16_t) * channel;
     srcs16le_t *p =(srcs16le_t *) malloc(len);
@@ -62,8 +79,9 @@ void *AML_SRCS16LE_Init(int32_t in_rate, int32_t out_rate, uint32_t channel) {
         printf("fail to malloc size=%zu\n", len);
         return NULL;
     }
-    p->in_rate = in_rate;
-    p->out_rate = out_rate;
+    int32_t g = gcd(in_rate, out_rate);
+    p->in_rate = in_rate / g;
+    p->out_rate = out_rate / g;
     p->channel = channel;
     p->in_base = p->out_base = 0;
     uint32_t i;
@@ -83,10 +101,10 @@ int AML_SRCS16LE_Exec(void *h,
                  int16_t *src, size_t src_frame)
 {
     srcs16le_t *p = (srcs16le_t *)h;
-    size_t i = p->out_base;
+    uint64_t i = p->out_base;
     uint32_t c;
     for (; ; i++) {
-        size_t t = i * p->in_rate;
+        uint64_t t = i * p->in_rate;
         size_t j = t / p->out_rate;
         if (j >= p->in_base) {
             break;
@@ -104,7 +122,7 @@ int AML_SRCS16LE_Exec(void *h,
         }
     }
     for (; ; i++) {
-        size_t t = i * p->in_rate;
+        uint64_t t = i * p->in_rate;
         size_t j = t / p->out_rate;
         j -= p->in_base;
         if (j + 1 >= src_frame) {
