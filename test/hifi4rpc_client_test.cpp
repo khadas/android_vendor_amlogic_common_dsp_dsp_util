@@ -1362,6 +1362,59 @@ static int shm_uint_tset(void)
     return 0;
 }
 
+
+void aml_resampler(int argc, char* argv[])
+{
+    FILE* fin = NULL;
+    FILE* fout = NULL;
+    int inRate, outRate;
+    int32_t inLen, outLen;
+    int16_t* inBuf;
+    int16_t* outBuf;
+    void* hsrc;
+    int nread;
+    UNUSED(argc);
+
+    inRate = atoi(argv[0]);
+    outRate = atoi(argv[1]);
+    fin = fopen(argv[2], "rb");
+    if (fin == NULL) {
+        printf("input file open failed\n");
+        goto resampler_end;
+    }
+
+    fout = fopen(argv[3], "w+b");
+    if (fout == NULL) {
+        printf("Output file open failed\n");
+        goto resampler_end;
+    }
+    hsrc = AML_SRCS16LE_Init(inRate, outRate, 1);
+
+    inLen = VOICE_CHUNK_LEN_BYTE;
+    outLen = (inLen*outRate)/inRate;
+    inBuf = (int16_t*)malloc(inLen);
+    outBuf = (int16_t*)malloc(outLen);
+    while(1) {
+        nread = fread(inBuf, 1, inLen, fin);
+        if (nread != inLen) {
+            printf("EOF\n");
+            break;
+        } else{
+            AML_SRCS16LE_Exec(hsrc, outBuf, outLen/sizeof(int16_t), inBuf, inLen/sizeof(int16_t));
+            fwrite(outBuf, 1, outLen, fout);
+        }
+    }
+    free(inBuf);
+    free(outBuf);
+    AML_SRCS16LE_DeInit(hsrc);
+
+resampler_end:
+    if (fout)
+        fclose(fout);
+    if (fin)
+        fclose(fin);
+}
+
 void aml_hifi_inside_wakeup()
 {
     int handle = xAudio_Ipc_init();
@@ -1397,6 +1450,7 @@ static void usage()
 
     printf ("\033[1mvsp-awe-dspin Usage:\033[m hifi4rpc_client_test --vsp-awe-dspin $out_asr.pcm $out_voip.pcm\n");
 
+    printf ("\033[1mresampler Usage:\033[m hifi4rpc_client_test --resampler $inRate $outRate $inFile $outFile\n");
 }
 
 
@@ -1418,6 +1472,7 @@ int main(int argc, char* argv[]) {
         {"vsp-awe-unit", no_argument, NULL, 10},
         {"vsp-awe-dspin", no_argument, NULL, 11},
         {"hifiwake", no_argument, NULL, 12},
+        {"resampler", no_argument, NULL, 13},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -1531,6 +1586,14 @@ int main(int argc, char* argv[]) {
             break;
         case 12:
             aml_hifi_inside_wakeup();
+            break;
+        case 13:
+            if (4 == argc - optind){
+                aml_resampler(argc - optind, &argv[optind]);
+            } else {
+                usage();
+                exit(1);
+            }
             break;
         case '?':
             usage();

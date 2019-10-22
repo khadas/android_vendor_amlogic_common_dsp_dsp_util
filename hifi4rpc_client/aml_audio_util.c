@@ -110,7 +110,8 @@ int AML_SRCS16LE_Exec(void *h,
             break;
         }
         if (j + 1 != p->in_base) {
-            printf("out of range for last\n");
+            printf("out of range for last: %llu %u %llu %d %d %d\n",
+                i, j, t, p->in_rate, p->out_rate, p->in_base);
             assert(0); // implementation issue if assert here
         }
         int32_t k = t % p->out_rate;
@@ -129,7 +130,8 @@ int AML_SRCS16LE_Exec(void *h,
             break;
         }
         if (i >= p->out_base + dst_frame) {
-            printf("out of range for output buffer\n");
+            printf("out of range for output buffer: %llu %u %llu %d %d %d %d\n",
+                i, j, t, p->in_rate, p->out_rate, p->out_base, dst_frame);
             assert(0);
         }
         int32_t k = t % p->out_rate;
