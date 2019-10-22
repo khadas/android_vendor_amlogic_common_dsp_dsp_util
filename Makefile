@@ -30,8 +30,10 @@ HIFI4_TOOL_SRC = $(wildcard hifi4_tool/*.c)
 HIFI4_TOOL_OBJ = $(patsubst %c, %o, $(HIFI4_TOOL_SRC))
 HIFI4_TOOL = hifi4_media_tool
 
-HIFI4RPC_CLIENT_TEST_SRC_CPP = $(wildcard test/*.cpp)
-HIFI4RPC_CLIENT_TEST_OBJ = $(patsubst %cpp, %o, $(HIFI4RPC_CLIENT_TEST_SRC_CPP))
+HIFI4RPC_CLIENT_TEST_SRC = $(wildcard hifi4rpc_test/*.c)
+HIFI4RPC_CLIENT_TEST_SRC_CPP = $(wildcard hifi4rpc_test/*.cpp)
+HIFI4RPC_CLIENT_TEST_OBJ += $(patsubst %c, %o, $(HIFI4RPC_CLIENT_TEST_SRC))
+HIFI4RPC_CLIENT_TEST_OBJ += $(patsubst %cpp, %o, $(HIFI4RPC_CLIENT_TEST_SRC_CPP))
 HIFI4RPC_CLIENT_TEST = hifi4rpc_client_test
 
 DSP_UTIL_SRC = $(wildcard src/*.c)

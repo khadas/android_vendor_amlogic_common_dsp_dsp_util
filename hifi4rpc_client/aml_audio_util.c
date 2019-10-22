@@ -31,6 +31,7 @@
  * Version:
  * - 0.1        init
  */
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -110,7 +111,7 @@ int AML_SRCS16LE_Exec(void *h,
             break;
         }
         if (j + 1 != p->in_base) {
-            printf("out of range for last: %llu %u %llu %d %d %d\n",
+            printf("out of range for last: %"PRIu64"  %zu %" PRIu64 " %d %d %zu\n",
                 i, j, t, p->in_rate, p->out_rate, p->in_base);
             assert(0); // implementation issue if assert here
         }
@@ -130,7 +131,7 @@ int AML_SRCS16LE_Exec(void *h,
             break;
         }
         if (i >= p->out_base + dst_frame) {
-            printf("out of range for output buffer: %llu %u %llu %d %d %d %d\n",
+            printf("out of range for output buffer: %"PRIu64" %zu %"PRIu64"%d %d %zu %zu\n",
                 i, j, t, p->in_rate, p->out_rate, p->out_base, dst_frame);
             assert(0);
         }
