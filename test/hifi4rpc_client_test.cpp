@@ -1039,8 +1039,8 @@ void aml_wake_engine_voip_data_receiver(char* strVoip)
         printf("Voip dump file open failed in receiver side\n");
         goto receiver_end;
     }
-
-    hsrc = AML_SRCS16LE_Init(16000, 8000, 1);
+    //16000:8000 = 2:1
+    hsrc = AML_SRCS16LE_Init(2, 1, 1);
     pReadBuf = malloc(VOICE_CHUNK_LEN_BYTE);
     pWriteBuf = malloc(VOICE_CHUNK_LEN_BYTE/2);
     while(1) {
