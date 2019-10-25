@@ -32,6 +32,7 @@
 #define  CMD_HIFI4DSP_STOP	0x0800
 #define  CMD_HIFI4DSP_SLEEP	0x1000
 #define  CMD_HIFI4DSP_WAKE	0x2000
+#define  CMD_HIFI4DSP_2LOAD	0x4000
 
 extern char *optarg;
 extern int optind, opterr, optopt;
@@ -40,6 +41,7 @@ char dspname[32];
 
 static struct option longOpts[] = {
 	{ "load", no_argument, NULL, 'l' },
+	{ "load2", no_argument, NULL, 'L' },
 	{ "reset", no_argument, NULL, 'r' },
 	{ "start", no_argument, NULL, 'S' },
 	{ "stop", no_argument, NULL, 's' },
@@ -47,6 +49,8 @@ static struct option longOpts[] = {
 	{ "wake", no_argument, NULL, 'w' },
 	{ "dsp", required_argument, NULL, 'd' },
 	{ "firmware", required_argument, NULL, 'f' },
+	{ "firmware1", required_argument, NULL, 'M' },
+	{ "firmware2", required_argument, NULL, 'N' },
 	{ "addr", required_argument, NULL, 'a' },
 	{ "test-1", required_argument, &lopt, 1 },
 	{ "test-2", required_argument, &lopt, 2 },
@@ -55,15 +59,19 @@ static struct option longOpts[] = {
 	{ "help", no_argument, NULL, 'h' },
 	{ 0, 0, 0, 0 }
 };
+//static char optString[]="lLrSskwd:f:a:012h";
 
 void showUsage() {
 	printf("Usage:[options]\n");
 	printf(" -l, --load                 		load firmware to ddr\n");
+	printf(" -L, --load2                 		load 2 firmware , one to ddr , another to sram\n");
 	printf(" -r, --reset               		reset command\n");
 	printf(" -S, --start               		set dsp clk and power on ,reset\n");
 	printf(" -s, --stop 				stop dsp\n");
 	printf(" -d, --dsp=DSPNAME          		The dspname, hifi4a or hifi4b\n");
 	printf(" -f, --firmware=FILE_NAME   		The file name for downloaded file.\n");
+	printf(" -M, --firmware1=FILE_NAME   		The file name for sdram file.\n");
+	printf(" -N, --firmware2=FILE_NAME   		The file name for sram file.\n");
 	printf(" -a, --addr=address         		The address which used for dsp start \n");
 	printf(" --test-1=N                 		Test 1\n");
 	printf(" --test-2=N                 		Test 2\n");
@@ -71,6 +79,7 @@ void showUsage() {
 	printf(" -v, --version              		Print the version number and exit.\n");
 	printf(" -h, --help                 		Print this message and exit.\n");
 	printf("URL:\n");
+	printf(" \n Tips: the option -L can not co-use with -f option\n");
 }
 
 int dsp_ctl(struct hifi4dsp_info_t *info, unsigned int cmd)
@@ -134,12 +143,40 @@ bool dsp_firmware_is_exist(struct hifi4dsp_info_t *info)
 	return 1;
 }
 
+bool dsp_2firmware_is_exist(struct hifi4dsp_info_t *info)
+{
+	char path[256];
+
+	if ((strlen(info->fw1_name) == 0) ||(strlen(info->fw2_name) == 0)  )  {
+		printf("param error: invalid dsp 2firmware (fire=NULL)\n");
+		return 0;
+	}
+	strcpy(path, "/lib/firmware/");
+	strcat(path, info->fw1_name);
+	if (access(path, F_OK) != -1) {
+		printf("firmware: %s exist\n", path);
+	} else {
+		printf("firmware: invalid dsp firmware (%s not exist)\n", path);
+		return 0;
+	}
+
+	strcpy(path, "/lib/firmware/");
+	strcat(path, info->fw2_name);
+	if (access(path, F_OK) != -1) {
+		printf("firmware: %s exist\n", path);
+	} else {
+		printf("firmware: invalid dsp firmware (%s not exist)\n", path);
+		return 0;
+	}
+
+	return 1;
+}
+
 int dsp_load(struct hifi4dsp_info_t *info)
 {
 	int err=0;
 	if (false == dsp_dev_is_exist(info))
 		err -= 1;
-
 	//if (strlen(info->fw_name) == 0)
 	if (strcmp(info->fw_name, "\0") == 0)
 		strcpy(info->fw_name, "dspaboot.bin");
@@ -151,6 +188,26 @@ int dsp_load(struct hifi4dsp_info_t *info)
 
 	return dsp_ctl(info, HIFI4DSP_LOAD);
 }
+
+int dsp_2firmware_load(struct hifi4dsp_info_t *info)
+{
+	int err=0;
+	if (false == dsp_dev_is_exist(info))
+		err -= 1;
+
+	if (strcmp(info->fw1_name, "\0") == 0)
+		strcpy(info->fw1_name, "dspboot_sram.bin");
+
+	if (strcmp(info->fw2_name, "\0") == 0)
+		strcpy(info->fw2_name, "dspboot_sdram.bin");
+
+	if (false == dsp_2firmware_is_exist(info))
+		err -= 1;
+	if (err<0)
+		return err;
+	return dsp_ctl(info, HIFI4DSP_2LOAD);
+}
+
 int dsp_reset(struct hifi4dsp_info_t *info)
 {
 	int err=0;
@@ -247,7 +304,7 @@ int dsp_cmd_parse(int argc, char **argv, struct hifi4dsp_info_t *info)
 
 	while (1) {
 		this_option_optind = optind ? optind : 1;
-		opt = getopt_long(argc, argv, ":lrSskwd:f:a:012h", longOpts, &option_index);
+		opt = getopt_long(argc, argv, ":lLrSskwd:f:M:N:a:012h", longOpts, &option_index);
 		if (opt == -1)
 			break;
 
@@ -264,6 +321,10 @@ int dsp_cmd_parse(int argc, char **argv, struct hifi4dsp_info_t *info)
 		case 'l':
 			cmd += CMD_HIFI4DSP_LOAD;
 			debug_pr("option=l, value=%s\n", optarg);
+		break;
+		case 'L':
+			cmd += CMD_HIFI4DSP_2LOAD;
+			debug_pr("option=L, value=%s\n", optarg);
 		break;
 		case 'r':
 			cmd += CMD_HIFI4DSP_RESET;
@@ -316,6 +377,16 @@ int dsp_cmd_parse(int argc, char **argv, struct hifi4dsp_info_t *info)
 			cmd |= 0x40;
 			sscanf(optarg, "%lx", &(info->phy_addr));
 			debug_pr("option=a, value=%s, info.phy_addr=0x%x\n", optarg, info->phy_addr);
+		break;
+		case 'M': /*firwmare name*/
+			cmd |= 0x4;
+			strcpy((info->fw1_name), optarg);
+			debug_pr("option=M, value=%s, info->fw1_name=%s\n", optarg, info->fw1_name);
+		break;
+		case 'N': /*firwmare name*/
+			cmd |= 0x8;
+			strcpy((info->fw2_name), optarg);
+			debug_pr("option=N, value=%s, info->fw2_name=%s\n", optarg, info->fw2_name);
 		break;
 		case 'h':
 			showUsage();
@@ -380,6 +451,9 @@ int main(int argc, char **argv)
 		return 0;
 	if (cmd&CMD_HIFI4DSP_LOAD) {
 		dsp_load(&info);
+	}
+	if (cmd&CMD_HIFI4DSP_2LOAD) {
+		dsp_2firmware_load(&info);
 	}
 	if (cmd&CMD_HIFI4DSP_RESET) {
 		dsp_reset(&info);
