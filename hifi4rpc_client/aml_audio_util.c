@@ -38,7 +38,109 @@
 #include <assert.h>
 #include "aml_audio_util.h"
 
- typedef struct {
+
+/*
+
+FIR filter designed with
+ http://t-filter.appspot.com
+
+sampling frequency: 16000 Hz
+
+* 0 Hz - 4000 Hz
+  gain = 0.95
+  desired ripple = 0.95 dB
+  actual ripple = 0.7063731418184018 dB
+
+* 4500 Hz - 8000 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = -40.08861272032049 dB
+
+*/
+#define SAMPLEFILTER_TAP_NUM 51
+typedef struct {
+    int16_t history[SAMPLEFILTER_TAP_NUM];
+    unsigned int last_index;
+} SampleFilter;
+
+static double filter_taps[SAMPLEFILTER_TAP_NUM] = {
+    0.00443527506731185,
+    0.015266243571668382,
+    0.004448228244326299,
+    -0.0070940573928954965,
+    -0.0024620044647436687,
+    0.008850798254593152,
+    0.0006779833808161324,
+    -0.010864227866840034,
+    0.001362227194551022,
+    0.013130703138357597,
+    -0.004216268474728633,
+    -0.015487951462673441,
+    0.008198817193046187,
+    0.01782747144321327,
+    -0.013764366970325683,
+    -0.020071694547932974,
+    0.021627574036802884,
+    0.02205980181770327,
+    -0.03340318735504971,
+    -0.02373410547100674,
+    0.05320995865526289,
+    0.024999232696272057,
+    -0.09631989907812818,
+    -0.02578275373308752,
+    0.30088296909927,
+    0.501054191627973,
+    0.30088296909927,
+    -0.02578275373308752,
+    -0.09631989907812818,
+    0.024999232696272057,
+    0.05320995865526289,
+    -0.02373410547100674,
+    -0.03340318735504971,
+    0.02205980181770327,
+    0.021627574036802884,
+    -0.020071694547932974,
+    -0.013764366970325683,
+    0.01782747144321327,
+    0.008198817193046187,
+    -0.015487951462673441,
+    -0.004216268474728633,
+    0.013130703138357597,
+    0.001362227194551022,
+    -0.010864227866840034,
+    0.0006779833808161324,
+    0.008850798254593152,
+    -0.0024620044647436687,
+    -0.0070940573928954965,
+    0.004448228244326299,
+    0.015266243571668382,
+    0.00443527506731185
+};
+
+void SampleFilter_init(SampleFilter* f) {
+  int i;
+  for(i = 0; i < SAMPLEFILTER_TAP_NUM; ++i)
+    f->history[i] = 0;
+  f->last_index = 0;
+}
+
+void SampleFilter_put(SampleFilter* f, double input) {
+  f->history[f->last_index++] = input;
+  if(f->last_index == SAMPLEFILTER_TAP_NUM)
+    f->last_index = 0;
+}
+
+double SampleFilter_get(SampleFilter* f) {
+  double acc = 0;
+  int index = f->last_index, i;
+  for(i = 0; i < SAMPLEFILTER_TAP_NUM; ++i) {
+    index = index != 0 ? index-1 : SAMPLEFILTER_TAP_NUM-1;
+    acc += f->history[index] * filter_taps[i];
+  };
+  return acc;
+}
+
+typedef struct {
     // why it's signed number?
     // This SRC is for S16LE, signed number to avoid type conversation
     int32_t in_rate;
@@ -47,6 +149,9 @@
     // 32bit is not enough, it's only good for playback in one day
     size_t in_base;
     size_t out_base;
+    int16_t bEnableFir;
+    int16_t* pFilteredSignal;
+    SampleFilter f;
     int16_t last[0]; // channel number elements
 } srcs16le_t;
 
@@ -80,12 +185,21 @@ void *AML_SRCS16LE_Init(int32_t in_rate, int32_t out_rate, uint32_t channel) {
         printf("fail to malloc size=%zu\n", len);
         return NULL;
     }
+    if (in_rate == 16000 && out_rate == 8000) {
+        p->bEnableFir = 1;
+        SampleFilter_init(&(p->f));
+        p->pFilteredSignal = malloc(sizeof(int16_t));
+    }
+    else
+        p->bEnableFir = 0;
+
     int32_t g = gcd(in_rate, out_rate);
     p->in_rate = in_rate / g;
     p->out_rate = out_rate / g;
     p->channel = channel;
     p->in_base = p->out_base = 0;
     uint32_t i;
+
     for (i = 0; i != channel; i++) {
         p->last[i] = 0;
     }
@@ -94,6 +208,9 @@ void *AML_SRCS16LE_Init(int32_t in_rate, int32_t out_rate, uint32_t channel) {
 
 void AML_SRCS16LE_DeInit(void *h)
 {
+    srcs16le_t *p = (srcs16le_t *)h;
+    if (p->bEnableFir)
+        free(p->pFilteredSignal);
     free(h);
 }
 
@@ -104,6 +221,16 @@ int AML_SRCS16LE_Exec(void *h,
     srcs16le_t *p = (srcs16le_t *)h;
     uint64_t i = p->out_base;
     uint32_t c;
+    if (p->bEnableFir) {
+        int idx;
+        p->pFilteredSignal = (int16_t*)realloc((void *)p->pFilteredSignal, sizeof(int16_t)*src_frame);
+        for (idx = 0; idx < src_frame; idx++) {
+            SampleFilter_put(&(p->f), (double)src[idx]);
+            p->pFilteredSignal[idx] = (int16_t)SampleFilter_get(&(p->f));
+        }
+    } else {
+        p->pFilteredSignal = src;
+    }
     for (; ; i++) {
         uint64_t t = i * p->in_rate;
         size_t j = t / p->out_rate;
@@ -120,7 +247,7 @@ int AML_SRCS16LE_Exec(void *h,
         // uint32_t u = p->channel * j; // j = in_base - 1, so u is meaningless
         uint32_t v = p->channel * (i - p->out_base);
         for (c = 0; c != p->channel; c++, v++) {
-            dst[v] = linear_interp(p->last[c], src[c], k, p->out_rate);
+            dst[v] = linear_interp(p->last[c], p->pFilteredSignal[c], k, p->out_rate);
         }
     }
     for (; ; i++) {
@@ -139,14 +266,14 @@ int AML_SRCS16LE_Exec(void *h,
         uint32_t u = p->channel * j;
         uint32_t v = p->channel * (i - p->out_base);
         for (c = 0; c != p->channel; c++, u++, v++) {
-            dst[v] = linear_interp(src[u], src[u + p->channel], k, p->out_rate);
+            dst[v] = linear_interp(p->pFilteredSignal[u], p->pFilteredSignal[u + p->channel], k, p->out_rate);
         }
     }
     uint32_t r = i - p->out_base; // generated output sample at this time
     p->out_base = i;
     p->in_base += src_frame;
     for (c = 0; c != p->channel; c++) {
-        p->last[c] = src[(src_frame - 1) * p->channel + c];
+        p->last[c] = p->pFilteredSignal[(src_frame - 1) * p->channel + c];
     }
     return r;
 }
