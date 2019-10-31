@@ -75,20 +75,20 @@ $(HIFI4RPC_CLIENT_TEST): $(LIBHIFI4RPC_CLIENT) $(LIBHIFI4RPC) $(LIBMP3TOOLS)
 $(HIFI4RPC_TEST): $(LIBHIFI4RPC)
 
 %.o:%.c
-	$(CC) -c -fPIC $(CFLAGS) $^ -o $@
+	$(CC) -c  $(CFLAGS) $^ -o $@
 
 %.o:%.cpp
-	$(CXX) -c -fPIC $(CFLAGS) $^ -o $@
+	$(CXX) -c  $(CFLAGS) $^ -o $@
 
 #libraries compile
 $(LIBHIFI4RPC_CLIENT): $(LIBHIFI4RPC_CLIENT_OBJ)
-	$(CC) -shared -fPIC $(CFLAGS) $^ -o $(LIBHIFI4RPC_CLIENT)
+	$(CC) -shared $(CFLAGS) $^ -o $(LIBHIFI4RPC_CLIENT)
 
 $(LIBMP3TOOLS): $(LIBMP3TOOLS_OBJ)
-	$(CXX) -shared -fPIC $(CFLAGS) $^ -o $(LIBMP3TOOLS)
+	$(CXX) -shared  $(CFLAGS) $^ -o $(LIBMP3TOOLS)
 
 $(LIBHIFI4RPC): $(LIBHIFI4RPC_OBJ)
-	$(CC) -shared -fPIC $(CFLAGS) $^ -o $(LIBHIFI4RPC)
+	$(CC) -shared  $(CFLAGS) $^ -o $(LIBHIFI4RPC)
 
 #applications compile
 $(HIFI4_TOOL): $(HIFI4_TOOL_OBJ)
