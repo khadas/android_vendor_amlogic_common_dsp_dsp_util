@@ -208,15 +208,15 @@ int aac_offload_dec(int argc, char* argv[]) {
 
     // Initialize the decoder.
     tAmlAacInitCtx config;
-    config.transportFmt = TT_MP4_ADTS;
+    config.transportFmt = (uint32_t)atoi(argv[0]);
     config.nrOfLayers = 1;
     hdlAac = AmlACodecInit_AacDec(&config);
     printf("Init aacdec hdl=%p\n", hdlAac);
 
     // Open the input file.
-    FILE* aacfile = fopen(argv[0], "rb");
+    FILE* aacfile = fopen(argv[1], "rb");
     if (!aacfile) {
-        fprintf(stderr, "Encountered error reading %s\n", argv[0]);
+        fprintf(stderr, "Encountered error reading %s\n", argv[1]);
         AmlACodecDeInit_AacDec(hdlAac);
         return EXIT_FAILURE;
     }
@@ -227,8 +227,8 @@ int aac_offload_dec(int argc, char* argv[]) {
     //AmlACodecSetParam(hdlAac, AAC_PCM_LIMITER_ENABLE, 1);
 
 
-    if (argc == 3)
-        bUserAllocShm = atoi(argv[2]);
+    if (argc == 4)
+        bUserAllocShm = atoi(argv[3]);
     if (bUserAllocShm) {
         // Allocate input buffer.
         hShmInput = AML_MEM_Allocate(AAC_INPUT_SIZE);
@@ -317,7 +317,7 @@ int aac_offload_dec(int argc, char* argv[]) {
         sfInfo.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;//FDK limited to 16bit per samples
         sfInfo.samplerate = out_ctx.sampleRate;
         //handle = sf_open(argv[1], SFM_WRITE, &sfInfo);
-        pcmfile = fopen(argv[1], "w+b");
+        pcmfile = fopen(argv[2], "w+b");
         if (pcmfile == NULL) {
             fprintf(stderr, "Encountered error writing %s\n", argv[1]);
             goto tab_end;

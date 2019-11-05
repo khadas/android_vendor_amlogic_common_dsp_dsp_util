@@ -99,7 +99,8 @@ static void usage()
 
     printf ("\033[1mmp3dec Usage:\033[m hifi4rpc_client_test --mp3dec $input_file $output_file\n");
 
-    printf ("\033[1maacdec Usage:\033[m hifi4rpc_client_test --aacdec $input_file $output_file\n");
+    printf ("\033[1maacdec Usage:\033[m hifi4rpc_client_test --aacdec $format $input_file $output_file\n");
+    printf ("aac supported transport format: 0-RAW, 1-ADIF, 2-ADTS, 6-LATM_MCP1, 7-LATM_MCP0, 10-LOAS\n");
 
     printf ("\033[1mpcmplay Usage:\033[m hifi4rpc_client_test --pcmplay $pcm_file\n");
 
@@ -198,7 +199,7 @@ int main(int argc, char* argv[]) {
         case 6:
             pcm_play_buildin();
         case 7:
-            if (2 == argc - optind || 3 == argc - optind) {
+            if (3 == argc - optind || 4 == argc - optind) {
                 TIC;
                 aac_offload_dec(argc - optind, &argv[optind]);
                 TOC;
