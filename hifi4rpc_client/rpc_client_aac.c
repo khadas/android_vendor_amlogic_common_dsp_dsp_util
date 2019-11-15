@@ -164,14 +164,15 @@ AAC_DECODER_ERROR  AmlACodecExec_AacDec(tAmlAacDecHdl hAacDec,
 
 AAC_DECODER_ERROR AmlACodecSetParam(tAmlAacDecHdl hAacDec, int32_t param, int32_t value)
 {
-	aacdec_setparam_st arg;
-	struct tAmlAacCtx* pAmlAacCtx = (struct tAmlAacCtx*)hAacDec;
-	memset(&arg, 0, sizeof(arg));
-	arg.hdl = (tAmlMp3DecRpcHdl)pAmlAacCtx->aacsrvhdl;
-	arg.param = param;
-	arg.value = value;
-	xAIPC(pAmlAacCtx->aipchdl, MBX_CODEC_AACDEC_API_SETPARAM, &arg, sizeof(arg));
-	return arg.ret;
+    aacdec_setparam_st arg;
+    struct tAmlAacCtx* pAmlAacCtx = (struct tAmlAacCtx*)hAacDec;
+    memset(&arg, 0, sizeof(arg));
+    arg.hdl = (tAmlMp3DecRpcHdl)pAmlAacCtx->aacsrvhdl;
+    arg.param = param;
+    arg.value = value;
+    xAIPC(pAmlAacCtx->aipchdl, MBX_CODEC_AACDEC_API_SETPARAM, &arg, sizeof(arg));
+    printf("param=0x%x, value=%d, arg.ret=0x%x\n", param, value, arg.ret);
+    return arg.ret;
 }
 
 

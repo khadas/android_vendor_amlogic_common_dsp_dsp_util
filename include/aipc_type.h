@@ -133,7 +133,7 @@ typedef struct {
 } __attribute__((packed)) aacdec_ancinit_st;
 
 #define MAX_CONFRAW_LENGTH 1024
-#define MAX_NUM_CONF 64
+#define MAX_NUM_CONF 16
 typedef struct {
 	xpointer conf;
 	int32_t length[MAX_NUM_CONF];
