@@ -85,7 +85,9 @@ int ipc_uint_tset(void);
 int rpc_unit_tset(int argc, char* argv[]) ;
 int shm_uint_tset(void);
 void aml_resampler(int argc, char* argv[]);
-void aml_hifi_inside_wakeup(void);
+void aml_hifi4_inside_wakeup();
+void aml_hifi4_timer_wakeup();
+
 #ifdef __cplusplus
 }
 #endif
@@ -110,8 +112,6 @@ static void usage()
 
     printf ("\033[1mhifi inside wakeup test Usage:\033[m hifi4rpc_client_test --hifiwake\n");
 
-    printf ("\033[1mipc unit test usage:\033[m hifi4rpc_client_test --ipc\n");
-
     printf ("\033[1mvsp-rsp Usage:\033[m hifi4rpc_client_test --vsp-rsp $input_file $output_file $in_rate $out_rate\n");
 
     printf ("\033[1mvsp-awe-unit Usage:\033[m hifi4rpc_client_test --vsp-awe-unit $mic0.pcm $mic1.pcm $ref.pcm $out_asr.pcm $out_voip.pcm\n");
@@ -119,6 +119,8 @@ static void usage()
     printf ("\033[1mvsp-awe-dspin Usage:\033[m hifi4rpc_client_test --vsp-awe-dspin $out_asr.pcm $out_voip.pcm\n");
 
     printf ("\033[1mresampler Usage:\033[m hifi4rpc_client_test --resampler $inRate $outRate $inFile $outFile\n");
+
+    printf ("\033[1mtimerwakeup Usage:\033[m hifi4rpc_client_test --timerwakeup\n");
 }
 
 
@@ -141,6 +143,7 @@ int main(int argc, char* argv[]) {
         {"vsp-awe-dspin", no_argument, NULL, 11},
         {"hifiwake", no_argument, NULL, 12},
         {"resampler", no_argument, NULL, 13},
+        {"timerwakeup", no_argument, NULL, 14},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -253,7 +256,7 @@ int main(int argc, char* argv[]) {
             }
             break;
         case 12:
-            aml_hifi_inside_wakeup();
+            aml_hifi4_inside_wakeup();
             break;
         case 13:
             if (4 == argc - optind){
@@ -262,6 +265,9 @@ int main(int argc, char* argv[]) {
                 usage();
                 exit(1);
             }
+            break;
+       case 14:
+            aml_hifi4_timer_wakeup();
             break;
         case '?':
             usage();

@@ -211,10 +211,20 @@ resampler_end:
         fclose(fin);
 }
 
-void aml_hifi_inside_wakeup()
+void aml_hifi4_inside_wakeup()
 {
     int handle = xAudio_Ipc_init();
     xAIPC(handle, MBX_WAKE_ENGINE_DEMO, NULL, 0);
     xAudio_Ipc_Deinit(handle);
+}
+
+
+void aml_hifi4_timer_wakeup()
+{
+    int handle = xAudio_Ipc_init();
+    xAIPC(handle, MBX_CMD_TIMER_WAKEUP, NULL, 0);
+    xAudio_Ipc_Deinit(handle);
+    system("echo mem > /sys/power/state");
+    printf("Hifi4 Wake Up from SW Timer\n");
 }
 
