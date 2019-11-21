@@ -88,7 +88,7 @@ void aml_s16leresampler(int argc, char* argv[]);
 void aml_hifi4_inside_wakeup();
 void aml_hifi4_timer_wakeup();
 int aml_rsp_unit_test(int argc, char* argv[]);
-
+int flat_buf_unit_test();
 #ifdef __cplusplus
 }
 #endif
@@ -122,6 +122,8 @@ static void usage()
     printf ("\033[1mresampler Usage:\033[m hifi4rpc_client_test --resampler $inRate $outRate $inFile $outFile\n");
 
     printf ("\033[1mtimerwakeup Usage:\033[m hifi4rpc_client_test --timerwakeup\n");
+
+    printf ("\033[1mtimerwakeup Usage:\033[m hifi4rpc_client_test --flatbuf-unit\n");
 }
 
 
@@ -145,6 +147,7 @@ int main(int argc, char* argv[]) {
         {"hifiwake", no_argument, NULL, 12},
         {"resampler", no_argument, NULL, 13},
         {"timerwakeup", no_argument, NULL, 14},
+        {"flatbuf-unit", no_argument, NULL, 15},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -270,6 +273,9 @@ int main(int argc, char* argv[]) {
             break;
         case 14:
             aml_hifi4_timer_wakeup();
+            break;
+        case 15:
+            flat_buf_unit_test();
             break;
         case '?':
             usage();

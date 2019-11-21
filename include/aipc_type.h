@@ -249,6 +249,38 @@ typedef struct {
     uint32_t cbuf_id;
 } __attribute__((packed)) aml_cbuf_destory_st;
 
+/*hifi flat buffer*/
+typedef xpointer tAmlFlatBufHdlRpc;
+#define FLATBUFFERS_MAX 32
+typedef struct {
+    tAmlFlatBufHdlRpc hFbuf;
+    char buf_id[FLATBUFFERS_MAX];
+    int32_t flags;
+    xpointer phy_addr;
+    xsize_t size;
+} __attribute__((packed)) aml_flatbuf_create_st;
+
+typedef struct {
+    tAmlFlatBufHdlRpc hFbuf;
+} __attribute__((packed)) aml_flatbuf_destory_st;
+
+typedef struct {
+    tAmlFlatBufHdlRpc hFbuf;
+    xpointer mem;
+    xsize_t size;
+} __attribute__((packed)) aml_flatbuf_write_st;
+
+typedef struct {
+    tAmlFlatBufHdlRpc hFbuf;
+    xpointer mem;
+    xsize_t size;
+} __attribute__((packed)) aml_flatbuf_read_st;
+
+typedef struct {
+    tAmlFlatBufHdlRpc hFbuf;
+    xsize_t size;
+} __attribute__((packed)) aml_flatbuf_size_st;
+
 /*hifi4 register dump*/
 typedef struct {
     uint32_t reg_addr;
