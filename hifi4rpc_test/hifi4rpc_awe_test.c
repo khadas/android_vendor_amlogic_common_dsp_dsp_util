@@ -122,27 +122,12 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
     int32_t inLen = 0, outLen = 0;
     void *in[4], *out[2];
 
-    AML_MEM_HANDLE hMic0Buf = 0;
     void *vir_mic0_buf = NULL;
-    void *phy_mic0_buf = NULL;
-
-    AML_MEM_HANDLE hMic1Buf = 0;
     void *vir_mic1_buf = NULL;
-    void *phy_mic1_buf = NULL;
-
-    AML_MEM_HANDLE hRef0Buf = 0;
     void *vir_ref0_buf = NULL;
-    void *phy_ref0_buf = NULL;
-
     void *vir_interleave_buf = NULL;
-
-    AML_MEM_HANDLE hOutBuf0 = 0;
     void *vir_out0_buf = NULL;
-    void *phy_out0_buf = NULL;
-
-    AML_MEM_HANDLE hOutBuf1 = 0;
     void *vir_out1_buf = NULL;
-    void *phy_out1_buf = NULL;
 
     signal(SIGINT, &awe_test_sighandler);
     if (argc == 6)
@@ -160,54 +145,19 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
         goto end_tab;
     }
 
-    if (syncMode == 1) {
-        vir_interleave_buf = malloc(3*VOICE_CHUNK_LEN_BYTE);
-        if (!vir_interleave_buf) {
-            printf("Can not allocate interleave buffer:%p\n", vir_interleave_buf);
-            ret = -1;
-            goto end_tab;
-        }
-        vir_mic0_buf = malloc(VOICE_CHUNK_LEN_BYTE);
-        vir_mic1_buf = malloc(VOICE_CHUNK_LEN_BYTE);
-        vir_ref0_buf = malloc(VOICE_CHUNK_LEN_BYTE);
-    } else {
-        hMic0Buf = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE);
-        vir_mic0_buf = AML_MEM_GetVirtAddr(hMic0Buf);
-        phy_mic0_buf = AML_MEM_GetPhyAddr(hMic0Buf);
-
-        hMic1Buf = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE);
-        vir_mic1_buf = AML_MEM_GetVirtAddr(hMic1Buf);
-        phy_mic1_buf = AML_MEM_GetPhyAddr(hMic1Buf);
-
-        hRef0Buf = AML_MEM_Allocate(VOICE_CHUNK_LEN_BYTE);
-        vir_ref0_buf = AML_MEM_GetVirtAddr(hRef0Buf);
-        phy_ref0_buf = AML_MEM_GetPhyAddr(hRef0Buf);
-        if (!hMic0Buf|| !hMic1Buf || !hRef0Buf) {
-            printf("Can not allocate none interleave buffer:%p %p %p\n",
-            hMic0Buf, hMic1Buf, hRef0Buf);
-            ret = -1;
-            goto end_tab;
-        } else {
-            printf("mic0buf:%p, mic1buf:%p, ref0buf:%p\n",
-            phy_mic0_buf, phy_mic1_buf, phy_ref0_buf);
-        }
-    }
-
-    hOutBuf0 = AML_MEM_Allocate(2048);
-    vir_out0_buf = AML_MEM_GetVirtAddr(hOutBuf0);
-    phy_out0_buf = AML_MEM_GetPhyAddr(hOutBuf0);
-
-    hOutBuf1 = AML_MEM_Allocate(2048);
-    vir_out1_buf = AML_MEM_GetVirtAddr(hOutBuf1);
-    phy_out1_buf = AML_MEM_GetPhyAddr(hOutBuf1);
-
-
-    if (!hOutBuf0 || !hOutBuf1) {
-        printf("Can not allocate output buffer:%p, %p\n", hOutBuf0, hOutBuf1);
+    vir_interleave_buf = malloc(3*VOICE_CHUNK_LEN_BYTE);
+    vir_mic0_buf = malloc(VOICE_CHUNK_LEN_BYTE);
+    vir_mic1_buf = malloc(VOICE_CHUNK_LEN_BYTE);
+    vir_ref0_buf = malloc(VOICE_CHUNK_LEN_BYTE);
+    vir_out0_buf = malloc(2048);
+    vir_out1_buf = malloc(2048);
+    if (!vir_interleave_buf || !vir_mic0_buf || !vir_mic1_buf
+        || !vir_ref0_buf || !vir_out0_buf || !vir_out1_buf) {
+        printf("Can not allocate buffer:%p %p %p %p %p %p\n",
+            vir_interleave_buf, vir_mic0_buf, vir_mic1_buf, vir_ref0_buf,
+            vir_out0_buf, vir_out1_buf);
         ret = -1;
         goto end_tab;
-    } else {
-        printf("outbuf:%p,%p\n", phy_out0_buf, phy_out1_buf);
     }
 
     awe_ret = AML_AWE_Create(&gAwe);
@@ -284,16 +234,12 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
         }
 
         if (syncMode == 0) {
-            AML_MEM_Clean(phy_mic0_buf, nbyteRead);
-            AML_MEM_Clean(phy_mic1_buf, nbyteRead);
-            AML_MEM_Clean(phy_ref0_buf, nbyteRead);
-
-            in[0] = hMic0Buf;
-            in[1] = hMic1Buf;
-            in[2] = hRef0Buf;
+            in[0] = vir_mic0_buf;
+            in[1] = vir_mic1_buf;
+            in[2] = vir_ref0_buf;
             inLen = nbyteRead;
-            out[0] = hOutBuf0;
-            out[1] = hOutBuf1;
+            out[0] = vir_out0_buf;
+            out[1] = vir_out1_buf;
             outLen = 2048;
             AML_AWE_Process(gAwe, in, &inLen, out, &outLen, &isWakeUp);
             if (isWakeUp) {
@@ -304,8 +250,6 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
                 fseek(fmic1, -((long)inLen), SEEK_CUR);
                 fseek(fref0, -((long)inLen), SEEK_CUR);
             }
-            AML_MEM_Invalidate(phy_out0_buf, outLen);
-            AML_MEM_Invalidate(phy_out1_buf, outLen);
             fwrite(vir_out0_buf, 1, outLen, fout0);
             fwrite(vir_out1_buf, 1, outLen, fout1);
             uTotalBytesWrite += outLen;
@@ -354,24 +298,29 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
         AML_AWE_Close(gAwe);
     if (gAwe)
         AML_AWE_Destroy(gAwe);
-    if (hOutBuf0)
-        AML_MEM_Free(hOutBuf0);
-    if (hOutBuf1)
-        AML_MEM_Free(hOutBuf1);
-    if (syncMode == 0) {
-        if (hMic0Buf)
-            AML_MEM_Free(hMic0Buf);
-        if (hMic1Buf)
-            AML_MEM_Free(hMic1Buf);
-        if (hRef0Buf)
-            AML_MEM_Free(hRef0Buf);
-    }
 
     if (vir_interleave_buf) {
         free(vir_interleave_buf);
+    }
+
+    if (vir_mic0_buf) {
         free(vir_mic0_buf);
+    }
+
+    if (vir_mic1_buf) {
         free(vir_mic1_buf);
+    }
+
+    if (vir_ref0_buf) {
         free(vir_ref0_buf);
+    }
+
+    if (vir_out0_buf) {
+        free(vir_out0_buf);
+    }
+
+    if (vir_out1_buf) {
+        free(vir_out1_buf);
     }
 
     if (fmic0)

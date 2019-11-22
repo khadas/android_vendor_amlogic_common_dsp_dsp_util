@@ -49,6 +49,7 @@
     {printf("%s:%d:NULL POINT\n", __FUNCTION__, __LINE__);return AWE_RET_ERR_NULL_POINTER;}
 #define AWE_CHECK_STATUS(st0,st1)    if ((st0) != (st1))          \
     {printf("%s:%d:Invalid status:%d\n", __FUNCTION__, __LINE__, (st0));return AWE_RET_ERR_NOT_SUPPORT;}
+#define min(a, b) ((a) < (b) ? (a) : (b))
 
 typedef enum {
     /* Set to IDEL in Create*/
@@ -543,8 +544,8 @@ AWE_RET AML_AWE_GetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para)
     return ret;
 }
 
-AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[],
-                    int32_t *inLenInByte, AML_MEM_HANDLE out[],
+AWE_RET AML_AWE_Process(AWE *awe, void* in[],
+                    int32_t *inLenInByte, void* out[],
                     int32_t *outLenInByte, uint32_t *isWaked)
 {
     AWE_RET ret = AWE_RET_OK;
@@ -552,8 +553,22 @@ AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[],
     AWE_CHECK_NULL(inLenInByte);
     AWE_CHECK_NULL(outLenInByte);
     AWE_CHECK_STATUS(awe->aweStatus, AWE_STATUS_EXECUTE);
-    if (awe->inputMode == AWE_USER_INPUT_MODE)
-        ret = internal_aml_awe_process(awe, in, inLenInByte, out, outLenInByte, isWaked);
+    if (awe->inputMode == AWE_USER_INPUT_MODE) {
+        unsigned int i;
+        int32_t inLen = min(*inLenInByte, awe->inWorkBufLen);
+        int32_t outLen = min(*outLenInByte, awe->outWorkBufLen);
+        for (i = 0; i < (awe->refInChannels + awe->micInChannels); i++) {
+            memcpy(AML_MEM_GetVirtAddr(awe->hinWorkBuf[i]), in[i], inLen);
+            AML_MEM_Clean(AML_MEM_GetPhyAddr(awe->hinWorkBuf[i]), inLen);
+        }
+        ret = internal_aml_awe_process(awe, awe->hinWorkBuf, &inLen, awe->houtWorkBuf, &outLen, isWaked);
+        for (i = 0; i < awe->outChannels; i++) {
+            AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->houtWorkBuf[i]), outLen);
+            memcpy(out[i], AML_MEM_GetVirtAddr(awe->houtWorkBuf[i]), outLen);
+        }
+        *inLenInByte = inLen;
+        *outLenInByte = outLen;
+    }
     else {
         printf("AWE is not worked at user input mode. current input mode:%d\n", awe->inputMode);
         ret = AWE_RET_ERR_NOT_SUPPORT;

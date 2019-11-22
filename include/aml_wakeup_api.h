@@ -203,37 +203,37 @@ AWE_RET AML_AWE_SetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para);
 AWE_RET AML_AWE_GetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para);
 
 /**
- * Synchronous AWE data processing entry.
- * Application feed pcm here, application get output
- * and wake up result here.
- * Note: This api only work when AWE input mode is configured
- * as AWE_USER_INPUT_MODE
- *
- * @param[in] AWE instance handler
- *
- * @param[in] Array of shared memory hanlders. A member of
- * this array represent a input pcm channel. The shared memory
- * is filled with mic or reference pcm by application.
- * The pcm is in none interleave format, mic0|mic1|ref0|ref1
- * Max supported input channels see AWE_MAX_IN_CHANS
- *
- * @param[in/out] Length in bytes per channel. Return
- * remained pcm in bytes after the call
- *
- * @param[out] Aarry of shared memory hanlders. A member of
- * this array represent a output pcm channel. The share memory
- * is filled with processed pcm by AWE. The pcm in none interleave
- * format, out0|out1
- * Max supported channel see AWE_MAX_OUT_CHANS
- *
- * @param[in/out] Space in bytes of a output channel. Return processed
- * pcm length in bytes
- *
- * @param[out] A flag indicates whether wake up words is spotted
- *
- * @return AWE_RET_OK if successful, otherwise see AWE_RET
- */
-AWE_RET AML_AWE_Process(AWE *awe, AML_MEM_HANDLE in[], int32_t *inLenInByte, AML_MEM_HANDLE out[],
+* Synchronous AWE data processing entry.
+* Application feed pcm here, application get output
+* and wake up result here.
+* Note: This API is invalid when AWE input mode is configured
+* as AWE_DSP_INPUT_MODE
+*
+* @param[in] AWE instance handler
+*
+* @param[in] Array of buffers. A member of
+* this array represent a input pcm stream. The buffer
+* is filled with mic or reference pcm by application.
+* The pcm is in none interleave format, mic0|mic1|ref0|ref1
+* Max supported input streams see AWE_MAX_IN_CHANS.
+*
+* @param[in/out] Length in bytes of a input stream buffer. Return
+* remained pcm in bytes after the call.
+*
+* @param[out] Aarry of buffers. A member of
+* this array represent a output pcm stream. The buffer
+* is filled with processed pcm by AWE. The pcm is in none interleave
+* format, out0|out1.
+* Max supported output stream numbers see AWE_MAX_OUT_CHANS
+*
+* @param[in/out] Space in bytes of a output stream buffer. Return processed
+* pcm length in bytes.
+*
+* @param[out] A flag indicates whether wake up words is spotted
+*
+* @return AWE_RET_OK if successful, otherwise see AWE_RET
+*/
+AWE_RET AML_AWE_Process(AWE *awe, void* in[], int32_t *inLenInByte, void* out[],
         int32_t *outLenInByte, uint32_t *isWaked);
 
 /**
