@@ -40,103 +40,103 @@
 #include "aipc_type.h"
 
 struct tAmlVspCtx {
-	tAmlVspRpcHdl vspsrvhdl;
-	int aipchdl;
-	int vsp_type;
+    tAmlVspRpcHdl vspsrvhdl;
+    int aipchdl;
+    int32_t opsidx;
 };
 
-AML_VSP_HANDLE AML_VSP_Init(int vsp_type, void* param, size_t param_size)
+AML_VSP_HANDLE AML_VSP_Init(char* vsp_id, void* param, size_t param_size)
 {
-	vsp_init_st arg;
-	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)malloc(sizeof(struct tAmlVspCtx));
-	memset(pAmlVspCtx, 0, sizeof(struct tAmlVspCtx));
-	pAmlVspCtx->aipchdl = xAudio_Ipc_init();
-	memset(&arg, 0, sizeof(arg));
-	arg.vsp_type = vsp_type;
-	arg.param = (xpointer)param;
-	arg.param_size = param_size;
-	xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_INIT, &arg, sizeof(arg));
-	pAmlVspCtx->vspsrvhdl= arg.hdl;
-	pAmlVspCtx->vsp_type = vsp_type;
-	return (void*)pAmlVspCtx;
+    vsp_init_st arg;
+    struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)malloc(sizeof(struct tAmlVspCtx));
+    memset(pAmlVspCtx, 0, sizeof(struct tAmlVspCtx));
+    pAmlVspCtx->aipchdl = xAudio_Ipc_init();
+    memset(&arg, 0, sizeof(arg));
+    memcpy(arg.vsp_id, vsp_id, strlen(vsp_id) + 1);
+    arg.param = (xpointer)param;
+    arg.param_size = param_size;
+    xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_INIT, &arg, sizeof(arg));
+    pAmlVspCtx->vspsrvhdl= arg.hdl;
+    pAmlVspCtx->opsidx = arg.ops_idx;
+    return (void*)pAmlVspCtx;
 }
 
 void AML_VSP_Deinit(AML_VSP_HANDLE hVsp)
 {
-	vsp_deinit_st arg;
-	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
-	memset(&arg, 0, sizeof(arg));
-	arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
-	arg.vsp_type = pAmlVspCtx->vsp_type;
-	xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_DEINIT, &arg, sizeof(arg));
-	xAudio_Ipc_Deinit(pAmlVspCtx->aipchdl);
-	free(pAmlVspCtx);
+    vsp_deinit_st arg;
+    struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
+    memset(&arg, 0, sizeof(arg));
+    arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
+    arg.ops_idx = pAmlVspCtx->opsidx;
+    xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_DEINIT, &arg, sizeof(arg));
+    xAudio_Ipc_Deinit(pAmlVspCtx->aipchdl);
+    free(pAmlVspCtx);
 }
 
 int  AML_VSP_Open(AML_VSP_HANDLE hVsp)
 {
-	vsp_open_st arg;
-	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
-	memset(&arg, 0, sizeof(arg));
-	arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
-	arg.vsp_type = pAmlVspCtx->vsp_type;
-	xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_OPEN, &arg, sizeof(arg));
-	return arg.ret;
+    vsp_open_st arg;
+    struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
+    memset(&arg, 0, sizeof(arg));
+    arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
+    arg.ops_idx = pAmlVspCtx->opsidx;
+    xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_OPEN, &arg, sizeof(arg));
+    return arg.ret;
 }
 
 int  AML_VSP_Close(AML_VSP_HANDLE hVsp)
 {
-	vsp_close_st arg;
-	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
-	memset(&arg, 0, sizeof(arg));
-	arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
-	arg.vsp_type = pAmlVspCtx->vsp_type;
-	xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_CLOSE, &arg, sizeof(arg));
-	return arg.ret;
+    vsp_close_st arg;
+    struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
+    memset(&arg, 0, sizeof(arg));
+    arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
+    arg.ops_idx = pAmlVspCtx->opsidx;
+    xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_CLOSE, &arg, sizeof(arg));
+    return arg.ret;
 }
 
 int  AML_VSP_SetParam(AML_VSP_HANDLE hVsp, int32_t param_id, void* param, size_t param_size)
 {
-	vsp_setparam_st arg;
-	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
-	memset(&arg, 0, sizeof(arg));
-	arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
-	arg.vsp_type = pAmlVspCtx->vsp_type;
-	arg.param_id = param_id;
-	arg.param = (xpointer)param;
-	arg.param_size = param_size;
-	xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_SETPARAM, &arg, sizeof(arg));
-	return arg.ret;
+    vsp_setparam_st arg;
+    struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
+    memset(&arg, 0, sizeof(arg));
+    arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
+    arg.ops_idx = pAmlVspCtx->opsidx;
+    arg.param_id = param_id;
+    arg.param = (xpointer)param;
+    arg.param_size = param_size;
+    xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_SETPARAM, &arg, sizeof(arg));
+    return arg.ret;
 }
 
 int  AML_VSP_GetParam(AML_VSP_HANDLE hVsp, int32_t param_id, void* param, size_t param_size)
 {
-	vsp_getparam_st arg;
-	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
-	memset(&arg, 0, sizeof(arg));
-	arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
-	arg.vsp_type = pAmlVspCtx->vsp_type;	
-	arg.param_id = param_id;
-	arg.param = (xpointer)param;
-	arg.param_size = param_size;
-	xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_GETPARAM, &arg, sizeof(arg));
-	return arg.ret;
+    vsp_getparam_st arg;
+    struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
+    memset(&arg, 0, sizeof(arg));
+    arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
+    arg.ops_idx = pAmlVspCtx->opsidx;
+    arg.param_id = param_id;
+    arg.param = (xpointer)param;
+    arg.param_size = param_size;
+    xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_GETPARAM, &arg, sizeof(arg));
+    return arg.ret;
 }
 
 int  AML_VSP_Process(AML_VSP_HANDLE hVsp, void* input_buf, size_t input_size,
-			void* output_buf, size_t* output_size)
+    void* output_buf, size_t* output_size)
 {
-	vsp_process_st arg;
-	struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
-	memset(&arg, 0, sizeof(arg));
-	arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
-	arg.vsp_type = pAmlVspCtx->vsp_type;
-	arg.input_buf = (xpointer)input_buf;
-	arg.input_size = input_size;
-	arg.output_buf = (xpointer)output_buf;
-	arg.output_size = *output_size;
-	xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_PROCESS, &arg, sizeof(arg));
-	*output_size = arg.output_size;
-	return arg.ret;
+    vsp_process_st arg;
+    struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)hVsp;
+    memset(&arg, 0, sizeof(arg));
+    arg.hdl = (tAmlVspRpcHdl)pAmlVspCtx->vspsrvhdl;
+    arg.ops_idx = pAmlVspCtx->opsidx;
+    arg.input_buf = (xpointer)input_buf;
+    arg.input_size = input_size;
+    arg.output_buf = (xpointer)output_buf;
+    arg.output_size = *output_size;
+    xAIPC(pAmlVspCtx->aipchdl, MBX_CODEC_VSP_API_PROCESS, &arg, sizeof(arg));
+    *output_size = arg.output_size;
+    return arg.ret;
 }
 

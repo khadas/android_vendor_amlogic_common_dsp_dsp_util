@@ -39,24 +39,6 @@
 extern "C" {
 #endif
 
-#define __VSP_COMPOSE_TYPE(mod, func)  (((mod) << 10) | ((func) & 0x3FF))
-/*******************************************************************************
- * Define VSP Vendor ID here, 6bits valid
- ******************************************************************************/
-#define AML_VSP          0x1
-/*******************************************************************************
- * Define VSP type here, 10bits valid
- ******************************************************************************/
-/*VSP TYPE*/
-#define VSP_RESAMPLER       0x1
-#define VSP_AWE             0x2
-/*******************************************************************************
- * VSP type comopsition
- ******************************************************************************/
-#define AML_VSP_RESAMPLER    __VSP_COMPOSE_TYPE(AML_VSP, VSP_RESAMPLER)
-#define AML_VSP_AWE	         __VSP_COMPOSE_TYPE(AML_VSP, VSP_AWE)
-
-
 typedef void* AML_VSP_HANDLE;
 
 /**
@@ -70,7 +52,7 @@ typedef void* AML_VSP_HANDLE;
  *
  * @return instance handler if successful, otherwise return NULL
  */
-AML_VSP_HANDLE AML_VSP_Init(int vsp_type, void* param, size_t param_size);
+AML_VSP_HANDLE AML_VSP_Init(char* vsp_id, void* param, size_t param_size);
 
 /**
  * Destory and deinitialize instance context.

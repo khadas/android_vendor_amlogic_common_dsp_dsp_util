@@ -127,7 +127,7 @@ int offload_vsp_rsp(int argc, char* argv[]) {
     st_param->Fs_Hz_in = inRate;
     st_param->Fs_Hz_out = outRate;
     AML_MEM_Clean(paramphy, sizeof(aml_vsp_st_param));
-    hdlvsp = AML_VSP_Init(AML_VSP_RESAMPLER, (void*)paramphy, sizeof(aml_vsp_st_param));
+    hdlvsp = AML_VSP_Init("AML.VSP.RSP", (void*)paramphy, sizeof(aml_vsp_st_param));
     if (!hdlvsp) {
         printf("Initialize vsp failure\n");
         ret = -1;

@@ -145,57 +145,59 @@ typedef struct {
 /*Voice Signal Processing*/
 typedef xpointer tAmlVspRpcHdl;
 typedef uint64_t xsize_t;
+#define VSP_ID_MAX 32
 typedef struct {
-	int32_t vsp_type;
-	tAmlVspRpcHdl hdl;
-	uint32_t ret;
-	xpointer param;
-	xsize_t param_size;
+    char vsp_id[VSP_ID_MAX];
+    tAmlVspRpcHdl hdl;
+    uint32_t ret;
+    xpointer param;
+    xsize_t param_size;
+    int32_t ops_idx;
 } __attribute__((packed)) vsp_init_st;
 
 typedef struct {
-	int32_t vsp_type;
-	tAmlVspRpcHdl hdl;
+    int32_t ops_idx;
+    tAmlVspRpcHdl hdl;
 } __attribute__((packed)) vsp_deinit_st;
 
 typedef struct {
-	int32_t vsp_type;
-	tAmlVspRpcHdl hdl;
-	uint32_t ret;
+    int32_t ops_idx;
+    tAmlVspRpcHdl hdl;
+    uint32_t ret;
 } __attribute__((packed)) vsp_open_st;
 
 typedef struct {
-	int32_t vsp_type;
-	tAmlVspRpcHdl hdl;
-	uint32_t ret;
+    int32_t ops_idx;
+    tAmlVspRpcHdl hdl;
+    uint32_t ret;
 } __attribute__((packed)) vsp_close_st;
 
 typedef struct {
-	int32_t vsp_type;
-	tAmlVspRpcHdl hdl;
-	int32_t param_id;
-	xpointer param;
-	xsize_t param_size;
-	uint32_t ret;
+    int32_t ops_idx;
+    tAmlVspRpcHdl hdl;
+    int32_t param_id;
+    xpointer param;
+    xsize_t param_size;
+    uint32_t ret;
 } __attribute__((packed)) vsp_setparam_st;
 
 typedef struct {
-	int32_t vsp_type;
-	tAmlVspRpcHdl hdl;
-	int32_t param_id;
-	xpointer param;
-	xsize_t param_size;
-	uint32_t ret;
+    int32_t ops_idx;
+    tAmlVspRpcHdl hdl;
+    int32_t param_id;
+    xpointer param;
+    xsize_t param_size;
+    uint32_t ret;
 } __attribute__((packed)) vsp_getparam_st;
 
 typedef struct {
-	int32_t vsp_type;
-	tAmlVspRpcHdl hdl;
-	uint32_t ret;
-	xpointer input_buf;
-	xsize_t input_size;
-	xpointer output_buf;
-	xsize_t output_size;
+    int32_t ops_idx;
+    tAmlVspRpcHdl hdl;
+    uint32_t ret;
+    xpointer input_buf;
+    xsize_t input_size;
+    xpointer output_buf;
+    xsize_t output_size;
 } __attribute__((packed)) vsp_process_st;
 
 

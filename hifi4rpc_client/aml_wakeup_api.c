@@ -324,7 +324,7 @@ AWE_RET AML_AWE_Create(AWE **awe)
     pawe->output_size = sizeof(aml_vsp_awe_process_param_out);
     pawe->hParam = AML_MEM_Allocate(sizeof(AWE_PARA));
     pawe->param_size = sizeof(AWE_PARA);
-    pawe->hVsp = AML_VSP_Init(AML_VSP_AWE, NULL, 0);
+    pawe->hVsp = AML_VSP_Init("AML.VSP.AWE", NULL, 0);
 
     if (pawe->hParam && pawe->hInput && pawe->hOutput && pawe->hVsp) {
         *awe = pawe;
