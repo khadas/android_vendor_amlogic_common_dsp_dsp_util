@@ -25,7 +25,7 @@
  */
 
 /**
- * offload voice signal process
+ * voice signal process API
  *
  * Author: Wenjie Zhou <Wenjie.Zhou@amlogic.com>
  * Version:
@@ -58,14 +58,100 @@ extern "C" {
 
 
 typedef void* AML_VSP_HANDLE;
+
+/**
+ * Create and initialize an instance context according to vsp id
+ *
+ * @param[in] vsp id
+ *
+ * @param[in] static parameter used to initialize instance context
+ *
+ * @param[in] length of static parameter
+ *
+ * @return instance handler if successful, otherwise return NULL
+ */
 AML_VSP_HANDLE AML_VSP_Init(int vsp_type, void* param, size_t param_size);
+
+/**
+ * Destory and deinitialize instance context.
+ *
+ * @param[in] instance handler
+ *
+ * @return
+ */
 void AML_VSP_Deinit(AML_VSP_HANDLE hVsp);
+
+/**
+ * Enable instance, make instance start to work
+ * Static parameter can not be configured any more after this call
+ *
+ * @param[in] instance handler
+ *
+ * @return error codes
+ */
 int  AML_VSP_Open(AML_VSP_HANDLE hVsp);
+
+/**
+ * Disable instance, make instance stop to work
+ * Static parameter can be re-configured after this call
+ *
+ * @param[in] instance handler
+ *
+ * @return error codes
+ */
 int  AML_VSP_Close(AML_VSP_HANDLE hVsp);
+
+/**
+ * Configure parameter
+ * Static parameter can be configured only after instance stops
+ * Dynamic parameter can be configured at run time
+ *
+ * @param[in] instance handler
+ *
+ * @param[in] parameter id
+ *
+ * @param[in] buffer carrying parameter
+ *
+ * @param[in] length of parameter
+ *
+ * @return error codes
+ */
 int  AML_VSP_SetParam(AML_VSP_HANDLE hVsp, int32_t param_id, void* param, size_t param_size);
+
+/**
+ * Obtain parameter
+ *
+ * @param[in] instance handler
+ *
+ * @param[in] parameter id
+ *
+ * @param[in] buffer carrying parameter
+ *
+ * @param[in] length of parameter
+ *
+ * @return error codes
+ */
 int  AML_VSP_GetParam(AML_VSP_HANDLE hVsp, int32_t param_id, void* param, size_t param_size);
+
+
+/**
+* Main data processing entry.
+*
+* @param[in] instance handler
+*
+* @param[in] Buffer carrying input data/meta
+*
+* @param[in] Input buffer size
+*
+* @param[in/out] Buffer carrying output data/meta
+*
+* @param[in/out] Space of buffer before the call
+*                Size of output data/meta after the call
+*
+* @return error codes
+*/
 int  AML_VSP_Process(AML_VSP_HANDLE hVsp, void* input, size_t input_size,
-			void* output, size_t* output_size);
+                            void* output, size_t* output_size);
 
 
 
@@ -73,4 +159,4 @@ int  AML_VSP_Process(AML_VSP_HANDLE hVsp, void* input, size_t input_size,
 }
 #endif
 
-#endif // end _OFFLOAD_ACODEC_MP3_H_
+#endif // end _RPC_CLIENT_VSP_H_
