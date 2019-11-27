@@ -84,9 +84,10 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]);
 int ipc_uint_tset(void);
 int rpc_unit_tset(int argc, char* argv[]) ;
 int shm_uint_tset(void);
-void aml_resampler(int argc, char* argv[]);
+void aml_s16leresampler(int argc, char* argv[]);
 void aml_hifi4_inside_wakeup();
 void aml_hifi4_timer_wakeup();
+int aml_rsp_unit_test(int argc, char* argv[]);
 
 #ifdef __cplusplus
 }
@@ -216,7 +217,8 @@ int main(int argc, char* argv[]) {
         case 8:
             if (2 == argc - optind || 4 == argc - optind) {
                 TIC;
-                offload_vsp_rsp(argc - optind, &argv[optind]);
+                //offload_vsp_rsp(argc - optind, &argv[optind]);
+                aml_rsp_unit_test(argc - optind, &argv[optind]);
                 TOC;
                 printf("offload voice signal resampler use:%u ms\n", ms);
             }
@@ -260,13 +262,13 @@ int main(int argc, char* argv[]) {
             break;
         case 13:
             if (4 == argc - optind){
-                aml_resampler(argc - optind, &argv[optind]);
+                aml_s16leresampler(argc - optind, &argv[optind]);
             } else {
                 usage();
                 exit(1);
             }
             break;
-       case 14:
+        case 14:
             aml_hifi4_timer_wakeup();
             break;
         case '?':

@@ -38,42 +38,21 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "rpc_client_shm.h"
-#include "rpc_client_vsp.h"
-
-typedef struct {
-    int32_t Fs_Hz_in;
-    int32_t Fs_Hz_out;
-} __attribute__((packed)) aml_vsp_st_param;
-
-/*Just an example show how to apply meta data*/
-typedef struct {
-    int32_t Fs;
-    int32_t Bitdepth;
-} __attribute__((packed)) aml_vsp_meta_param;
+#include "aml_resampler.h"
 
 #define VOICE_MS 48
-int offload_vsp_rsp(int argc, char* argv[]) {
+int aml_rsp_unit_test(int argc, char* argv[]) {
     int ret = 0;
-    int Vsp_Err = 0;
-    AML_VSP_HANDLE hdlvsp = 0;
-    AML_MEM_HANDLE hParam = 0;
-    AML_MEM_HANDLE hShmInput =0;
-    AML_MEM_HANDLE hShmOutput = 0;
-    uint8_t *paramBuf = 0;
-    uint8_t *inputBuf = 0;
-    uint8_t *outputBuf = 0;
-    void* paramphy = 0;
-    void* inputphy = 0;
-    void* outputphy = 0;
     size_t bytesRead = 0;
     size_t bytesWrite = 0;
-    aml_vsp_st_param* st_param = NULL;
-    aml_vsp_meta_param* meta_param = NULL;
     FILE* voicefile = NULL;
     FILE* outfile = NULL;
+    void* inputBuf = NULL;
+    void* outputBuf = NULL;
     int32_t inRate = 48000;
     int32_t outRate = 16000;
+    resampler_handle* rsp = NULL;
+
     if (argc == 4) {
         inRate = atoi(argv[2]);
         outRate = atoi(argv[3]);
@@ -98,55 +77,31 @@ int offload_vsp_rsp(int argc, char* argv[]) {
     }
     printf("Open output file\n");
 
-
-
     // Allocate input buffer.
-    hShmInput = AML_MEM_Allocate(sizeof(aml_vsp_meta_param) + voiceChunkInByte);
-    inputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmInput);
-    inputphy = AML_MEM_GetPhyAddr(hShmInput);
+    inputBuf = malloc(voiceChunkInByte);
+    outputBuf = malloc(voiceChunkInByte*outRate/inRate);
 
-    // Allocate output buffer.
-    hShmOutput = AML_MEM_Allocate(voiceChunkInByte*outRate/inRate);
-    outputBuf = (uint8_t*)AML_MEM_GetVirtAddr(hShmOutput);
-    outputphy = AML_MEM_GetPhyAddr(hShmOutput);
-
-    // Allocate static param buffer, the param is used to initialize vsp
-    hParam = AML_MEM_Allocate(sizeof(aml_vsp_st_param));
-    paramBuf = (uint8_t*)AML_MEM_GetVirtAddr(hParam);
-    paramphy = AML_MEM_GetPhyAddr(hParam);
-
-    // Initialize the vsp-rsp.
-    st_param = (aml_vsp_st_param*)paramBuf;
-    st_param->Fs_Hz_in = inRate;
-    st_param->Fs_Hz_out = outRate;
-    AML_MEM_Clean(paramphy, sizeof(aml_vsp_st_param));
-    hdlvsp = AML_VSP_Init("AML.VSP.RSP", (void*)paramphy, sizeof(aml_vsp_st_param));
-    if (!hdlvsp) {
-        printf("Initialize vsp failure\n");
+    rsp = aml_resampler_init(inRate, outRate);
+    if (!rsp) {
+        printf("Initialize resampler failure\n");
         ret = -1;
         goto tab_end;
     }
-    printf("Init vsp-rsp hdl=%p\n", hdlvsp);
+    printf("Init resampler hdl=%p\n", rsp);
 
     while (1) {
-        //example to show apply meta data associate with the buffer.
-        meta_param = (aml_vsp_meta_param*)inputBuf;
-        meta_param->Bitdepth = 16;
-        meta_param->Fs = inRate;
         bytesRead = voiceChunkInByte;
-        bytesRead = fread(inputBuf + sizeof(aml_vsp_meta_param), 1, bytesRead, voicefile);
+        bytesRead = fread(inputBuf, 1, bytesRead, voicefile);
         if (!bytesRead) {
             printf("EOF\n");
             break;
         }
 
         bytesWrite = bytesRead*outRate/inRate;
-        AML_MEM_Clean(inputphy, bytesRead + sizeof(aml_vsp_meta_param));
-        Vsp_Err = AML_VSP_Process(hdlvsp, inputphy, bytesRead + sizeof(aml_vsp_meta_param), outputphy, &bytesWrite);
-        AML_MEM_Invalidate(outputphy, bytesWrite);
+        ret = aml_resampler(rsp, outputBuf, inputBuf,bytesRead);
 
-        if (Vsp_Err != 0) {
-            printf("Decoder encountered error:0x%x\n", Vsp_Err);
+        if (ret != 0) {
+            printf("resampler encountered error:0x%x\n", ret);
             ret = -1;
             break;
         }
@@ -161,16 +116,12 @@ int offload_vsp_rsp(int argc, char* argv[]) {
         fclose(voicefile);
     if (outfile)
         fclose(outfile);
-
-    // Free allocated memory.
-    if (hShmInput)
-        AML_MEM_Free((AML_MEM_HANDLE)hShmInput);
-    if (hShmOutput)
-        AML_MEM_Free((AML_MEM_HANDLE)hShmOutput);
-    if (hParam)
-        AML_MEM_Free((AML_MEM_HANDLE)hParam);
-    if (hdlvsp)
-        AML_VSP_Deinit(hdlvsp);
+    if (inputBuf)
+        free(inputBuf);
+    if (outputBuf)
+        free(outputBuf);
+    if (rsp)
+        aml_resampler_destroy(rsp);
 
     return ret;
 }

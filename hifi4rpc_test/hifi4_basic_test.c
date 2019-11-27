@@ -159,7 +159,7 @@ int shm_uint_tset(void)
 }
 
 #define CHUNK_SAMPLES 1024
-void aml_resampler(int argc, char* argv[])
+void aml_s16leresampler(int argc, char* argv[])
 {
     FILE* fin = NULL;
     FILE* fout = NULL;
