@@ -190,7 +190,7 @@ static AWE_RET internal_aml_awe_process(AWE *awe, AML_MEM_HANDLE in[],
     return ret;
 }
 
-void awe_thread_process_data(void * data)
+void* awe_thread_process_data(void * data)
 {
     int i;
     AWE* awe = (AWE*)data;
@@ -302,6 +302,7 @@ void awe_thread_process_data(void * data)
             printf("Impossible, invalid input mode:%d\n", awe->inputMode);
         }
     }
+    return NULL;
 }
 
 AWE_RET AML_AWE_Create(AWE **awe)
@@ -450,7 +451,7 @@ AWE_RET AML_AWE_Open(AWE *awe)
     }
     awe->work_thread_exit  = 0;
     awe->bKickFreeRun = 0;
-    ret = pthread_create(&awe->work_thread, NULL, (void*)&awe_thread_process_data, (void*)awe);
+    ret = pthread_create(&awe->work_thread, NULL, awe_thread_process_data, (void*)awe);
     if (ret != 0)
     {
         printf("create working thread error. %d: %s\n",ret,strerror(ret));

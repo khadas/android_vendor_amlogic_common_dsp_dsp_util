@@ -44,7 +44,7 @@
 #define UNUSED(x) (void)(x)
 
 char* strRdSamples = "flat buffer api test, this is test samples FlatBufFifoDsp2Arm";
-void flat_buffers_read(void* arg)
+void* flat_buffers_read(void* arg)
 {
     UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
@@ -100,11 +100,12 @@ exit_capture:
         AML_MEM_Free(hShm);
     if (hFbuf)
         AML_FLATBUF_Destory(hFbuf);
+    return NULL;
 }
 
 
 char* strWrSamples = "flat buffer api test, this is test samples FlatBufFifoArm2Dsp";
-void flat_buffers_write(void* arg)
+void* flat_buffers_write(void* arg)
 {
     UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
@@ -152,6 +153,7 @@ exit_capture:
         AML_MEM_Free(hShm);
     if (hFbuf)
         AML_FLATBUF_Destory(hFbuf);
+    return NULL;
 }
 
 int flat_buf_unit_test()
@@ -164,8 +166,8 @@ int flat_buf_unit_test()
     xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, NULL, 0);
     xAudio_Ipc_Deinit(handle);
 
-    pthread_create(&wr_thread, NULL, (void*)&flat_buffers_write, (void*)NULL);
-    pthread_create(&rd_thread, NULL, (void*)&flat_buffers_read, (void*)NULL);
+    pthread_create(&wr_thread, NULL, flat_buffers_write, NULL);
+    pthread_create(&rd_thread, NULL, flat_buffers_read, NULL);
     pthread_join(wr_thread,NULL);
     pthread_join(rd_thread,NULL);
 
