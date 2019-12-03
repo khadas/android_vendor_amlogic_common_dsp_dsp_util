@@ -64,8 +64,9 @@ AML_FLATBUF_HANDLE AML_FLATBUF_Create(char* buf_id, int flags,
     /*Allocate intermediate shm*/
     aml_flatbuf_size_st arg1;
     arg1.hFbuf = pFbufCtx->hFbuf;
-    xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_GETSPACE, &arg1, sizeof(arg1));
-    pFbufCtx->hShm = AML_MEM_Allocate(arg1.size);
+    xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_GETBUFSIZE, &arg1, sizeof(arg1));
+    printf("bufsize:0x%x\n", (size_t)arg1.size);
+    pFbufCtx->hShm = AML_MEM_Allocate((size_t)arg1.size);
 
     return pFbufCtx;
 }

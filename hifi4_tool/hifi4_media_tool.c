@@ -40,72 +40,86 @@
 #include <getopt.h>
 #include <math.h>
 #include <time.h>
-#include <signal.h>
+#include <pthread.h>
 #include "aipc_type.h"
-#include "rpc_client_cbuf.h"
-#include "rpc_client_shm.h"
+#include "aml_flatbuf_api.h"
 #include "rpc_client_aipc.h"
 
 #define UNUSED(x) (void)(x)
 
-#define DUMP_LENTH (16000)
-#define CCBUF_LENTH (DUMP_LENTH*4)
-int32_t bDumpExit = 0;
-void audio_dump_sighandler(int signum)
-{
-    UNUSED(signum);
-    bDumpExit = 1;
+struct audio_dump_context {
+    int32_t ch;
+    int32_t rate;
+    int32_t bytesSample;
+    int32_t ms;
+    int bExit;
+    FILE* fdump;
+    AML_FLATBUF_HANDLE hFbuf;
+};
+
+void* thread_dump(void* arg) {
+    struct audio_dump_context* pContext = (struct audio_dump_context*)arg;
+    size_t chunkSize = (pContext->ch*pContext->rate*pContext->bytesSample*20)/1000;//20 ms
+    char* pbuf = malloc(chunkSize);
+
+    while(!pContext->bExit) {
+        size_t nbytesRead;
+        nbytesRead = AML_FLATBUF_Read(pContext->hFbuf, pbuf,chunkSize);
+        fwrite(pbuf, 1, nbytesRead, pContext->fdump);
+        usleep(10*1000);
+    }
+
+    free(pbuf);
+    return NULL;
 }
 
-int audio_dump(int argc, char* argv[]) {
-    int ret = 0;
-    AML_CBUF_HANDLE hCbuf = NULL;
-    FILE *faudio_dump = NULL;
-    int32_t totalSize = 0;
-    char* pbuf = NULL;
-    if (argc != 3) {
-        printf("Invalid parameter number\n");
+int audio_dump(int argc, char* argv[])
+{
+    pthread_t dump_thread;
+    struct audio_dump_context context;
+    memset(&context, 0, sizeof(context));
+
+    if (argc != 5) {
+        printf("Invalid parameter number:%d\n", argc);
         return -1;
     }
-    signal(SIGTERM, &audio_dump_sighandler);
-    signal(SIGINT, &audio_dump_sighandler);
-    pbuf = malloc(DUMP_LENTH);
-    totalSize = atoi(argv[2]);
 
-    faudio_dump = fopen(argv[1], "w+b");
-    if ( !faudio_dump) {
-        printf("Can not create dump file:%p\n", faudio_dump);
-        ret = -1;
+    context.fdump = fopen(argv[0], "w+b");
+    if (!context.fdump) {
+        printf("Can not create dump file:%p\n", context.fdump);
+        goto end_tab;
+    }
+    context.ch = atoi(argv[1]);
+    context.rate = atoi(argv[2]);
+    context.bytesSample = atoi(argv[3]);
+
+    struct flatbuffer_config config;
+    config.size = (context.ch*context.rate*context.bytesSample*50)/1000;//50 ms buffer
+    config.phy_addr = 0;
+    context.hFbuf = AML_FLATBUF_Create(argv[4], FLATBUF_FLAG_RD, &config);
+    if (!context.hFbuf) {
+        printf("Can not create flat file:%p\n", context.hFbuf);
         goto end_tab;
     }
 
-    hCbuf = AML_CBUF_Create(atoi(argv[0]), CCBUF_LENTH, CCBUF_LENTH);
-    if (!hCbuf) {
-        printf("Can not create CC buffer\n");
-        ret = -1;
-        goto end_tab;
-    }
-
-    while(!bDumpExit && totalSize >= 0) {
-        size_t nbyteRead = DUMP_LENTH;
-        nbyteRead = AML_CBUF_Read(hCbuf, pbuf,nbyteRead);
-        if (nbyteRead > 0) {
-            fwrite(pbuf, 1, nbyteRead, faudio_dump);
-            totalSize -= nbyteRead;
+    pthread_create(&dump_thread, NULL, thread_dump, (void*)&context);
+    while(1) {
+        char user_cmd[16];
+        printf("Execute 'quit' to exit\n");
+        scanf("%s", user_cmd);
+        if(!strcmp(user_cmd, "quit")) {
+            context.bExit = 1;
+            break;
         }
-        usleep(1000);
     }
+    pthread_join(dump_thread,NULL);
+
 end_tab:
-    if (pbuf) {
-        free(pbuf);
-    }
-    if (hCbuf)
-        AML_CBUF_Destory(hCbuf);
-
-    if (faudio_dump)
-        fclose(faudio_dump);
-
-    return ret;
+    if (context.hFbuf)
+        AML_FLATBUF_Destory(context.hFbuf);
+    if (context.fdump)
+        fclose(context.fdump);
+    return 0;
 }
 
 int reg_dump(int argc, char* argv[]) {
@@ -126,7 +140,7 @@ int reg_dump(int argc, char* argv[]) {
 
 static void usage()
 {
-    printf ("media-dump Usage: hifi4_media_tool --media-dump $id $file $size\n");
+    printf ("media-dump Usage: hifi4_media_tool --audio-dump $file $ch $rate $bytesSample $str_id\n");
     printf ("reg-dump Usage: hifi4_media_tool --reg-dump $addr $size\n");
     printf ("\n");
 }
@@ -138,7 +152,7 @@ int main(int argc, char* argv[]) {
     struct option long_options[] =
     {
         {"help", no_argument, NULL, 0},
-        {"media-dump", no_argument, NULL, 1},
+        {"audio-dump", no_argument, NULL, 1},
         {"reg-dump", no_argument, NULL, 2},
         {0, 0, 0, 0}
     };
@@ -152,10 +166,10 @@ int main(int argc, char* argv[]) {
             usage();
             break;
         case 1:
-            if (3 == argc - optind){
+            if (5 == argc - optind){
                 audio_dump(argc - optind, &argv[optind]);
             } else {
-            usage();
+                usage();
                 exit(1);
             }
             break;
@@ -163,7 +177,7 @@ int main(int argc, char* argv[]) {
             if (2 == argc - optind){
                 reg_dump(argc - optind, &argv[optind]);
             } else {
-            usage();
+                usage();
                 exit(1);
             }
             break;
