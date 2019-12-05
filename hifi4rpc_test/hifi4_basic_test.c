@@ -128,10 +128,10 @@ int shm_uint_tset(void)
         pVirSrc = AML_MEM_GetVirtAddr(hSrc);
         memcpy((void*)pVirSrc, samples, sizeof(samples));
         AML_MEM_Clean(hSrc, sizeof(samples));
-        Aml_ACodecMemory_Transfer(hDst, hSrc, sizeof(samples));
+        AML_MEM_Transfer(hDst, hSrc, sizeof(samples));
         AML_MEM_Invalidate(hDst, sizeof(samples));
-        pVirDst = AML_MEM_GetVirtAddr(hSrc);
-            if (memcmp((void*)pVirDst, samples, sizeof(samples))) {
+        pVirDst = AML_MEM_GetVirtAddr(hDst);
+        if (memcmp((void*)pVirDst, samples, sizeof(samples))) {
             printf("shm unit test fail, repeat:%d\n",
             SHM_UNIT_TEST_REPEAT - num_repeat);
             break;

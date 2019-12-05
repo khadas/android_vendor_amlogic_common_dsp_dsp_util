@@ -75,7 +75,7 @@ void AML_MEM_Free(AML_MEM_HANDLE hShm);
  *
  * @return
  */
-void Aml_ACodecMemory_Transfer(AML_MEM_HANDLE hDst, AML_MEM_HANDLE hSrc, size_t size);
+void AML_MEM_Transfer(AML_MEM_HANDLE hDst, AML_MEM_HANDLE hSrc, size_t size);
 
 
 /**
@@ -114,7 +114,7 @@ void* AML_MEM_GetPhyAddr(AML_MEM_HANDLE hShm);
  *
  * @return 0 if successful, return -1 if failed
  */
-uint32_t AML_MEM_Clean(AML_MEM_HANDLE hShm, size_t size);
+int32_t AML_MEM_Clean(AML_MEM_HANDLE hShm, size_t size);
 
 /**
  * Invalidate cache for a block of shared memory
@@ -125,18 +125,8 @@ uint32_t AML_MEM_Clean(AML_MEM_HANDLE hShm, size_t size);
  *
  * @return 0 if successful, return -1 if failed
  */
-uint32_t AML_MEM_Invalidate(AML_MEM_HANDLE hShm, size_t size);
+int32_t AML_MEM_Invalidate(AML_MEM_HANDLE hShm, size_t size);
 
-/**
- *  Legacy API, will remove soon
- */
-typedef AML_MEM_HANDLE tAcodecShmHdl;
-#define Aml_ACodecMemory_Allocate AML_MEM_Allocate
-#define Aml_ACodecMemory_Free AML_MEM_Free
-#define Aml_ACodecMemory_GetVirtAddr AML_MEM_GetVirtAddr
-#define Aml_ACodecMemory_GetPhyAddr AML_MEM_GetPhyAddr
-#define Aml_ACodecMemory_Clean AML_MEM_Clean
-#define Aml_ACodecMemory_Inv AML_MEM_Invalidate
 
 #ifdef __cplusplus
  }

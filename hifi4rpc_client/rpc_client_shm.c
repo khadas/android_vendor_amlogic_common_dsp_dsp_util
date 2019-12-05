@@ -132,7 +132,7 @@ void AML_MEM_Free(AML_MEM_HANDLE hShm)
     xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_FREE, &arg, sizeof(arg));
 }
 
-void Aml_ACodecMemory_Transfer(AML_MEM_HANDLE hDst, AML_MEM_HANDLE hSrc, size_t size)
+void AML_MEM_Transfer(AML_MEM_HANDLE hDst, AML_MEM_HANDLE hSrc, size_t size)
 {
     acodec_shm_transfer_st arg;
     arg.hSrc = (AML_MEM_HANDLERpc)hSrc;
@@ -140,6 +140,7 @@ void Aml_ACodecMemory_Transfer(AML_MEM_HANDLE hDst, AML_MEM_HANDLE hSrc, size_t 
     arg.size = size;
     xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_TRANSFER, &arg, sizeof(arg));
 }
+
 
 void AML_MEM_Recycle(int pid)
 {
@@ -161,7 +162,7 @@ void* AML_MEM_GetPhyAddr(AML_MEM_HANDLE hShm)
     return hShm;
 }
 
-uint32_t AML_MEM_Clean(AML_MEM_HANDLE phy, size_t size)
+int32_t AML_MEM_Clean(AML_MEM_HANDLE phy, size_t size)
 {
     int ret = 0;
     struct hifi4_shm_info_t info;
@@ -176,7 +177,7 @@ uint32_t AML_MEM_Clean(AML_MEM_HANDLE phy, size_t size)
     return 0;
 }
 
-uint32_t AML_MEM_Invalidate(AML_MEM_HANDLE phy, size_t size)
+int32_t AML_MEM_Invalidate(AML_MEM_HANDLE phy, size_t size)
 {
     int ret = 0;
     struct hifi4_shm_info_t info;
