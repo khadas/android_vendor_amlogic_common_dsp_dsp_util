@@ -70,7 +70,6 @@ static int Aml_ACodecMemory_Init(void)
     int ret = 0;
     struct hifi4dsp_info_t info;
     pthread_mutex_lock(&gACodecShmPoolInfo.mutex);
-
     if (gACodecShmPoolInfo.fd >= 0) {
         ret = 0;
         goto tab_end;
@@ -99,10 +98,10 @@ static int Aml_ACodecMemory_Init(void)
                                 PROT_READ | PROT_WRITE, MAP_SHARED,
                                 gACodecShmPoolInfo.fd, 0);
 
-    gACodecShmPoolInfo.rpchdl = xAudio_Ipc_init();
     printf("fd = %d, Vir: %p, Phy:0x%lx, size:%zu\n",
     gACodecShmPoolInfo.fd, gACodecShmPoolInfo.ShmVirBase,
     gACodecShmPoolInfo.ShmPhyBase, gACodecShmPoolInfo.size);
+    gACodecShmPoolInfo.rpchdl = xAudio_Ipc_init();
 tab_end:
     pthread_mutex_unlock(&gACodecShmPoolInfo.mutex);
 
@@ -114,13 +113,12 @@ AML_MEM_HANDLE AML_MEM_Allocate(size_t size)
     acodec_shm_alloc_st arg;
     arg.size = size;
     arg.pid = getpid();
-    if (gACodecShmPoolInfo.fd < 0) {
+    if (gACodecShmPoolInfo.rpchdl < 0) {
         if(Aml_ACodecMemory_Init()) {
             printf("Initialize audio codec shm pool fail\n");
             return NULL;
         }
     }
-
     xAIPC(gACodecShmPoolInfo.rpchdl, MBX_CMD_SHM_ALLOC, &arg, sizeof(arg));
     return (AML_MEM_HANDLE)arg.hShm;
 }
