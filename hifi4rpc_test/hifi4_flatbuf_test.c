@@ -42,9 +42,11 @@
 #include "rpc_client_aipc.h"
 #include "aml_flatbuf_api.h"
 #define UNUSED(x) (void)(x)
+#define FLAT_TEST_TYPE_UNIT 0
+#define FLAT_TEST_TYPE_THROUGHPUT 1
 
 char* strRdSamples = "flat buffer api test, this is test samples FlatBufFifoDsp2Arm";
-void* flat_buffers_read(void* arg)
+void* flat_buffers_read_string(void* arg)
 {
     UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
@@ -67,7 +69,7 @@ void* flat_buffers_read(void* arg)
     /*
      * Config to work at block mode
      */
-    hFbuf = AML_FLATBUF_Create("FlatBufFifoDsp2Arm", FLATBUF_FLAG_RD|FLATBUF_FLAG_BLOCK, &config);
+    hFbuf = AML_FLATBUF_Create("FlatBufFifoDsp2Arm", FLATBUF_FLAG_RD | FLATBUF_FLAG_BLOCK, &config);
     if (hFbuf == NULL) {
         printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
         goto exit_capture;
@@ -76,11 +78,11 @@ void* flat_buffers_read(void* arg)
     int i = 0;
     while (strRdSamplesLen > 0) {
         /*
-         * read 2 chars every time
+         * read 2 chars every time, read size should not be larger than config.size
          */
         int size = 2;
         /*
-         * flat buffers works in unblock mode, partial write
+         * flat buffers works in block mode, the call return only when all bytes are read
          */
         size = AML_FLATBUF_Read(hFbuf, &recBuf[i], size);
         //printf("Arm read %d char:%c %c\n", size, recBuf[i], recBuf[i+1]);
@@ -105,7 +107,7 @@ exit_capture:
 
 
 char* strWrSamples = "flat buffer api test, this is test samples FlatBufFifoArm2Dsp";
-void* flat_buffers_write(void* arg)
+void* flat_buffers_write_string(void* arg)
 {
     UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
@@ -128,7 +130,7 @@ void* flat_buffers_write(void* arg)
     /*
      * Config to work at block mode
      */
-    hFbuf = AML_FLATBUF_Create("FlatBufFifoArm2Dsp", FLATBUF_FLAG_WR|FLATBUF_FLAG_BLOCK, &config);
+    hFbuf = AML_FLATBUF_Create("FlatBufFifoArm2Dsp", FLATBUF_FLAG_WR | FLATBUF_FLAG_BLOCK, &config);
     if (hFbuf == NULL) {
         printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
         goto exit_capture;
@@ -137,11 +139,11 @@ void* flat_buffers_write(void* arg)
     int i = 0;
     while (strWrSamplesLen > 0) {
         /*
-         * write 2 chars every time
+         * write 2 chars every time, write size should not be larger than config.size
          */
         int size = 2;
         /*
-         * flat buffers works in unblock mode, partial write
+         * flat buffers works in block mode, the call return only when all bytes are writen
          */
         //printf("Arm Write %d char\n", size);
         size = AML_FLATBUF_Write(hFbuf, &sendBuf[i], size);
@@ -156,18 +158,132 @@ exit_capture:
     return NULL;
 }
 
-int flat_buf_unit_test()
+#define FLAT_TEST_SAMPLE_RATE 16000
+#define FLAT_TEST_PEROID_SEC 60
+#define FLAT_TEST_CH_NUM 3
+#define FLAT_TEST_SMAPLE_BYTE 2
+void* flat_buffers_read_throughput(void* arg)
 {
+    UNUSED(arg);
+    AML_FLATBUF_HANDLE hFbuf = NULL;
+
+    int32_t rdLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PEROID_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SMAPLE_BYTE;
+
+    struct flatbuffer_config config;
+    memset(&config, 0, sizeof(config));
+
+    /*
+     * Config internal CC buffer size.
+     */
+    config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SMAPLE_BYTE;
+    config.phy_addr = 0;
+
+    /*
+     * Config to work at block mode
+     */
+    hFbuf = AML_FLATBUF_Create("FlatBufFifoDsp2Arm", FLATBUF_FLAG_RD, &config);
+    if (hFbuf == NULL) {
+        printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
+        goto exit_capture;
+    }
+
+    void* recBuf = malloc(config.size);
+    while (rdLen > 160) {
+        /*
+         * read size should not be larger than config.size
+         */
+        int size = config.size/2;
+        /*
+         * flat buffers works in block mode, the call return only when all bytes are read
+         */
+        size = AML_FLATBUF_Read(hFbuf, recBuf, size);
+        rdLen -= size;        
+        //printf("Arm_Read_len_%d_size_%d\n", rdLen, size);
+        usleep(1);
+    }
+
+    printf("arm_flat_buffers_read_finish_rdLen:%d\n",
+        FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PEROID_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SMAPLE_BYTE);
+exit_capture:
+    if (recBuf)
+        free(recBuf);
+    if (hFbuf)
+        AML_FLATBUF_Destory(hFbuf);
+    return NULL;
+}
+
+void* flat_buffers_write_throughput(void* arg)
+{
+    UNUSED(arg);
+    AML_FLATBUF_HANDLE hFbuf = NULL;
+
+    int32_t wrLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PEROID_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SMAPLE_BYTE;
+
+    struct flatbuffer_config config;
+    memset(&config, 0, sizeof(config));
+
+    /*
+     * Config internal CC buffer size.
+     */
+    config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SMAPLE_BYTE;
+    config.phy_addr = 0;
+
+    /*
+     * Config to work at block mode
+     */
+    hFbuf = AML_FLATBUF_Create("FlatBufFifoArm2Dsp", FLATBUF_FLAG_WR, &config);
+    if (hFbuf == NULL) {
+        printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
+        goto exit_capture;
+    }
+
+    void* sendBuf = malloc(config.size);
+    while (wrLen > 160) {
+        /*
+         * write size should not be larger than config.size
+         */
+        int size = config.size/2;
+        /*
+         * flat buffers works in block mode, the calls return only when all bytes are writen
+         */
+        size = AML_FLATBUF_Write(hFbuf, sendBuf, size);
+        wrLen -= size;
+        //printf("Arm_Write_len_%d_size_%d\n", wrLen, size);
+        usleep(1);
+    }
+    
+    printf("arm_flat_buffers_write_finish_wrLen:%d\n",
+        FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PEROID_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SMAPLE_BYTE);
+exit_capture:
+    if (sendBuf)
+        free(sendBuf);
+    if (hFbuf)
+        AML_FLATBUF_Destory(hFbuf);
+    return NULL;
+}
+
+
+int flat_buf_test(int argc, char* argv[])
+{
+    UNUSED(argc);
     pthread_t wr_thread;
     pthread_t rd_thread;
+    int32_t test_cmd = atoi(argv[0]);
 
     int handle = xAudio_Ipc_init();
-    xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP, NULL, 0);
-    xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, NULL, 0);
+    xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP, &test_cmd, sizeof(int32_t));
+    xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, &test_cmd, sizeof(int32_t));
     xAudio_Ipc_Deinit(handle);
 
-    pthread_create(&wr_thread, NULL, flat_buffers_write, NULL);
-    pthread_create(&rd_thread, NULL, flat_buffers_read, NULL);
+    if (test_cmd == FLAT_TEST_TYPE_UNIT) {
+        pthread_create(&wr_thread, NULL, flat_buffers_write_string, NULL);
+        pthread_create(&rd_thread, NULL, flat_buffers_read_string, NULL);            
+    } else if (test_cmd == FLAT_TEST_TYPE_THROUGHPUT) {
+        pthread_create(&wr_thread, NULL, flat_buffers_write_throughput, NULL);
+        pthread_create(&rd_thread, NULL, flat_buffers_read_throughput, NULL);            
+    } else {
+        printf("Invalid test type\n");
+    }
     pthread_join(wr_thread,NULL);
     pthread_join(rd_thread,NULL);
 

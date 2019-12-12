@@ -88,7 +88,7 @@ void aml_s16leresampler(int argc, char* argv[]);
 void aml_hifi4_inside_wakeup();
 void aml_hifi4_timer_wakeup();
 int aml_rsp_unit_test(int argc, char* argv[]);
-int flat_buf_unit_test();
+int flat_buf_test(int argc, char* argv[]);
 #ifdef __cplusplus
 }
 #endif
@@ -123,7 +123,7 @@ static void usage()
 
     printf ("\033[1mtimerwakeup Usage:\033[m hifi4rpc_client_test --timerwakeup\n");
 
-    printf ("\033[1mtimerwakeup Usage:\033[m hifi4rpc_client_test --flatbuf-unit\n");
+    printf ("\033[1mtimerwakeup Usage:\033[m hifi4rpc_client_test --flatbuf-unit $test_type[0:unit test, 1:throughput test]\n");
 }
 
 
@@ -274,8 +274,18 @@ int main(int argc, char* argv[]) {
         case 14:
             aml_hifi4_timer_wakeup();
             break;
-        case 15:
-            flat_buf_unit_test();
+        case 15:            
+            if (1 == argc - optind){
+                uint32_t msHighest = 450;
+                TIC;
+                flat_buf_test(argc - optind, &argv[optind]);
+                TOC;
+                printf("flat buf test use:%u ms, performance_result_%s\n",
+                        ms, (ms < msHighest)?"success":"failure");
+            } else {
+                usage();
+                exit(1);
+            }
             break;
         case '?':
             usage();
