@@ -87,6 +87,7 @@ int ipc_uint_tset(void) {
 #define RPC_FUNC_DUMMY 0x1
 #define RPC_FUNC_SQUARE 0x2
 int rpc_unit_tset(int argc, char* argv[]) {
+    pid_t pid = -1;
     tAmlDummyRpc dummy_rpc_param;
     int ret = 0;
     int arpchdl = 0;
@@ -97,7 +98,39 @@ int rpc_unit_tset(int argc, char* argv[]) {
     dummy_rpc_param.func_code = atoi(argv[0]);
     dummy_rpc_param.input_param = atoi(argv[1]);
     dummy_rpc_param.task_sleep_ms = atoi(argv[2]);
+
+    /* fork a child process */
+    pid = fork();
+    if (pid < 0) { /* error occurred */\
+        printf("Fork Failed");
+        return 1;
+    }
+    else if (pid == 0) { /* child process */
+        dummy_rpc_param.task_id = getpid();
+        dummy_rpc_param.func_code = (dummy_rpc_param.func_code == RPC_FUNC_DUMMY)?RPC_FUNC_SQUARE:RPC_FUNC_DUMMY;
+        dummy_rpc_param.task_sleep_ms += 100;
+        printf("task id:%d command issued\n", dummy_rpc_param.task_id);
+        arpchdl = xAudio_Ipc_init();
+        xAIPC(arpchdl, MBX_CMD_RPC_TEST, &dummy_rpc_param, sizeof(dummy_rpc_param));
+        xAudio_Ipc_Deinit(arpchdl);
+        if (dummy_rpc_param.func_code == RPC_FUNC_SQUARE
+            && (dummy_rpc_param.input_param*dummy_rpc_param.input_param) != dummy_rpc_param.output_param) {
+            ret = -1;
+        }
+        printf("RPC_Unit_Test_%s, func code:%d, input param:%d, output param:%d, task id:%d, sleep: %d ms\n",
+                (ret==0)?"SUCESS":"FAIL",
+        dummy_rpc_param.func_code, dummy_rpc_param.input_param,
+        dummy_rpc_param.output_param, dummy_rpc_param.task_id,
+        dummy_rpc_param.task_sleep_ms);
+        return 0;
+    }
+    else { /* parent process */
+        printf("Continue parent process\n");
+    }
+
     dummy_rpc_param.task_id = getpid();
+    usleep(20*1000);
+    printf("task id:%d command issued\n", dummy_rpc_param.task_id);
     arpchdl = xAudio_Ipc_init();
     xAIPC(arpchdl, MBX_CMD_RPC_TEST, &dummy_rpc_param, sizeof(dummy_rpc_param));
     xAudio_Ipc_Deinit(arpchdl);
@@ -105,8 +138,8 @@ int rpc_unit_tset(int argc, char* argv[]) {
         && (dummy_rpc_param.input_param*dummy_rpc_param.input_param) != dummy_rpc_param.output_param) {
         ret = -1;
     }
-    printf("RPC unit test %s, func code:%d, input param:%d, output param:%d, task id:%d, sleep: %d ms\n",
-            (ret==0)?"SUCESS":"FAILE",
+    printf("RPC_Unit_Test_%s, func code:%d, input param:%d, output param:%d, task id:%d, sleep: %d ms\n",
+            (ret==0)?"SUCESS":"FAIL",
     dummy_rpc_param.func_code, dummy_rpc_param.input_param,
     dummy_rpc_param.output_param, dummy_rpc_param.task_id,
     dummy_rpc_param.task_sleep_ms);

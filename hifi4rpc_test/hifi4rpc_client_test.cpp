@@ -161,10 +161,12 @@ int main(int argc, char* argv[]) {
             break;
         case 1:
             {
+                uint32_t msHighest = 30;
                 TIC;
                 ipc_uint_tset();
                 TOC;
-                printf("ipc unit test use:%u ms\n", ms);
+                printf("ipc unit test use:%u ms, ipc_performance_result_%s\n",
+                        ms, (ms < msHighest)?"success":"failure");
             }
             break;
         case 2:
@@ -274,13 +276,13 @@ int main(int argc, char* argv[]) {
         case 14:
             aml_hifi4_timer_wakeup();
             break;
-        case 15:            
+        case 15:
             if (1 == argc - optind){
                 uint32_t msHighest = 450;
                 TIC;
                 flat_buf_test(argc - optind, &argv[optind]);
                 TOC;
-                printf("flat buf test use:%u ms, performance_result_%s\n",
+                printf("flat buf test use:%u ms, flatbuf_performance_result_%s\n",
                         ms, (ms < msHighest)?"success":"failure");
             } else {
                 usage();

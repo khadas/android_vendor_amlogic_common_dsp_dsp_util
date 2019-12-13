@@ -277,12 +277,13 @@ int flat_buf_test(int argc, char* argv[])
 
     if (test_cmd == FLAT_TEST_TYPE_UNIT) {
         pthread_create(&wr_thread, NULL, flat_buffers_write_string, NULL);
-        pthread_create(&rd_thread, NULL, flat_buffers_read_string, NULL);            
+        pthread_create(&rd_thread, NULL, flat_buffers_read_string, NULL);
     } else if (test_cmd == FLAT_TEST_TYPE_THROUGHPUT) {
         pthread_create(&wr_thread, NULL, flat_buffers_write_throughput, NULL);
-        pthread_create(&rd_thread, NULL, flat_buffers_read_throughput, NULL);            
+        pthread_create(&rd_thread, NULL, flat_buffers_read_throughput, NULL);
     } else {
         printf("Invalid test type\n");
+        return -1;
     }
     pthread_join(wr_thread,NULL);
     pthread_join(rd_thread,NULL);
