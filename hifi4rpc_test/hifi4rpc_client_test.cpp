@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
             break;
         case 1:
             {
-                uint32_t msHighest = 30;
+                uint32_t msHighest = 50;
                 TIC;
                 ipc_uint_tset();
                 TOC;
