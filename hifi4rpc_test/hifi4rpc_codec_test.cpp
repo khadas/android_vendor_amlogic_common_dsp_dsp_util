@@ -211,6 +211,10 @@ int aac_offload_dec(int argc, char* argv[]) {
     config.transportFmt = (uint32_t)atoi(argv[0]);
     config.nrOfLayers = 1;
     hdlAac = AmlACodecInit_AacDec(&config);
+    if (!hdlAac) {
+        printf("Failed to allocate aac handler\n");
+        return -1;
+    }
     printf("Init aacdec hdl=%p\n", hdlAac);
 
     // Open the input file.

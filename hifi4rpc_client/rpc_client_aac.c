@@ -77,21 +77,26 @@ static AAC_DECODER_ERROR aac_decoding_exec(tAmlAacDecHdl hAacDec,
 
 tAmlAacDecHdl AmlACodecInit_AacDec(tAmlAacInitCtx *ctx)
 {
-	aacdec_init_st arg;
-	struct tAmlAacCtx* pAmlAacCtx = (struct tAmlAacCtx*)malloc(sizeof(struct tAmlAacCtx));
-	memset(pAmlAacCtx, 0, sizeof(struct tAmlAacCtx));
-	pAmlAacCtx->aipchdl = xAudio_Ipc_init();
-	memset(&arg, 0, sizeof(arg));
-	arg.transportFmt = ctx->transportFmt;
-	arg.nrOfLayers = ctx->nrOfLayers;
-	xAIPC(pAmlAacCtx->aipchdl, MBX_CODEC_AACDEC_API_INIT, &arg, sizeof(arg));
-	pAmlAacCtx->aacsrvhdl = arg.hdl;
-	pAmlAacCtx->hShmIn = AML_MEM_Allocate(AAC_INPUT_SIZE);
-	pAmlAacCtx->hShmOut = AML_MEM_Allocate(PCM_OUTPUT_SIZE);
-	pAmlAacCtx->InitCtx.transportFmt = ctx->transportFmt;
-	pAmlAacCtx->InitCtx.nrOfLayers = ctx->nrOfLayers;
-	pAmlAacCtx->hConf =  AML_MEM_Allocate(ctx->nrOfLayers*MAX_CONFRAW_LENGTH);
-	return (void*)pAmlAacCtx;
+    aacdec_init_st arg;
+    struct tAmlAacCtx* pAmlAacCtx = (struct tAmlAacCtx*)malloc(sizeof(struct tAmlAacCtx));
+    memset(pAmlAacCtx, 0, sizeof(struct tAmlAacCtx));
+    pAmlAacCtx->aipchdl = xAudio_Ipc_init();
+    memset(&arg, 0, sizeof(arg));
+    arg.transportFmt = ctx->transportFmt;
+    arg.nrOfLayers = ctx->nrOfLayers;
+    xAIPC(pAmlAacCtx->aipchdl, MBX_CODEC_AACDEC_API_INIT, &arg, sizeof(arg));
+    pAmlAacCtx->aacsrvhdl = arg.hdl;
+    if (pAmlAacCtx->aacsrvhdl) {
+        pAmlAacCtx->hShmIn = AML_MEM_Allocate(AAC_INPUT_SIZE);
+        pAmlAacCtx->hShmOut = AML_MEM_Allocate(PCM_OUTPUT_SIZE);
+        pAmlAacCtx->InitCtx.transportFmt = ctx->transportFmt;
+        pAmlAacCtx->InitCtx.nrOfLayers = ctx->nrOfLayers;
+        pAmlAacCtx->hConf =  AML_MEM_Allocate(ctx->nrOfLayers*MAX_CONFRAW_LENGTH);
+    } else {
+        free(pAmlAacCtx);
+        pAmlAacCtx = NULL;
+    }
+    return (void*)pAmlAacCtx;
 }
 
 void AmlACodecDeInit_AacDec(tAmlAacDecHdl hAacDec)
