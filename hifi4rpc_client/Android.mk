@@ -16,7 +16,6 @@ LOCAL_SRC_FILES  += \
                 aml_pcm_gain_api.c
 LOCAL_MODULE := libhifi4rpc_client
 LOCAL_SHARED_LIBRARIES += \
-                libc \
                 libhifi4rpc
 LOCAL_MODULE_TAGS := optional
 
