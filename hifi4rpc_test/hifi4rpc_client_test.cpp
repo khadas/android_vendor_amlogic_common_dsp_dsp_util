@@ -81,9 +81,11 @@ int pcm_capture_test(int argc, char* argv[]);
 int offload_vsp_rsp(int argc, char* argv[]);
 int aml_wake_engine_unit_test(int argc, char* argv[]);
 int aml_wake_engine_dspin_test(int argc, char* argv[]);
-int ipc_uint_tset(void);
-int rpc_unit_tset(int argc, char* argv[]) ;
-int shm_uint_tset(void);
+int ipc_uint_test(void);
+int ipc_uint_test1(void);
+
+int rpc_unit_test(int argc, char* argv[]) ;
+int shm_uint_test(void);
 void aml_s16leresampler(int argc, char* argv[]);
 void aml_hifi4_inside_wakeup();
 void aml_hifi4_timer_wakeup();
@@ -123,7 +125,9 @@ static void usage()
 
     printf ("\033[1mtimerwakeup Usage:\033[m hifi4rpc_client_test --timerwakeup\n");
 
-    printf ("\033[1mtimerwakeup Usage:\033[m hifi4rpc_client_test --flatbuf-unit $test_type[0:unit test, 1:throughput test]\n");
+    printf ("\033[1mflatbuffer Usage:\033[m hifi4rpc_client_test --flatbuf-unit $test_type[0:unit test, 1:throughput test]\n");
+
+    printf ("\033[1mipc1 unit test Usage:\033[m hifi4rpc_client_test --ipc1\n");
 }
 
 
@@ -148,6 +152,7 @@ int main(int argc, char* argv[]) {
         {"resampler", no_argument, NULL, 13},
         {"timerwakeup", no_argument, NULL, 14},
         {"flatbuf-unit", no_argument, NULL, 15},
+        {"ipc1", no_argument, NULL, 16},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -163,16 +168,16 @@ int main(int argc, char* argv[]) {
             {
                 uint32_t msHighest = 50;
                 TIC;
-                ipc_uint_tset();
+                ipc_uint_test();
                 TOC;
                 printf("ipc unit test use:%u ms, ipc_performance_result_%s\n",
-                        ms, (ms < msHighest)?"success":"failure");
+                    ms, (ms < msHighest)?"success":"failure");
             }
             break;
         case 2:
             {
                 TIC;
-                shm_uint_tset();
+                shm_uint_test();
                 TOC;
                 printf("shm unit test use %u ms\n", ms);
             }
@@ -235,7 +240,7 @@ int main(int argc, char* argv[]) {
         case 9:
             if (3 == argc - optind){
                 TIC;
-                rpc_unit_tset(argc - optind, &argv[optind]);
+                rpc_unit_test(argc - optind, &argv[optind]);
                 TOC;
                 printf("rpc unit test use:%u ms\n", ms);
             } else {
@@ -287,6 +292,14 @@ int main(int argc, char* argv[]) {
             } else {
                 usage();
                 exit(1);
+            }
+            break;
+        case 16:
+            {
+                TIC;
+                ipc_uint_test1();
+                TOC;
+                printf("ipc unit test use:%u ms\n", ms);
             }
             break;
         case '?':

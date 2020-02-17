@@ -52,7 +52,7 @@
 #define UNUSED(x) (void)(x)
 #define VOICE_CHUNK_LEN_MS 20
 #define IPC_UNIT_TEST_REPEAT 50
-int ipc_uint_tset(void) {
+int ipc_uint_test(void) {
     unsigned int i;
     int num_repeat = IPC_UNIT_TEST_REPEAT;
     const uint8_t send_samples[16] = {
@@ -84,9 +84,35 @@ int ipc_uint_tset(void) {
     return 0;
 }
 
+typedef struct {
+    char element[64];
+    int32_t sum;
+} __attribute__((packed)) ipc_data_st;
+
+
+int ipc_uint_test1(void) {
+    ipc_data_st arg;
+    int arpchdl = xAudio_Ipc_init();
+    int repeat = 1000;
+    while(repeat--) {
+        memset(&arg, 0xff, sizeof(arg));
+        arg.sum = 0;
+        {
+            int i = 0;
+            for (i = 0; i < 64; i++)
+                arg.sum += arg.element[i];
+        }
+        xAIPC(arpchdl, MBX_CMD_IPC_TEST1, &arg, sizeof(arg));
+    }
+
+    xAudio_Ipc_Deinit(arpchdl);
+    return 0;
+}
+
+
 #define RPC_FUNC_DUMMY 0x1
 #define RPC_FUNC_SQUARE 0x2
-int rpc_unit_tset(int argc, char* argv[]) {
+int rpc_unit_test(int argc, char* argv[]) {
     pid_t pid = -1;
     tAmlDummyRpc dummy_rpc_param;
     int ret = 0;
@@ -147,7 +173,7 @@ int rpc_unit_tset(int argc, char* argv[]) {
 }
 
 #define SHM_UNIT_TEST_REPEAT 50
-int shm_uint_tset(void)
+int shm_uint_test(void)
 {
     int num_repeat = SHM_UNIT_TEST_REPEAT;
     char samples[16] = {0};
