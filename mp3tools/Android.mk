@@ -6,7 +6,8 @@ LOCAL_C_INCLUDES += \
                 $(LOCAL_PATH)/system/audio_effects
 LOCAL_SRC_FILES  += \
                  mp3reader.cpp \
-                 primitives.c
+                 primitives.c \
+                 tinysndfile.c
 LOCAL_MODULE := libmp3tools
 LOCAL_SHARED_LIBRARIES += \
                         libc
