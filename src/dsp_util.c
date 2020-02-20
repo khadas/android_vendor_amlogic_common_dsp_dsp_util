@@ -127,7 +127,11 @@ bool dsp_dev_is_exist(struct hifi4dsp_info_t *info)
 bool dsp_firmware_is_exist(struct hifi4dsp_info_t *info)
 {
 	char path[256];
+#ifdef ANDROIDPLATFORM
+	strcpy(path, "/vendor/etc/firmware/hifi4dsp/");
+#else
 	strcpy(path, "/lib/firmware/");
+#endif
 	strcat(path, info->fw_name);
 	if (strlen(info->fw_name) == 0) {
 		printf("param error: invalid dsp firmware (info->fw_name=NULL)\n");

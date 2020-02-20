@@ -1,5 +1,6 @@
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
+LOCAL_CFLAGS+=-DANDROIDPLATFORM
 LOCAL_C_INCLUDES += \
                 $(LOCAL_PATH)/../include
 LOCAL_SRC_FILES  += \
