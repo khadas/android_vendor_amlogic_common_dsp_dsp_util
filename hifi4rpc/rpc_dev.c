@@ -11,6 +11,11 @@ int RPC_init(const char *path, int flags,mode_t mode)
 	return open(path, flags, mode);
 }
 
+int RPC_close(int handle)
+{
+	return close(handle);
+}
+
 void RPC_invoke(int handle, int cmd, void *data, unsigned int len)
 {
 	struct merge_data {

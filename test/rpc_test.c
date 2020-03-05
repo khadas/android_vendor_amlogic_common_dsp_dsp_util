@@ -7,21 +7,58 @@
 #include<stdlib.h>
 #include<string.h>
 #include<getopt.h>
+#include <time.h>
 #include "rpc_dev.h"
 #include "ipc_cmd_type.h"
 
 #define	CMD_HIFI_DSPA	0x1
 #define CMD_HIFI_DSPB	0x2
 
+#define RPCUINT_SIZE	128
+#define RPCUINT3_CNT	100
+
 extern char *optarg;
 extern int optind, opterr, optopt;
 int lopt;
 static char optString[]="d:12h";
 
+struct mbox_uint {
+	uint32_t uintcmd;
+	char data[RPCUINT_SIZE];
+	uint32_t sumdata;
+} __attribute__((packed));
+
+
+#define MSECS_PER_SEC (1000L)
+#define NSECS_PER_MSEC (1000000L)
+
+void aprofiler_get_cur_timestamp(struct timespec* ts)
+{
+    clock_gettime(CLOCK_MONOTONIC, ts);
+    return;
+}
+
+uint32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStart)
+{
+    uint32_t uEndMSec = (uint32_t)(tsEnd->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsEnd->tv_nsec/NSECS_PER_MSEC);
+    uint32_t uStartMSec = (uint32_t)(tsStart->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsStart->tv_nsec/NSECS_PER_MSEC);
+	//printf("uEndMSec:%d, uStartMSec:%d\n", uEndMSec, uStartMSec);
+	return (uEndMSec - uStartMSec);
+}
+#define TIC              \
+    struct timespec bgn, end; \
+    aprofiler_get_cur_timestamp(&bgn)
+
+#define TOC                            \
+    aprofiler_get_cur_timestamp(&end); \
+    uint32_t ms = aprofiler_msec_duration(&end, &bgn)
+
+
 static struct option longOpts[] = {
 	{ "dsp", required_argument, NULL, 'd' },
 	{ "test-1", no_argument, NULL, '1' },
 	{ "test-2", no_argument, NULL, '2' },
+	{ "test-3", no_argument, NULL, '3' },
 	{ "help", no_argument, NULL, 'h' },
 	{ 0, 0, 0, 0 }
 };
@@ -31,6 +68,7 @@ void showUsage() {
 	printf(" -d, --dsp=DSPNAME    The dspname, hifi4a or hifi4b\n");
 	printf(" --test-1             Test 1\n");
 	printf(" --test-2             Test 2\n");
+	printf(" --test-3             test uint3: hifi4 async mbox api 100times\n");
 	printf(" -h, --help           Print this message and exit.\n");
 }
 
@@ -42,6 +80,42 @@ int dsp_dev_is_exist(char *path)
 		printf("dsp dev %s is not exist\n", path);
 		return -1;
 	}
+	return 0;
+}
+
+
+int mbox_uint3(const char *path) {
+	uint32_t i, sumdata = 0;
+	int testcnt = RPCUINT3_CNT;
+	struct mbox_uint sendbuf;
+	int fd =  RPC_init(path, O_RDWR, 0);
+
+	TIC;
+
+	srand((unsigned)time(NULL));
+
+	while (testcnt--) {
+		sendbuf.uintcmd = 0x3;
+		sumdata = 0;
+		for (i = 0; i < RPCUINT_SIZE; i++) {
+			sendbuf.data[i] = rand() % 0xff - 1;
+			sumdata += sendbuf.data[i];
+		}
+		sendbuf.sumdata = sumdata;
+		RPC_invoke(fd, MBX_CMD_RPCUINT_TEST, &sendbuf, sizeof(sendbuf));
+		if (sendbuf.sumdata != sumdata - 1)
+			break;
+	}
+
+	TOC;
+
+	if (testcnt <= 0)
+		printf("mbox unit3 test pass: %d, time: %u ms\n", RPCUINT3_CNT, ms);
+	else
+		printf("mbox unit3 test fail: %d, sumdata:0x%x\n", testcnt, sendbuf.sumdata);
+
+	RPC_close(fd);
+
 	return 0;
 }
 
@@ -68,22 +142,15 @@ int do_cmd(int cmd, int digit)
 	 * 2, access right, support rw
 	 * 3, access group, current not use
 	 * */
-	fd = RPC_init(path, O_RDWR, 0);
 
 	switch (digit) {
 	case '1':
-		/*
-		 * 1, fd get from RPC_init
-		 * 2, MBX_TEST_DEMO cmd defined in ipc_cmd_type.h,
-		 *    use to regonize handle thing, rtos also need
-		 *    add this cmd
-		 * 3, s, buffer base addr
-		 * 4, size, max size is 240 bytes
-		 * */
+		fd = RPC_init(path, O_RDWR, 0);
 		RPC_invoke(fd, MBX_TEST_DEMO, path, sizeof(path));
-		printf("Data %s\n", path);
+		printf("rpc uint case0 %s\n", path);
 	break;
 	case '2':
+		fd = RPC_init(path, O_RDWR, 0);
 		for (;;) {
 			/*
 			 * 1, fd get from RPC_init
@@ -96,6 +163,9 @@ int do_cmd(int cmd, int digit)
 			RPC_invoke(fd, MBX_LISTEN_DEMO, path, sizeof(path));
 			printf("Data %s\n", path);
 		}
+	break;
+	case '3':
+		mbox_uint3(path);
 	break;
 	default:
 	break;
@@ -137,6 +207,7 @@ int main(int argc, char *argv[])
 		break;
 		case '1':
 		case '2':
+		case '3':
 			if (digit_optind != 0) {
 				printf("two digit\n");
 				break;
