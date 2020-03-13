@@ -17,6 +17,7 @@
 #define RPCUINT_SIZE	128
 #define RPCUINT3_CNT	100
 #define RPCUINT4_CNT	10
+#define RPCUINT5_CNT	10
 
 extern char *optarg;
 extern int optind, opterr, optopt;
@@ -61,6 +62,7 @@ static struct option long_opts[] = {
 	{ "test-2", no_argument, NULL, '2' },
 	{ "test-3", no_argument, NULL, '3' },
 	{ "test-4", no_argument, NULL, '4' },
+	{ "test-5", no_argument, NULL, '5' },
 	{ "help", no_argument, NULL, 'h' },
 	{ 0, 0, 0, 0 }
 };
@@ -72,6 +74,7 @@ void show_usage() {
 	printf(" --test-2             Test 2\n");
 	printf(" --test-3             test uint3: hifi4 async mbox api 100 times\n");
 	printf(" --test-4             test uint4: ap 2 dsp, dsp 2 risc-v test\n");
+	printf(" --test-5             test uint4: ap 2 dsp, dsp 2 dsp test\n");
 	printf(" -h, --help           Print this message and exit.\n");
 }
 
@@ -149,6 +152,33 @@ int mbox_uint4(const char *path) {
 	return 0;
 }
 
+int mbox_uint5(const char *path) {
+	int testcnt = RPCUINT5_CNT;
+	struct mbox_uint sendbuf;
+	int fd =  RPC_init(path, O_RDWR, 0);
+
+	TIC;
+
+	while (testcnt--) {
+		memset(&sendbuf, 0x0, sizeof(sendbuf));
+		sendbuf.uintcmd = 0x5;
+		RPC_invoke(fd, MBX_CMD_RPCUINT_TEST, &sendbuf, sizeof(sendbuf));
+		if (sendbuf.sumdata != 0x5)
+			break;
+	}
+
+	TOC;
+
+	if (testcnt <= 0)
+		printf("mbox unit5 test pass: %d, time: %u ms\n", RPCUINT5_CNT, ms);
+	else
+		printf("mbox unit5 test fail: %d, sumdata:0x%x\n", testcnt, sendbuf.sumdata);
+
+	RPC_close(fd);
+
+	return 0;
+}
+
 int do_cmd(int cmd, int digit)
 {
 	int fd;
@@ -199,6 +229,9 @@ int do_cmd(int cmd, int digit)
 	break;
 	case '4':
 		mbox_uint4(path);
+	break;
+	case '5':
+		mbox_uint5(path);
 	break;
 	default:
 	break;
