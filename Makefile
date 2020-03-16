@@ -51,21 +51,17 @@ APPS = $(HIFI4_TOOL) $(HIFI4RPC_CLIENT_TEST) $(HIFI4RPC_TEST) $(DSP_UTIL)
 EXPORT_HEADERFILES = ./include/rpc_client_mp3.h \
 	./include/rpc_client_shm.h \
 	./include/rpc_client_aipc.h \
-	./include/aipc_type.h \
 	./include/pvmp3decoder_api.h \
 	./include/pvmp3_audio_type_defs.h \
 	./include/pvmp3_dec_defs.h \
-	./include/ipc_cmd_type.h \
-        ./include/FDK_audio.h \
+    ./include/FDK_audio.h \
 	./include/aacdecoder_lib.h \
-	./include/aipc_type.h \
 	./include/genericStds.h \
-	./include/ipc_cmd_type.h \
 	./include/machine_type.h \
 	./include/rpc_client_aac.h \
 	./include/syslib_channelMapDescr.h \
 	./include/aml_wakeup_api.h \
-	./include/aml_audio_util.h
+	./include/aml_pcm_gain_api.h
 
 # rules
 all: $(LIBS) $(APPS)

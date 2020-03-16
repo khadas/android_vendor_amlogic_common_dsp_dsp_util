@@ -91,6 +91,7 @@ void aml_hifi4_inside_wakeup();
 void aml_hifi4_timer_wakeup();
 int aml_rsp_unit_test(int argc, char* argv[]);
 int flat_buf_test(int argc, char* argv[]);
+int aml_pcm_gain_unit_test(int argc, char* argv[]);
 #ifdef __cplusplus
 }
 #endif
@@ -128,6 +129,8 @@ static void usage()
     printf ("\033[1mflatbuffer Usage:\033[m hifi4rpc_client_test --flatbuf-unit $test_type[0:unit test, 1:throughput test]\n");
 
     printf ("\033[1mipc1 unit test Usage:\033[m hifi4rpc_client_test --ipc1\n");
+
+    printf ("\033[1mpcm-gain Usage:\033[m hifi4rpc_client_test --pcm-gain $sampleRate $bitdepth $channels $gain $input $output\n");
 }
 
 
@@ -152,7 +155,8 @@ int main(int argc, char* argv[]) {
         {"resampler", no_argument, NULL, 13},
         {"timerwakeup", no_argument, NULL, 14},
         {"flatbuf-unit", no_argument, NULL, 15},
-        {"ipc1", no_argument, NULL, 16},
+        {"ipc1", no_argument, NULL, 16},        
+        {"pcm-gain", no_argument, NULL, 17},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -302,6 +306,14 @@ int main(int argc, char* argv[]) {
                 printf("ipc unit test use:%u ms\n", ms);
             }
             break;
+        case 17:
+            {
+                TIC;
+                aml_pcm_gain_unit_test(argc - optind, &argv[optind]);
+                TOC;
+                printf("gain unit test use:%u ms\n", ms);
+            }
+        break;
         case '?':
             usage();
             exit(1);

@@ -12,7 +12,8 @@ LOCAL_SRC_FILES  += \
                 hifi4rpc_codec_test.cpp \
                 hifi4rpc_pcm_test.c \
                 hifi4rpc_rsp_test.c \
-                hifi4rpc_vsp_test.c
+                hifi4rpc_vsp_test.c \
+                hifi4rpc_gain_test.c
 LOCAL_MODULE := hifi4rpc_client_test
 LOCAL_SHARED_LIBRARIES += \
                         libc \
