@@ -42,7 +42,7 @@ extern "C" {
 typedef struct _PCMGAIN PCMGAIN;
 
 typedef union {
-    /*The unit of Gain is dB, from -10 to 10, 1 dB step*/
+    /*The unit of Gain is dB, from -18 to 18, 1 dB step*/
     int32_t Gain;
     int32_t ChNum;
     int32_t SampRate;
