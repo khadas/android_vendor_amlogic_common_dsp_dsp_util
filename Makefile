@@ -49,12 +49,13 @@ LIBS = $(LIBHIFI4RPC_CLIENT) $(LIBHIFI4RPC) $(LIBMP3TOOLS)
 APPS = $(HIFI4_TOOL) $(HIFI4RPC_CLIENT_TEST) $(HIFI4RPC_TEST) $(DSP_UTIL)
 
 EXPORT_HEADERFILES = ./include/rpc_client_mp3.h \
+	./include/aipc_type.h \
 	./include/rpc_client_shm.h \
 	./include/rpc_client_aipc.h \
 	./include/pvmp3decoder_api.h \
 	./include/pvmp3_audio_type_defs.h \
 	./include/pvmp3_dec_defs.h \
-    ./include/FDK_audio.h \
+	./include/FDK_audio.h \
 	./include/aacdecoder_lib.h \
 	./include/genericStds.h \
 	./include/machine_type.h \
