@@ -276,14 +276,14 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
                 usleep(500);
             }
             else if (ret != AWE_RET_OK) {
-                printf("Unknow error when execute AML_AWE_PushBuf, ret=%d\n", ret);
+                printf("Unknown error when execute AML_AWE_PushBuf, ret=%d\n", ret);
                 break;
             } else {
                 uFeedChunk++;
                 uTotalBytesRead += nbyteRead;
             }
         } else {
-            printf("Invalide sync mode:%d\n", syncMode);
+            printf("Invalid sync mode:%d\n", syncMode);
             break;
         }
     }
@@ -506,7 +506,7 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 
     awe_ret = AML_AWE_GetParam(gAwe, AWE_PARA_SUPPORT_SAMPLE_RATES, &awe_para);
     if (awe_ret != AWE_RET_OK) {
-        printf("Get supported samperate fail\n");
+        printf("Get supported sample rate fail\n");
         ret = -1;
         goto end_tab;
     }
@@ -514,7 +514,7 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
     awe_para.inSampRate = awe_para.supportSampRates[0];
     awe_ret = AML_AWE_SetParam(gAwe, AWE_PARA_IN_SAMPLE_RATE, &awe_para);
     if (awe_ret != AWE_RET_OK) {
-        printf("Set samperate fail\n");
+        printf("Set sample rate fail\n");
         ret = -1;
         goto end_tab;
     }

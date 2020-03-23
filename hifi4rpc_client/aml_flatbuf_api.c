@@ -47,7 +47,7 @@ typedef struct _FLATBUFS {
     AML_MEM_HANDLE hShm;
 } FLATBUFS;
 
-AML_FLATBUF_HANDLE AML_FLATBUF_Create(char* buf_id, int flags,
+AML_FLATBUF_HANDLE AML_FLATBUF_Create(const char* buf_id, int flags,
                                     struct flatbuffer_config* config)
 {
     aml_flatbuf_create_st arg;
@@ -99,7 +99,7 @@ size_t AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size)
 }
 
 
-size_t AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size)
+size_t AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, const void* buf, size_t size)
 {
     aml_flatbuf_write_st arg;
     FLATBUFS * pFbufCtx = (FLATBUFS*)hFbuf;
@@ -125,7 +125,7 @@ size_t AML_FLATBUF_GetFullness(AML_FLATBUF_HANDLE hFbuf)
     return arg.size;
 }
 
-size_t AML_FALTBUF_GetSpace(AML_FLATBUF_HANDLE hFbuf)
+size_t AML_FLATBUF_GetSpace(AML_FLATBUF_HANDLE hFbuf)
 {
     aml_flatbuf_size_st arg;
     FLATBUFS * pFbufCtx = (FLATBUFS*)hFbuf;

@@ -25,7 +25,7 @@
  */
 
 /**
- * offload mp3 api implmentation
+ * offload mp3 api implementation
  *
  * Author: Wenjie Zhou <Wenjie.Zhou@amlogic.com>
  * Version:

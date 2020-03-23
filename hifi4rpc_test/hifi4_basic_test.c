@@ -144,7 +144,7 @@ int rpc_unit_test(int argc, char* argv[]) {
             ret = -1;
         }
         printf("RPC_Unit_Test_%s, func code:%d, input param:%d, output param:%d, task id:%d, sleep: %d ms\n",
-                (ret==0)?"SUCESS":"FAIL",
+                (ret==0)?"SUCCESS":"FAIL",
         dummy_rpc_param.func_code, dummy_rpc_param.input_param,
         dummy_rpc_param.output_param, dummy_rpc_param.task_id,
         dummy_rpc_param.task_sleep_ms);
@@ -165,7 +165,7 @@ int rpc_unit_test(int argc, char* argv[]) {
         ret = -1;
     }
     printf("RPC_Unit_Test_%s, func code:%d, input param:%d, output param:%d, task id:%d, sleep: %d ms\n",
-            (ret==0)?"SUCESS":"FAIL",
+            (ret==0)?"SUCCESS":"FAIL",
     dummy_rpc_param.func_code, dummy_rpc_param.input_param,
     dummy_rpc_param.output_param, dummy_rpc_param.task_id,
     dummy_rpc_param.task_sleep_ms);

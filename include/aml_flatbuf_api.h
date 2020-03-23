@@ -36,6 +36,11 @@
 #ifndef _AML_FLATBUF_API_
 #define _AML_FLATBUF_API_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stddef.h>
 #include <stdint.h>
 
 /** A flag that specifies that the flat buffer support write operation.
@@ -79,7 +84,7 @@ typedef void* AML_FLATBUF_HANDLE;
  *
  * @return a flat buffer handler if success, otherwise return 0
  */
-AML_FLATBUF_HANDLE AML_FLATBUF_Create(char* buf_id, int flags,
+AML_FLATBUF_HANDLE AML_FLATBUF_Create(const char* buf_id, int flags,
                                     struct flatbuffer_config* config);
 
 /**
@@ -130,7 +135,7 @@ size_t AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size);
  *
  * @return real size of the write
  */
-size_t AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size);
+size_t AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, const void* buf, size_t size);
 
 /**
  * Get flat buffer fullness
@@ -148,7 +153,11 @@ size_t AML_FLATBUF_GetFullness(AML_FLATBUF_HANDLE hFbuf);
  *
  * @return flat buffer space in bytes
  */
-size_t AML_FALTBUF_GetSpace(AML_FLATBUF_HANDLE hFbuf);
+size_t AML_FLATBUF_GetSpace(AML_FLATBUF_HANDLE hFbuf);
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif

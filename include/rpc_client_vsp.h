@@ -52,7 +52,7 @@ typedef void* AML_VSP_HANDLE;
  *
  * @return instance handler if successful, otherwise return NULL
  */
-AML_VSP_HANDLE AML_VSP_Init(char* vsp_id, void* param, size_t param_size);
+AML_VSP_HANDLE AML_VSP_Init(const char* vsp_id, void* param, size_t param_size);
 
 /**
  * Destory and deinitialize instance context.

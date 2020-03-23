@@ -35,6 +35,11 @@
 #ifndef _AML_RESAMPLER_H
 #define _AML_RESAMPLER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 typedef struct resampler resampler_handle;
 
 resampler_handle *aml_resampler_init(
@@ -52,6 +57,10 @@ int aml_resampler(
 int aml_resampler_destroy(
         resampler_handle *p_resampler   /* I    Input sampling rate (Hz)                                    */
 );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /*  */
 

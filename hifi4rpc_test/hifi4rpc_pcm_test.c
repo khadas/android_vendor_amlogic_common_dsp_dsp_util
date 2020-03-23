@@ -115,7 +115,7 @@ int pcm_play_test(int argc, char* argv[])
     AML_MEM_HANDLE hShmBuf;
 
     if (argc != 1) {
-        printf("Invalid paremeter number, argc=%d\n", argc);
+        printf("Invalid parameter number, argc=%d\n", argc);
         return -1;
     }
 

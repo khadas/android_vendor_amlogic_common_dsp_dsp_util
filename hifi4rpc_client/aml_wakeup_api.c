@@ -52,7 +52,7 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 typedef enum {
-    /* Set to IDEL in Create*/
+    /* Set to IDLE in Create*/
     AWE_STATUS_IDLE,
     /* Set to EXECUTE in Open*/
     AWE_STATUS_EXECUTE,
@@ -130,7 +130,7 @@ static void aml_ch_extract_s16le(int16_t *dst, int16_t *src, uint32_t nSample,
 {
     uint32_t i;
     if (chidx > chn || !dst || !src) {
-        printf("Invaldie param: dst:%p, src:%p, chn:%d, chidx:%d",
+        printf("Invalid param: dst:%p, src:%p, chn:%d, chidx:%d",
               dst, src, chn, chidx);
     }
     for (i = 0; i < nSample; i++) {
@@ -207,7 +207,7 @@ void* awe_thread_process_data(void * data)
             /*wait sema here, thread unblock once user fill new pcm*/
             //printf("Need handle %d voice chunk, wr:%d, rd:%d\n", numOfChunk, awe->userFillBufWr, awe->userFillBufRd);
             while(numOfChunk--) {
-                /*hanlder wrap around, copy the wrapped data to the of the buff, to ensure continuous*/
+                /*handle wrap around, copy the wrapped data to the of the buff, to ensure continuous*/
                 if ((awe->userFillBufSize -  awe->userFillBufRd) < awe->inWorkBufLen*(awe->micInChannels + awe->refInChannels)) {
                     uint32_t block1 = awe->userFillBufSize -  awe->userFillBufRd;
                     uint32_t block2 = awe->inWorkBufLen*(awe->micInChannels + awe->refInChannels) - block1;
@@ -310,7 +310,7 @@ AWE_RET AML_AWE_Create(AWE **awe)
     AWE *pawe = NULL;
     AWE_CHECK_NULL(awe);
     if (*awe != NULL) {
-        printf("Dagerous, *awe should be initialized as NULL, *awe=%p\n", *awe);
+        printf("Dangerous, *awe should be initialized as NULL, *awe=%p\n", *awe);
         return AWE_RET_ERR_NOT_SUPPORT;
     }
     pawe = calloc(1, sizeof(AWE));

@@ -45,7 +45,7 @@ struct tAmlVspCtx {
     int32_t opsidx;
 };
 
-AML_VSP_HANDLE AML_VSP_Init(char* vsp_id, void* param, size_t param_size)
+AML_VSP_HANDLE AML_VSP_Init(const char* vsp_id, void* param, size_t param_size)
 {
     vsp_init_st arg;
     struct tAmlVspCtx* pAmlVspCtx = (struct tAmlVspCtx*)malloc(sizeof(struct tAmlVspCtx));

@@ -159,15 +159,15 @@ exit_capture:
 }
 
 #define FLAT_TEST_SAMPLE_RATE 16000
-#define FLAT_TEST_PEROID_SEC 60
+#define FLAT_TEST_PERIOD_SEC 60
 #define FLAT_TEST_CH_NUM 3
-#define FLAT_TEST_SMAPLE_BYTE 2
+#define FLAT_TEST_SAMPLE_BYTE 2
 void* flat_buffers_read_throughput(void* arg)
 {
     UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
 
-    int32_t rdLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PEROID_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SMAPLE_BYTE;
+    int32_t rdLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
 
     struct flatbuffer_config config;
     memset(&config, 0, sizeof(config));
@@ -175,11 +175,11 @@ void* flat_buffers_read_throughput(void* arg)
     /*
      * Config internal CC buffer size.
      */
-    config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SMAPLE_BYTE;
+    config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
     config.phy_addr = 0;
 
     /*
-     * Config to work at block mode
+     * Config to work at non-block mode
      */
     hFbuf = AML_FLATBUF_Create("FlatBufFifoDsp2Arm", FLATBUF_FLAG_RD, &config);
     if (hFbuf == NULL) {
@@ -194,16 +194,16 @@ void* flat_buffers_read_throughput(void* arg)
          */
         int size = config.size/2;
         /*
-         * flat buffers works in block mode, the call return only when all bytes are read
+         * flat buffers works in non-block mode, the call return with partial read
          */
         size = AML_FLATBUF_Read(hFbuf, recBuf, size);
-        rdLen -= size;        
+        rdLen -= size;
         //printf("Arm_Read_len_%d_size_%d\n", rdLen, size);
         usleep(1);
     }
 
     printf("arm_flat_buffers_read_finish_rdLen:%d\n",
-        FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PEROID_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SMAPLE_BYTE);
+        FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE);
 exit_capture:
     if (recBuf)
         free(recBuf);
@@ -217,7 +217,7 @@ void* flat_buffers_write_throughput(void* arg)
     UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
 
-    int32_t wrLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PEROID_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SMAPLE_BYTE;
+    int32_t wrLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
 
     struct flatbuffer_config config;
     memset(&config, 0, sizeof(config));
@@ -225,11 +225,11 @@ void* flat_buffers_write_throughput(void* arg)
     /*
      * Config internal CC buffer size.
      */
-    config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SMAPLE_BYTE;
+    config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
     config.phy_addr = 0;
 
     /*
-     * Config to work at block mode
+     * Config to work at non-block mode
      */
     hFbuf = AML_FLATBUF_Create("FlatBufFifoArm2Dsp", FLATBUF_FLAG_WR, &config);
     if (hFbuf == NULL) {
@@ -244,16 +244,16 @@ void* flat_buffers_write_throughput(void* arg)
          */
         int size = config.size/2;
         /*
-         * flat buffers works in block mode, the calls return only when all bytes are writen
+         * flat buffers works in non-block mode, the calls return with partial write
          */
         size = AML_FLATBUF_Write(hFbuf, sendBuf, size);
         wrLen -= size;
         //printf("Arm_Write_len_%d_size_%d\n", wrLen, size);
         usleep(1);
     }
-    
+
     printf("arm_flat_buffers_write_finish_wrLen:%d\n",
-        FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PEROID_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SMAPLE_BYTE);
+        FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE);
 exit_capture:
     if (sendBuf)
         free(sendBuf);
