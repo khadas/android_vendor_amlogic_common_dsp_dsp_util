@@ -21,7 +21,7 @@
 extern char *optarg;
 extern int optind, opterr, optopt;
 int lopt;
-static char optString[]="d:12h";
+static char opt_string[]="d:12h";
 
 struct mbox_uint {
 	uint32_t uintcmd;
@@ -35,15 +35,15 @@ struct mbox_uint {
 
 void aprofiler_get_cur_timestamp(struct timespec* ts)
 {
-    clock_gettime(CLOCK_MONOTONIC, ts);
-    return;
+	clock_gettime(CLOCK_MONOTONIC, ts);
+	return;
 }
 
 uint32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStart)
 {
-    uint32_t uEndMSec = (uint32_t)(tsEnd->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsEnd->tv_nsec/NSECS_PER_MSEC);
-    uint32_t uStartMSec = (uint32_t)(tsStart->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsStart->tv_nsec/NSECS_PER_MSEC);
-	//printf("uEndMSec:%d, uStartMSec:%d\n", uEndMSec, uStartMSec);
+	uint32_t uEndMSec = (uint32_t)(tsEnd->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsEnd->tv_nsec/NSECS_PER_MSEC);
+	uint32_t uStartMSec = (uint32_t)(tsStart->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsStart->tv_nsec/NSECS_PER_MSEC);
+
 	return (uEndMSec - uStartMSec);
 }
 #define TIC              \
@@ -55,7 +55,7 @@ uint32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStar
     uint32_t ms = aprofiler_msec_duration(&end, &bgn)
 
 
-static struct option longOpts[] = {
+static struct option long_opts[] = {
 	{ "dsp", required_argument, NULL, 'd' },
 	{ "test-1", no_argument, NULL, '1' },
 	{ "test-2", no_argument, NULL, '2' },
@@ -65,17 +65,17 @@ static struct option longOpts[] = {
 	{ 0, 0, 0, 0 }
 };
 
-void showUsage() {
+void show_usage() {
 	printf("Usage:[options]\n");
 	printf(" -d, --dsp=DSPNAME    The dspname, hifi4a or hifi4b\n");
 	printf(" --test-1             Test 1\n");
 	printf(" --test-2             Test 2\n");
-	printf(" --test-3             test uint3: hifi4 async mbox api 100times\n");
+	printf(" --test-3             test uint3: hifi4 async mbox api 100 times\n");
 	printf(" --test-4             test uint4: ap 2 dsp, dsp 2 risc-v test\n");
 	printf(" -h, --help           Print this message and exit.\n");
 }
 
-int dsp_dev_is_exist(char *path)
+int dsp_dev_is_exist(const char *path)
 {
 	if (access(path,F_OK) != -1) {
 		printf("dsp dev %s is exist\n", path);
@@ -185,7 +185,7 @@ int do_cmd(int cmd, int digit)
 			/*
 			 * 1, fd get from RPC_init
 			 * 2, MBX_LISTEN_DEMO cmd defined in ipc_cmd_type.h,
-			 *    use to regonize handle thing, rtos also need
+			 *    use to recognize handle thing, rtos also need
 			 *    add this cmd
 			 * 3, s, buffer base addr
 			 * 4, size, max size is 240 bytes
@@ -215,13 +215,13 @@ int main(int argc, char *argv[])
 	int option_index;
 
 	if (argc < 2) {
-		showUsage();
+		show_usage();
 		return -1;
 	}
 
 	while (1) {
-		c = getopt_long(argc, argv, optString,
-				longOpts, &option_index);
+		c = getopt_long(argc, argv, opt_string,
+				long_opts, &option_index);
 		if (c < 0)
 			break;
 
@@ -234,7 +234,7 @@ int main(int argc, char *argv[])
 				cmd |= CMD_HIFI_DSPB;
 			} else {
 				printf("not support dsp name\n");
-				showUsage();
+				show_usage();
 				return 0;
 			}
 		break;
@@ -252,11 +252,11 @@ int main(int argc, char *argv[])
 			digit_optind = c;
 		break;
 		case 'h':
-			showUsage();
+			show_usage();
 			return 0;
 		break;
 		default:
-			showUsage();
+			show_usage();
 			return -1;
 		break;
 		};
