@@ -143,7 +143,7 @@ void* flat_buffers_write_string(void* arg)
          */
         int size = 2;
         /*
-         * flat buffers works in block mode, the call return only when all bytes are writen
+         * flat buffers works in block mode, the call return only when all bytes are written
          */
         //printf("Arm Write %d char\n", size);
         size = AML_FLATBUF_Write(hFbuf, &sendBuf[i], size);

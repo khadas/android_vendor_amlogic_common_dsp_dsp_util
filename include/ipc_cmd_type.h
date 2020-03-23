@@ -18,7 +18,7 @@
 #define MBX_MSG_FUNC(msgcode)          ((msgcode) & (0x3FF))
 
 /*******************************************************************************
- * Define moudle type here, 6bits valid
+ * Define module type here, 6bits valid
  ******************************************************************************/
 #define MBX_SYSTEM          0x0
 #define MBX_CODEC           0x1
@@ -125,7 +125,7 @@
 #define WAKE_ENGINE_DEMO    0x3
 
 /*******************************************************************************
- * Mssage Comopsition
+ * Message Composition
  ******************************************************************************/
 #define MBX_CMD_HIFI4_PS        __MBX_COMPOSE_MSG(MBX_SYSTEM, CMD_HIFI4PS)
 #define MBX_CMD_MEMINFO         __MBX_COMPOSE_MSG(MBX_SYSTEM, CMD_MEMINFO)

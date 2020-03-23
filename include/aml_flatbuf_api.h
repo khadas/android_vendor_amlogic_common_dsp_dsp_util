@@ -52,7 +52,7 @@ extern "C" {
 #define FLATBUF_FLAG_RD 0x10000000
 
 /* MASK to block caller, till all requested bytes are finished
- * Masking this flag simultenously in both side is not recommanded,
+ * Masking this flag simultaneously in both side is not recommended,
  * since this possibly cause dead lock
  */
 #define FLATBUF_FLAG_BLOCK 0x00000002
@@ -60,7 +60,7 @@ extern "C" {
 #define BUF_STR_ID_MAX 32
 struct flatbuffer_config {
     /* Physical address of the internal CC buffer
-   * If user has pre-allocated a bufer, pass in its physical address.
+   * If user has pre-allocated a buffer, pass in its physical address.
    * Otherwise pass in NULL.
    */
     void* phy_addr;
@@ -88,7 +88,7 @@ AML_FLATBUF_HANDLE AML_FLATBUF_Create(const char* buf_id, int flags,
                                     struct flatbuffer_config* config);
 
 /**
- * Destory a flat buffer
+ * Destroy a flat buffer
  *
  * @param[in] flat buffer handler
  *

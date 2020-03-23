@@ -25,7 +25,7 @@
  */
 
 /**
- * offload mp3 decoder
+ * HiFi IPC API
  *
  * Author: Wenjie Zhou <Wenjie.Zhou@amlogic.com>
  * Version:
