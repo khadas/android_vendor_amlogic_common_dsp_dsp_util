@@ -11,7 +11,7 @@ int RPC_init(const char *path, int flags,mode_t mode)
 	return open(path, flags, mode);
 }
 
-int RPC_close(int handle)
+int RPC_deinit(int handle)
 {
 	return close(handle);
 }

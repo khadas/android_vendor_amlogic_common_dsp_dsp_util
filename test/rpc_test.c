@@ -120,7 +120,7 @@ int mbox_uint3(const char *path) {
 	else
 		printf("mbox unit3 test fail: %d, sumdata:0x%x\n", testcnt, sendbuf.sumdata);
 
-	RPC_close(fd);
+	RPC_deinit(fd);
 
 	return 0;
 }
@@ -147,7 +147,7 @@ int mbox_uint4(const char *path) {
 	else
 		printf("mbox unit4 test fail: %d, sumdata:0x%x\n", testcnt, sendbuf.sumdata);
 
-	RPC_close(fd);
+	RPC_deinit(fd);
 
 	return 0;
 }
@@ -174,7 +174,7 @@ int mbox_uint5(const char *path) {
 	else
 		printf("mbox unit5 test fail: %d, sumdata:0x%x\n", testcnt, sendbuf.sumdata);
 
-	RPC_close(fd);
+	RPC_deinit(fd);
 
 	return 0;
 }
