@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
+#include <time.h>
 #include "aipc_type.h"
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
@@ -44,27 +45,21 @@
 #define UNUSED(x) (void)(x)
 #define FLAT_TEST_TYPE_UNIT 0
 #define FLAT_TEST_TYPE_THROUGHPUT 1
+#define min(x, y)	(((x) > (y))?(y):(x))
 
 char* strRdSamples = "flat buffer api test, this is test samples FlatBufFifoDsp2Arm";
 void* flat_buffers_read_string(void* arg)
 {
     UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
-    AML_MEM_HANDLE hShm = 0;
 
     int strRdSamplesLen = strlen(strRdSamples) + 1;
     char* recBuf = (char*)malloc(strRdSamplesLen);
 
     struct flatbuffer_config config;
     memset(&config, 0, sizeof(config));
-
-    /*
-     * Pre-allocate a block of shared memory as internal CC buffer.
-     * The config is ignored if id FlatBufFifoDsp2Arm already exists.
-     */
     config.size = strRdSamplesLen/2;
-    hShm = AML_MEM_Allocate(config.size);
-    config.phy_addr = AML_MEM_GetPhyAddr(hShm);
+    config.phy_addr = 0;
 
     /*
      * Config to work at block mode
@@ -76,16 +71,17 @@ void* flat_buffers_read_string(void* arg)
     }
 
     int i = 0;
+    srand(time(NULL));
     while (strRdSamplesLen > 0) {
         /*
-         * read 2 chars every time, read size should not be larger than config.size
+         * read random number of chars every time
          */
-        int size = 2;
+        int size = rand() % config.size;
+        size = min(size, strRdSamplesLen);
         /*
          * flat buffers works in block mode, the call return only when all bytes are read
          */
         size = AML_FLATBUF_Read(hFbuf, &recBuf[i], size);
-        //printf("Arm read %d char:%c %c\n", size, recBuf[i], recBuf[i+1]);
         strRdSamplesLen -= size;
         i += size;
     }
@@ -98,8 +94,6 @@ void* flat_buffers_read_string(void* arg)
 exit_capture:
     if (recBuf)
         free(recBuf);
-    if (hShm)
-        AML_MEM_Free(hShm);
     if (hFbuf)
         AML_FLATBUF_Destory(hFbuf);
     return NULL;
@@ -111,21 +105,14 @@ void* flat_buffers_write_string(void* arg)
 {
     UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
-    AML_MEM_HANDLE hShm = 0;
 
     int strWrSamplesLen = strlen(strWrSamples) + 1;
     char* sendBuf = strWrSamples;
 
     struct flatbuffer_config config;
     memset(&config, 0, sizeof(config));
-
-    /*
-     * Pre-allocate a block of shared memory as internal CC buffer.
-     * The config is ignored if id FlatBufFifoArm2Dsp already exists.
-     */
     config.size = strWrSamplesLen/2;
-    hShm = AML_MEM_Allocate(config.size);
-    config.phy_addr = AML_MEM_GetPhyAddr(hShm);
+    config.phy_addr = 0;
 
     /*
      * Config to work at block mode
@@ -137,22 +124,21 @@ void* flat_buffers_write_string(void* arg)
     }
 
     int i = 0;
+    srand(time(NULL));
     while (strWrSamplesLen > 0) {
         /*
-         * write 2 chars every time, write size should not be larger than config.size
+         * write random number of chars every time
          */
-        int size = 2;
+        int size = rand() % config.size;
+        size = min(size, strWrSamplesLen);
         /*
          * flat buffers works in block mode, the call return only when all bytes are written
          */
-        //printf("Arm Write %d char\n", size);
         size = AML_FLATBUF_Write(hFbuf, &sendBuf[i], size);
         strWrSamplesLen -= size;
         i += size;
     }
 exit_capture:
-    if (hShm)
-        AML_MEM_Free(hShm);
     if (hFbuf)
         AML_FLATBUF_Destory(hFbuf);
     return NULL;
@@ -179,27 +165,26 @@ void* flat_buffers_read_throughput(void* arg)
     config.phy_addr = 0;
 
     /*
-     * Config to work at non-block mode
+     * Config to work at block mode
      */
-    hFbuf = AML_FLATBUF_Create("FlatBufFifoDsp2Arm", FLATBUF_FLAG_RD, &config);
+    hFbuf = AML_FLATBUF_Create("FlatBufFifoDsp2Arm", FLATBUF_FLAG_RD | FLATBUF_FLAG_BLOCK, &config);
     if (hFbuf == NULL) {
         printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
         goto exit_capture;
     }
 
     void* recBuf = malloc(config.size);
-    while (rdLen > 160) {
+    while (rdLen > 0) {
         /*
          * read size should not be larger than config.size
          */
         int size = config.size/2;
+        size = min(rdLen, size);
         /*
-         * flat buffers works in non-block mode, the call return with partial read
+         * flat buffers works in block mode, the call return only when all bytes are read out
          */
         size = AML_FLATBUF_Read(hFbuf, recBuf, size);
         rdLen -= size;
-        //printf("Arm_Read_len_%d_size_%d\n", rdLen, size);
-        usleep(1);
     }
 
     printf("arm_flat_buffers_read_finish_rdLen:%d\n",
@@ -229,27 +214,26 @@ void* flat_buffers_write_throughput(void* arg)
     config.phy_addr = 0;
 
     /*
-     * Config to work at non-block mode
+     * Config to work at block mode
      */
-    hFbuf = AML_FLATBUF_Create("FlatBufFifoArm2Dsp", FLATBUF_FLAG_WR, &config);
+    hFbuf = AML_FLATBUF_Create("FlatBufFifoArm2Dsp", FLATBUF_FLAG_WR | FLATBUF_FLAG_BLOCK, &config);
     if (hFbuf == NULL) {
         printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
         goto exit_capture;
     }
 
     void* sendBuf = malloc(config.size);
-    while (wrLen > 160) {
+    while (wrLen > 0) {
         /*
          * write size should not be larger than config.size
          */
         int size = config.size/2;
+        size = min(wrLen, size);
         /*
-         * flat buffers works in non-block mode, the calls return with partial write
+         * flat buffers works in block mode, the calls return only when all bytes are written in.
          */
         size = AML_FLATBUF_Write(hFbuf, sendBuf, size);
         wrLen -= size;
-        //printf("Arm_Write_len_%d_size_%d\n", wrLen, size);
-        usleep(1);
     }
 
     printf("arm_flat_buffers_write_finish_wrLen:%d\n",
