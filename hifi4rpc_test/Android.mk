@@ -19,6 +19,7 @@ LOCAL_MODULE := hifi4rpc_client_test
 LOCAL_SHARED_LIBRARIES += \
                         libhifi4rpc_client \
                         libhifi4rpc \
-                        libmp3tools
+                        libmp3tools \
+                        libtinyalsa
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_EXECUTABLE)

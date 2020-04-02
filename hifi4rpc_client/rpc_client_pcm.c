@@ -96,6 +96,17 @@ int pcm_client_writei(tAmlPcmhdl hdl, const void *data, unsigned int count)
     return arg.out_ret;
 }
 
+int bcm_client_write(int aipchdl, const void *data, unsigned int count) {
+    pcm_io_st arg;
+    memset(&arg, 0, sizeof(arg));
+    arg.pcm = (xpointer)NULL;
+    arg.data = (xpointer)data;
+    arg.count = count;
+    arg.out_ret = 0;
+    xAIPC(aipchdl, MBX_TINYALSA_WRITEI, &arg, sizeof(arg));
+    return arg.out_ret;
+}
+
 int pcm_client_readi(tAmlPcmhdl hdl, const void *data, unsigned int count)
 {
     pcm_io_st arg;

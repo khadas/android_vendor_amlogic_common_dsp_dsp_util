@@ -77,6 +77,8 @@ extern "C" {
 #endif
 int pcm_play_buildin(void);
 int pcm_play_test(int argc, char* argv[]);
+int bcm_file_test(int argc, char *argv[]);
+int bcm_pcm_test(int argc, char* argv[]);
 int pcm_capture_test(int argc, char* argv[]);
 int offload_vsp_rsp(int argc, char* argv[]);
 int aml_wake_engine_unit_test(int argc, char* argv[]);
@@ -138,6 +140,10 @@ static void usage()
     printf ("\033[1mpcm-gain Usage:\033[m hifi4rpc_client_test --pcm-gain $sampleRate $bitdepth $channels $gain $input $output\n");
 
     printf ("\033[1mtbuf Usage:\033[m hifi4rpc_client_test --tbuf $input $output0 $output1\n");
+
+    printf ("\033[1mpcm-file Usage:\033[m hifi4rpc_client_test --pcm-file read pcm file /data/out_lb.wav.raw, and send to DSP's tinycapturer\n");
+    
+	printf ("\033[1mpcm-cap Usage:\033[m hifi4rpc_client_test --pcm-cap  read pcm data from tinyalsa, and send to DSP's tinycapturer\n");
 }
 
 
@@ -167,6 +173,8 @@ int main(int argc, char* argv[]) {
         {"ipc2", no_argument, NULL, 18},
         {"shmloopback", no_argument, NULL, 19},
         {"tbuf", no_argument, NULL, 20},
+        {"pcm-file", no_argument, NULL, 21},
+        {"pcm-cap", no_argument, NULL, 22},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -335,6 +343,16 @@ int main(int argc, char* argv[]) {
         case 20:
             {
                 hifi4_tbuf_test(argc - optind, &argv[optind]);
+            }
+            break;
+		case 21:
+			{
+				bcm_file_test(argc - optind, &argv[optind]);
+			}
+			break;
+        case 21:
+            {
+                bcm_pcm_test(argc - optind, &argv[optind]);
             }
             break;
         case '?':

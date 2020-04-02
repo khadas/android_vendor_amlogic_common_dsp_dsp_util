@@ -21,6 +21,8 @@ long pcm_client_get_latency(tAmlPcmhdl hdl);
 uint32_t pcm_client_frame_to_bytes(tAmlPcmhdl hdl, uint32_t fr);
 uint32_t pcm_client_bytes_to_frame(tAmlPcmhdl hdl, uint32_t b);
 
+int bcm_client_write(int aipchdl, const void *data, unsigned int count);
+
 #ifdef __cplusplus
 }
 #endif

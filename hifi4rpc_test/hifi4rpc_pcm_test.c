@@ -143,6 +143,129 @@ int pcm_play_test(int argc, char* argv[])
     return 0;
 }
 
+long get_us() {
+    struct timespec tp;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
+    long long us =  tp.tv_sec * 1000 * 1000 + tp.tv_nsec / (1000);
+    printf("cur us=%lld\n", us);
+    return us;
+}
+
+int bcm_file_test(int argc, char* argv[])
+{
+    printf("all arg begin\n");
+    int i;
+    for (i = 0; i != argc; i++) {
+        printf("arg[%d]=%s\n", i, argv[i]);
+    }
+    printf("all arg end\n");
+    int hdl = xAudio_Ipc_init();
+    AML_MEM_HANDLE hShmBuf;
+
+    FILE *fileplay = fopen("/data/out_lb.wav.raw", "rb");
+    if (fileplay == NULL) {
+        printf("failed to open played pcm file\n");
+        return -1;
+    }
+    const int ms = 16;
+    const int oneshot = 48 * ms; // 48KHz
+    uint32_t size = oneshot * 16 * 4; // 16channel, 32bit
+    uint32_t r;
+    hShmBuf = AML_MEM_Allocate(size);
+    void *buf = AML_MEM_GetVirtAddr(hShmBuf);
+    void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
+    int loop = 128 * 3;
+    i = 0;
+    while ((r = fread(buf, 1, size, fileplay))) {
+        i++;
+        if (i == loop) {
+            printf("xxx quit\n");
+            break;
+        }
+        if (r != size) {
+            rewind(fileplay);
+            continue;
+            // printf("drop last chunk data len=%u\n", r);
+            // break;
+        }
+        AML_MEM_Clean(phybuf, r);
+        bcm_client_write(hdl, phybuf, r);
+        usleep(16 * 1000);
+        //printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
+        //   ms, p, buf, oneshot, fr);
+    }
+    AML_MEM_Free(hShmBuf);
+    fclose(fileplay);
+    xAudio_Ipc_Deinit(hdl);
+    return 0;
+}
+
+// !!! depend on libtinyalsa, only link in Android.mk !!!
+int bcm_pcm_test(int argc, char* argv[])
+{
+    int i;
+    for (i = 0; i != argc; i++) {
+        printf("arg[%d]=%s\n", i, argv[i]);
+    }
+#if 1
+    int hdl = xAudio_Ipc_init();
+    AML_MEM_HANDLE hShmBuf;
+
+    struct pcm_config cfg;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.channels = 16;
+    cfg.rate = 48000;
+    cfg.period_size = 1024;
+    cfg.period_count = 80;
+    // !!! linux's TINYALSA side's header file's, PCM_FORMAT_S32_LE is 1
+    // !!! DSP's TINYALSA side's headefile, PCM_FORMAT_S32_LE is 7
+    cfg.format = 1;
+    cfg.start_threshold = 0;
+    cfg.stop_threshold = 0;
+    cfg.silence_threshold = 0;
+    uint32_t card = 0, device = 8, flags = PCM_IN;
+    printf("ch=%d rate=%d period=%dx%d format=%d thr=%d,%d,%d card=%d device=%d\n",
+           cfg.channels, cfg.rate, cfg.period_size, cfg.period_count,
+           cfg.format, cfg.start_threshold, cfg.stop_threshold,
+           cfg.silence_threshold, card, device);
+    struct pcm *pcm = pcm_open(card, device, flags, &cfg);
+    if (pcm == NULL) {
+        printf("failed to open pcm\n");
+        return -1;
+    }
+    const int ms = 16;
+    const int oneshot = 48 * ms; // 48KHz
+    uint32_t size = oneshot * 16 * 4; // 16channel, 32bit
+    uint32_t r, cnt = 0, times = 0;
+    hShmBuf = AML_MEM_Allocate(size);
+    void *buf = AML_MEM_GetVirtAddr(hShmBuf);
+    void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
+    int loop = 128 * 3;
+    i = 0;
+    while ((r = pcm_read(pcm, buf, size))) {
+        i++;
+        if (i == loop) {
+            printf("loop=%d times, quit\n", loop);
+            break;
+        }
+        if (r != size) {
+            printf("expect size=%u, but get r=%u, quit\n", size, r);
+            break;
+        }
+        cnt += r;
+        times++;
+        AML_MEM_Clean(phybuf, r);
+        bcm_client_write(hdl, phybuf, r);
+        //printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
+        //   ms, p, buf, oneshot, fr);
+    }
+    printf("send cnt=%u bytes times=%u to dsp\n", cnt, times);
+    AML_MEM_Free(hShmBuf);
+    pcm_close(pcm);
+    xAudio_Ipc_Deinit(hdl);
+#endif
+    return 0;
+}
 
 #define PCM_CAPTURE_SAMPLES (48000*20)
 int pcm_capture_test(int argc, char* argv[])
