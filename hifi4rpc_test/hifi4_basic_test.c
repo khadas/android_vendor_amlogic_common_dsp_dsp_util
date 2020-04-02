@@ -254,6 +254,7 @@ void* thread_write_data(void * arg)
         xAIPC(aipc, MBX_CMD_IOBUF_ARM2DSP, &io_arg, sizeof(io_arg));
     }
     xAudio_Ipc_Deinit(aipc);
+    AML_MEM_Free(hShm);
 
     return NULL;
 }

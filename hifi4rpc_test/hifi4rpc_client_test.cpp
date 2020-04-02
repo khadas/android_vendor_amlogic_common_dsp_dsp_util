@@ -92,6 +92,7 @@ void aml_hifi4_timer_wakeup();
 int aml_rsp_unit_test(int argc, char* argv[]);
 int flat_buf_test(int argc, char* argv[]);
 int aml_pcm_gain_unit_test(int argc, char* argv[]);
+int hifi4_tbuf_test(int argc, char* argv[]);
 #ifdef __cplusplus
 }
 #endif
@@ -135,6 +136,8 @@ static void usage()
     printf ("\033[1mflatbuffer Usage:\033[m hifi4rpc_client_test --flatbuf-unit $test_type[0:unit test, 1:throughput test]\n");
 
     printf ("\033[1mpcm-gain Usage:\033[m hifi4rpc_client_test --pcm-gain $sampleRate $bitdepth $channels $gain $input $output\n");
+
+    printf ("\033[1mtbuf Usage:\033[m hifi4rpc_client_test --tbuf $input $output0 $output1\n");
 }
 
 
@@ -163,6 +166,7 @@ int main(int argc, char* argv[]) {
         {"pcm-gain", no_argument, NULL, 17},
         {"ipc2", no_argument, NULL, 18},
         {"shmloopback", no_argument, NULL, 19},
+        {"tbuf", no_argument, NULL, 20},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -329,6 +333,11 @@ int main(int argc, char* argv[]) {
         case 19:
             {
                 shm_loopback_test(argc - optind, &argv[optind]);
+            }
+            break;
+        case 20:
+            {
+                hifi4_tbuf_test(argc - optind, &argv[optind]);
             }
             break;
         case '?':
