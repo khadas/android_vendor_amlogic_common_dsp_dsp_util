@@ -349,16 +349,17 @@ int main(int argc, char* argv[]) {
                 hifi4_tbuf_test(argc - optind, &argv[optind]);
             }
             break;
-		case 21:
-			{
-				bcm_file_test(argc - optind, &argv[optind]);
-			}
+        case 21:
+            bcm_file_test(argc - optind, &argv[optind]);
 			break;
         case 22:
             bcm_pcm_test(argc - optind, &argv[optind]);
             break;
         case 23:
             xaf_test(argc - optind, &argv[optind]);
+            break;
+        case 23:
+            hifi4_tbuf_test(argc - optind, &argv[optind]);
             break;
         case '?':
             usage();
