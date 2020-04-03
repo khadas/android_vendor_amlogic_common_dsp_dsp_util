@@ -81,9 +81,8 @@ int pcm_capture_test(int argc, char* argv[]);
 int offload_vsp_rsp(int argc, char* argv[]);
 int aml_wake_engine_unit_test(int argc, char* argv[]);
 int aml_wake_engine_dspin_test(int argc, char* argv[]);
-int ipc_uint_test(void);
-int ipc_uint_test1(void);
-
+int ipc_uint_test(int id);
+int ipc_uint_test1(int id);
 int rpc_unit_test(int argc, char* argv[]) ;
 int shm_uint_test(void);
 void aml_s16leresampler(int argc, char* argv[]);
@@ -98,6 +97,10 @@ int aml_pcm_gain_unit_test(int argc, char* argv[]);
 static void usage()
 {
     printf ("\033[1mipc unit test usage:\033[m hifi4rpc_client_test --ipc\n");
+
+    printf ("\033[1mipc1 unit test Usage:\033[m hifi4rpc_client_test --ipc1\n");
+
+    printf ("\033[1mipc2 unit test Usage:\033[m hifi4rpc_client_test --ipc2 $hifiId[0:HiFiA, 1:HiFiB]\n");
 
     printf ("\033[1mrpc unit test usage:\033[m hifi4rpc_client_test --rpc $func_code[1:dummy, 2:square] $input_param $sleep_time[ms]\n");
 
@@ -128,8 +131,6 @@ static void usage()
 
     printf ("\033[1mflatbuffer Usage:\033[m hifi4rpc_client_test --flatbuf-unit $test_type[0:unit test, 1:throughput test]\n");
 
-    printf ("\033[1mipc1 unit test Usage:\033[m hifi4rpc_client_test --ipc1\n");
-
     printf ("\033[1mpcm-gain Usage:\033[m hifi4rpc_client_test --pcm-gain $sampleRate $bitdepth $channels $gain $input $output\n");
 }
 
@@ -155,8 +156,9 @@ int main(int argc, char* argv[]) {
         {"resampler", no_argument, NULL, 13},
         {"timerwakeup", no_argument, NULL, 14},
         {"flatbuf-unit", no_argument, NULL, 15},
-        {"ipc1", no_argument, NULL, 16},        
+        {"ipc1", no_argument, NULL, 16},
         {"pcm-gain", no_argument, NULL, 17},
+        {"ipc2", no_argument, NULL, 18},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -172,7 +174,7 @@ int main(int argc, char* argv[]) {
             {
                 uint32_t msHighest = 50;
                 TIC;
-                ipc_uint_test();
+                ipc_uint_test(0);
                 TOC;
                 printf("ipc unit test use:%u ms, ipc_performance_result_%s\n",
                     ms, (ms < msHighest)?"success":"failure");
@@ -301,7 +303,7 @@ int main(int argc, char* argv[]) {
         case 16:
             {
                 TIC;
-                ipc_uint_test1();
+                ipc_uint_test1(0);
                 TOC;
                 printf("ipc unit test use:%u ms\n", ms);
             }
@@ -312,6 +314,11 @@ int main(int argc, char* argv[]) {
                 aml_pcm_gain_unit_test(argc - optind, &argv[optind]);
                 TOC;
                 printf("gain unit test use:%u ms\n", ms);
+            }
+        case 18:
+            {
+                ipc_uint_test(atoi(argv[optind]));
+                ipc_uint_test1(atoi(argv[optind]));
             }
         break;
         case '?':

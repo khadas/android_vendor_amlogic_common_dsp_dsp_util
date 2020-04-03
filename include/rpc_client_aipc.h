@@ -40,6 +40,7 @@ extern "C" {
 #endif
 
 int xAudio_Ipc_init(void);
+int xAudio_Ipc_Init(int id);
 void xAudio_Ipc_Deinit(int handle);
 int xAIPC(int handle, unsigned int cmd, void *buf, size_t size);
 

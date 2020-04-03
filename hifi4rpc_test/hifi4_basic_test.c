@@ -52,7 +52,7 @@
 #define UNUSED(x) (void)(x)
 #define VOICE_CHUNK_LEN_MS 20
 #define IPC_UNIT_TEST_REPEAT 50
-int ipc_uint_test(void) {
+int ipc_uint_test(int id) {
     unsigned int i;
     int num_repeat = IPC_UNIT_TEST_REPEAT;
     const uint8_t send_samples[16] = {
@@ -62,7 +62,7 @@ int ipc_uint_test(void) {
         0x11, 0xf1, 0x21, 0x1e, 0x13, 0x1d, 0x14, 0xc2, 0x52, 0xb2, 0x62, 0x2a, 0x27, 0x29, 0x20, 0x38
     };
     char ipc_data[16];
-    int arpchdl = xAudio_Ipc_init();
+    int arpchdl = xAudio_Ipc_Init(id);
     while(num_repeat--) {
         memcpy(ipc_data, send_samples, sizeof(ipc_data));
         xAIPC(arpchdl, MBX_CMD_IPC_TEST, (void*)ipc_data, sizeof(ipc_data));
@@ -84,15 +84,16 @@ int ipc_uint_test(void) {
     return 0;
 }
 
+
 typedef struct {
     char element[64];
     int32_t sum;
 } __attribute__((packed)) ipc_data_st;
 
 
-int ipc_uint_test1(void) {
+int ipc_uint_test1(int id) {
     ipc_data_st arg;
-    int arpchdl = xAudio_Ipc_init();
+    int arpchdl = xAudio_Ipc_Init(id);
     int repeat = 1000;
     while(repeat--) {
         memset(&arg, 0xff, sizeof(arg));

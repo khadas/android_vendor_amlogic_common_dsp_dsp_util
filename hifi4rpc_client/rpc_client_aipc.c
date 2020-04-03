@@ -35,7 +35,19 @@
 #include "rpc_dev.h"
 
 int xAudio_Ipc_init(void) {
-	return RPC_init("/dev/dsp_dev",O_RDWR, 0);
+    return RPC_init("/dev/dsp_dev",O_RDWR, 0);
+}
+
+
+int xAudio_Ipc_Init(int id) {
+    if (id == 0)
+        return RPC_init("/dev/dsp_dev",O_RDWR, 0);
+    else if (id == 1)
+        return RPC_init("/dev/dspb_dev",O_RDWR, 0);
+    else {
+        printf("Invalid rpc device:%d\n", id);
+        return -1;
+    }
 }
 
 void xAudio_Ipc_Deinit(int handle) {
@@ -43,7 +55,7 @@ void xAudio_Ipc_Deinit(int handle) {
 }
 
 int xAIPC(int handle, unsigned int cmd, void *buf, size_t size) {
-	RPC_invoke(handle, cmd, buf, size);
-	return 0;
+    RPC_invoke(handle, cmd, buf, size);
+    return 0;
 }
 
