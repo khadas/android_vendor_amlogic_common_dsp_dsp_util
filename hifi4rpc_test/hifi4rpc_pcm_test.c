@@ -147,7 +147,7 @@ long get_us() {
     struct timespec tp;
     clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
     long long us =  tp.tv_sec * 1000 * 1000 + tp.tv_nsec / (1000);
-    printf("cur us=%lld\n", us);
+    // printf("cur us=%lld\n", us);
     return us;
 }
 
@@ -174,23 +174,25 @@ int bcm_file_test(int argc, char* argv[])
     hShmBuf = AML_MEM_Allocate(size);
     void *buf = AML_MEM_GetVirtAddr(hShmBuf);
     void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
-    int loop = 128 * 3;
-    i = 0;
-    while ((r = fread(buf, 1, size, fileplay))) {
-        i++;
-        if (i == loop) {
-            printf("xxx quit\n");
-            break;
-        }
+    int loop = 128 * 10; // test 10.24s
+    long d0, d1, e;
+    for (i = 0; i != loop; i++) {
+        d0 = get_us();
+        r = fread(buf, 1, size, fileplay);
         if (r != size) {
             rewind(fileplay);
-            continue;
-            // printf("drop last chunk data len=%u\n", r);
-            // break;
+            r = fread(buf, 1, size, fileplay);
         }
         AML_MEM_Clean(phybuf, r);
         bcm_client_write(hdl, phybuf, r);
-        usleep(16 * 1000);
+        d1 = get_us();
+        e = 16 * 1000 - (d1 - d0);
+        // if (i % (128 * 4) == 0) {
+        //     printf("real=%ld wait=%ld\n", d1 - d0, e);
+        // }
+        if (e > 0) {
+            usleep(e);
+        }
         //printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
         //   ms, p, buf, oneshot, fr);
     }
@@ -215,8 +217,8 @@ int bcm_pcm_test(int argc, char* argv[])
     memset(&cfg, 0, sizeof(cfg));
     cfg.channels = 16;
     cfg.rate = 48000;
-    cfg.period_size = 1024;
-    cfg.period_count = 80;
+    cfg.period_size = 256;
+    cfg.period_count = 4;
     // !!! linux's TINYALSA side's header file's, PCM_FORMAT_S32_LE is 1
     // !!! DSP's TINYALSA side's headefile, PCM_FORMAT_S32_LE is 7
     cfg.format = 1;
@@ -233,37 +235,43 @@ int bcm_pcm_test(int argc, char* argv[])
         printf("failed to open pcm\n");
         return -1;
     }
+    printf("pcm=%p\n", pcm);
+    if (!pcm_is_ready(pcm)) {
+        printf("pcm isn't ready\n");
+        return -2;
+    }
     const int ms = 16;
     const int oneshot = 48 * ms; // 48KHz
     uint32_t size = oneshot * 16 * 4; // 16channel, 32bit
-    uint32_t r, cnt = 0, times = 0;
+    uint32_t r;
     hShmBuf = AML_MEM_Allocate(size);
     void *buf = AML_MEM_GetVirtAddr(hShmBuf);
     void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
-    int loop = 128 * 3;
-    i = 0;
-    while ((r = pcm_read(pcm, buf, size))) {
-        i++;
-        if (i == loop) {
-            printf("loop=%d times, quit\n", loop);
-            break;
-        }
+    int loop = 128 * 10;
+    for (i = 0; i != loop; i++) {
+        r = pcm_read(pcm, buf, size);
         if (r != size) {
             printf("expect size=%u, but get r=%u, quit\n", size, r);
             break;
         }
-        cnt += r;
-        times++;
         AML_MEM_Clean(phybuf, r);
         bcm_client_write(hdl, phybuf, r);
         //printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
         //   ms, p, buf, oneshot, fr);
     }
-    printf("send cnt=%u bytes times=%u to dsp\n", cnt, times);
+    printf("i=%d loop=%d\n", i, loop);
     AML_MEM_Free(hShmBuf);
     pcm_close(pcm);
     xAudio_Ipc_Deinit(hdl);
 #endif
+    return 0;
+}
+
+#include "aipc_type.h"
+int xaf_test(int argc, char **argv) {
+    int h = xAudio_Ipc_init();
+    xAIPC(h, MBX_CMD_XAF_TEST, NULL, 0);
+    xAudio_Ipc_Deinit(h);
     return 0;
 }
 

@@ -4,7 +4,6 @@
 #include "rpc_client_aipc.h"
 #include "aipc_type.h"
 #include "rpc_client_mp3.h"
-#include "aipc_type.h"
 #include "rpc_client_pcm.h"
 #include "rpc_client_shm.h"
 
