@@ -43,6 +43,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <pthread.h>
 #include <signal.h>
 #include "aipc_type.h"
 #include "rpc_client_shm.h"
@@ -217,6 +218,125 @@ int shm_uint_test(void)
 
     return 0;
 }
+
+
+#define SAMPLE_MS 48
+#define SAMPLE_BYTES 2
+#define SAMPLE_CH 16
+#define CHUNK_MS 4
+#define CHUNK_BYTES (SAMPLE_MS*SAMPLE_BYTES*SAMPLE_CH*CHUNK_MS)
+typedef struct _io_thread_context_ {
+    int id;
+    FILE* fp;
+    size_t fileSize;
+} io_thread_context;
+void* thread_write_data(void * arg)
+{
+    void* pVir = NULL;
+    void* pPhy = NULL;
+    io_thread_context* pWriteCtx = (io_thread_context*)arg;
+    AML_MEM_HANDLE hShm = AML_MEM_Allocate(CHUNK_BYTES);
+    int aipc = xAudio_Ipc_Init(pWriteCtx->id);
+    pVir = AML_MEM_GetVirtAddr(hShm);
+    pPhy = AML_MEM_GetPhyAddr(hShm);
+    int bExit = 0;
+    while (!bExit) {
+        int nRead = 0;
+        nRead = fread((void*)pVir, 1, CHUNK_BYTES, pWriteCtx->fp);
+        if (nRead != CHUNK_BYTES) {
+            printf("write thread EOF\n");
+            bExit = 1;
+        }
+        AML_MEM_Clean(pPhy, CHUNK_BYTES);
+        pcm_io_st io_arg;
+        io_arg.data = (xpointer)pPhy;
+        io_arg.count = nRead;
+        xAIPC(aipc, MBX_CMD_IOBUF_ARM2DSP, &io_arg, sizeof(io_arg));
+    }
+    xAudio_Ipc_Deinit(aipc);
+
+    return NULL;
+}
+
+void* thread_read_data(void * arg)
+{
+    void* pVir = NULL;
+    void* pPhy = NULL;
+    io_thread_context* pReadCtx = (io_thread_context*)arg;
+    AML_MEM_HANDLE hShm = AML_MEM_Allocate(CHUNK_BYTES);
+    int aipc = xAudio_Ipc_Init(pReadCtx->id);
+    pVir = AML_MEM_GetVirtAddr(hShm);
+    pPhy = AML_MEM_GetPhyAddr(hShm);
+    while (pReadCtx->fileSize) {
+        pcm_io_st io_arg;
+        io_arg.data = (xpointer)pPhy;
+        io_arg.count = CHUNK_BYTES;
+        xAIPC(aipc, MBX_CMD_IOBUF_DSP2ARM, &io_arg, sizeof(io_arg));
+        AML_MEM_Invalidate(pPhy, io_arg.count);
+
+        fwrite((void*)pVir, 1, io_arg.count, pReadCtx->fp);
+        pReadCtx->fileSize -= io_arg.count;
+    }
+    xAudio_Ipc_Deinit(aipc);
+    AML_MEM_Free(hShm);
+    return NULL;
+}
+
+int shm_loopback_test(int argc, char* argv[])
+{
+    int aipc = -1;
+    int fileSize = 0;
+    io_thread_context writeCtx;
+    io_thread_context readCtx;
+    if (argc != 3) {
+        printf("Invalid parameter\n");
+        return -1;
+    }
+    int id = atoi(argv[0]);
+    FILE* fpIn = fopen(argv[1], "rb");
+    if (fpIn == NULL) {
+        printf("Failed to open %s\n", argv[1]);
+        return -1;
+    }
+
+    FILE* fpOut = fopen(argv[2], "w+b");
+    if (fpOut == NULL) {
+        printf("Failed to open %s\n", argv[2]);
+        fclose(fpOut);
+        return -1;
+    }
+
+    fseek(fpIn, 0, SEEK_END);
+    fileSize = ftell(fpIn);
+    fseek(fpIn, 0, SEEK_SET);
+
+    writeCtx.fileSize = fileSize;
+    writeCtx.fp = fpIn;
+    writeCtx.id = id;
+
+    readCtx.fileSize = fileSize;
+    readCtx.fp = fpOut;
+    readCtx.id = id;
+
+    pthread_t writeThread;
+    pthread_t readThread;
+    pthread_create(&writeThread, NULL, thread_write_data, (void*)&writeCtx);
+    pthread_create(&readThread, NULL, thread_read_data, (void*)&readCtx);
+
+    aipc = xAudio_Ipc_Init(id);
+    pcm_io_st io_arg;
+    io_arg.count = fileSize;
+    xAIPC(aipc, MBX_CMD_IOBUF_DEMO, &io_arg, sizeof(io_arg));
+    xAudio_Ipc_Deinit(aipc);
+
+    pthread_join(writeThread,NULL);
+    pthread_join(readThread,NULL);
+
+    fclose(fpIn);
+    fclose(fpOut);
+    return 0;
+}
+
 
 #define CHUNK_SAMPLES 1024
 void aml_s16leresampler(int argc, char* argv[])

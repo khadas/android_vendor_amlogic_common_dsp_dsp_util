@@ -85,6 +85,7 @@ int ipc_uint_test(int id);
 int ipc_uint_test1(int id);
 int rpc_unit_test(int argc, char* argv[]) ;
 int shm_uint_test(void);
+int shm_loopback_test(int argc, char* argv[]);
 void aml_s16leresampler(int argc, char* argv[]);
 void aml_hifi4_inside_wakeup();
 void aml_hifi4_timer_wakeup();
@@ -105,6 +106,8 @@ static void usage()
     printf ("\033[1mrpc unit test usage:\033[m hifi4rpc_client_test --rpc $func_code[1:dummy, 2:square] $input_param $sleep_time[ms]\n");
 
     printf ("\033[1mshared memory unit test usage:\033[m hifi4rpc_client_test --shm\n");
+
+    printf ("\033[1mshared memory loopback test usage:\033[m hifi4rpc_client_test --shmloopback $hifiId $input $output\n");
 
     printf ("\033[1mmp3dec Usage:\033[m hifi4rpc_client_test --mp3dec $input_file $output_file\n");
 
@@ -159,6 +162,7 @@ int main(int argc, char* argv[]) {
         {"ipc1", no_argument, NULL, 16},
         {"pcm-gain", no_argument, NULL, 17},
         {"ipc2", no_argument, NULL, 18},
+        {"shmloopback", no_argument, NULL, 19},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -315,12 +319,18 @@ int main(int argc, char* argv[]) {
                 TOC;
                 printf("gain unit test use:%u ms\n", ms);
             }
+            break;
         case 18:
             {
                 ipc_uint_test(atoi(argv[optind]));
                 ipc_uint_test1(atoi(argv[optind]));
             }
-        break;
+            break;
+        case 19:
+            {
+                shm_loopback_test(argc - optind, &argv[optind]);
+            }
+            break;
         case '?':
             usage();
             exit(1);
