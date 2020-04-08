@@ -217,7 +217,7 @@ int bcm_pcm_test(int argc, char* argv[])
     memset(&cfg, 0, sizeof(cfg));
     cfg.channels = 16;
     cfg.rate = 48000;
-    cfg.period_size = 256;
+    cfg.period_size = 128;
     cfg.period_count = 4;
     // !!! linux's TINYALSA side's header file's, PCM_FORMAT_S32_LE is 1
     // !!! DSP's TINYALSA side's headefile, PCM_FORMAT_S32_LE is 7
@@ -236,10 +236,10 @@ int bcm_pcm_test(int argc, char* argv[])
         return -1;
     }
     printf("pcm=%p\n", pcm);
-    if (!pcm_is_ready(pcm)) {
-        printf("pcm isn't ready\n");
-        return -2;
-    }
+    // if (!pcm_is_ready(pcm)) {
+    //     printf("pcm isn't ready\n");
+    //     return -2;
+    // }
     const int ms = 16;
     const int oneshot = 48 * ms; // 48KHz
     uint32_t size = oneshot * 16 * 4; // 16channel, 32bit
@@ -249,13 +249,17 @@ int bcm_pcm_test(int argc, char* argv[])
     void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
     int loop = 128 * 10;
     for (i = 0; i != loop; i++) {
+        /** Linux tinyalsa's pcm_read, it return error code
+         * When r=0, it means successfully get full filled buffer */
         r = pcm_read(pcm, buf, size);
-        if (r != size) {
+        if (r != 0) {
             printf("expect size=%u, but get r=%u, quit\n", size, r);
             break;
         }
-        AML_MEM_Clean(phybuf, r);
-        bcm_client_write(hdl, phybuf, r);
+        // int32_t *sp = (char *)buf;
+        // printf("%08x %08x %08x %08x\n", sp[0], sp[1], sp[2], sp[3]);
+        AML_MEM_Clean(phybuf, size);
+        bcm_client_write(hdl, phybuf, size);
         //printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
         //   ms, p, buf, oneshot, fr);
     }
