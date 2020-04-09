@@ -46,9 +46,9 @@
 //#define TBUF_DEBUG printf
 
 #define SAMPLE_MS 48
-#define SAMPLE_BYTES 2
+#define SAMPLE_BYTES 4
 #define SAMPLE_CH 16
-#define CHUNK_MS 4
+#define CHUNK_MS 16
 #define CHUNK_BYTES (SAMPLE_MS*SAMPLE_BYTES*SAMPLE_CH*CHUNK_MS)
 #define TBUF_SIZE (10*CHUNK_BYTES)
 

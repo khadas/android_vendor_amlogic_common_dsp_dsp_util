@@ -80,6 +80,7 @@ int pcm_play_test(int argc, char* argv[]);
 int bcm_file_test(int argc, char *argv[]);
 int bcm_pcm_test(int argc, char* argv[]);
 int xaf_test(int argc, char *argv[]);
+int xaf_dump(int argc, char **argv);
 int pcm_capture_test(int argc, char* argv[]);
 int offload_vsp_rsp(int argc, char* argv[]);
 int aml_wake_engine_unit_test(int argc, char* argv[]);
@@ -111,7 +112,7 @@ static void usage()
 
     printf ("\033[1mshared memory unit test usage:\033[m hifi4rpc_client_test --shm\n");
 
-    printf ("\033[1mshared memory loopback test usage:\033[m hifi4rpc_client_test --shmloopback $hifiId $input $output\n");
+    printf ("\033[1mshared memory loopback test usage:\033[m hifi4rpc_client_test --shmloopback $hifiId[0:HiFiA, 1:HiFiB] $input $output\n");
 
     printf ("\033[1mmp3dec Usage:\033[m hifi4rpc_client_test --mp3dec $input_file $output_file\n");
 
@@ -140,13 +141,15 @@ static void usage()
 
     printf ("\033[1mpcm-gain Usage:\033[m hifi4rpc_client_test --pcm-gain $sampleRate $bitdepth $channels $gain $input $output\n");
 
-    printf ("\033[1mtbuf Usage:\033[m hifi4rpc_client_test --tbuf $input $output0 $output1\n");
+    printf ("\033[1mpcm-file Usage:\033[m hifi4rpc_client_test --pcm-file $hifiId[0:HiFiA, 1:HiFiB] $input\n");
 
-    printf ("\033[1mpcm-file Usage:\033[m hifi4rpc_client_test --pcm-file read pcm file /data/out_lb.wav.raw, and send to DSP's tinycapturer\n");
-    
-    printf ("\033[1mpcm-cap Usage:\033[m hifi4rpc_client_test --pcm-cap  read pcm data from tinyalsa, and send to DSP's tinycapturer\n");
-    
-	printf ("\033[1mxaf Usage:\033[m hifi4rpc_client_test --xaf start XAF test case\n");
+    printf ("\033[1mpcm-cap Usage:\033[m hifi4rpc_client_test --pcm-cap $hifiId[0:HiFiA, 1:HiFiB]\n");
+
+    printf ("\033[1mxaf Usage:\033[m hifi4rpc_client_test --xaf $hifiId[0:HiFiA, 1:HiFiB] \n");
+
+    printf ("\033[1mxaf dump Usage:\033[m hifi4rpc_client_test --xaf-dump $hifiId[0:HiFiA, 1:HiFiB] $output\n");
+
+    printf ("\033[1mtbuf Usage:\033[m hifi4rpc_client_test --tbuf $input $output0 $output1\n");
 }
 
 
@@ -175,11 +178,12 @@ int main(int argc, char* argv[]) {
         {"pcm-gain", no_argument, NULL, 17},
         {"ipc2", no_argument, NULL, 18},
         {"shmloopback", no_argument, NULL, 19},
-        {"tbuf", no_argument, NULL, 20},
-        {"pcm-file", no_argument, NULL, 21},
-        {"pcm-cap", no_argument, NULL, 22},
-        {"xaf", no_argument, NULL, 23},
-        {0, 0, 0, 0}`
+        {"pcm-file", no_argument, NULL, 20},
+        {"pcm-cap", no_argument, NULL, 21},
+        {"xaf", no_argument, NULL, 22},
+        {"tbuf", no_argument, NULL, 23},
+        {"xaf-dump", no_argument, NULL, 24},
+        {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
     if(-1 == c) {
@@ -360,6 +364,9 @@ int main(int argc, char* argv[]) {
             break;
         case 23:
             hifi4_tbuf_test(argc - optind, &argv[optind]);
+            break;
+        case 24:
+            xaf_dump(argc - optind, &argv[optind]);
             break;
         case '?':
             usage();

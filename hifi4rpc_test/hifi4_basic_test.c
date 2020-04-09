@@ -221,9 +221,9 @@ int shm_uint_test(void)
 
 
 #define SAMPLE_MS 48
-#define SAMPLE_BYTES 2
+#define SAMPLE_BYTES 4
 #define SAMPLE_CH 16
-#define CHUNK_MS 4
+#define CHUNK_MS 16
 #define CHUNK_BYTES (SAMPLE_MS*SAMPLE_BYTES*SAMPLE_CH*CHUNK_MS)
 typedef struct _io_thread_context_ {
     int id;
