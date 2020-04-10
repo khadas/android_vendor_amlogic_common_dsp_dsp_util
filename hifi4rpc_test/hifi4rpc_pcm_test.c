@@ -361,6 +361,10 @@ void *thread_write_data(void *arg)
         printf("failed to open pcm\n");
         return NULL;
     }
+    if (!pcm_is_ready(pcm)) {
+        printf("pcm is not ready:%s\n", pcm_get_error(pcm));
+        return NULL;
+    }
 
     void *pVir = NULL;
     void *pPhy = NULL;
@@ -375,7 +379,7 @@ void *thread_write_data(void *arg)
         int nRead = 0;
         nRead = pcm_read(pcm, (void *)pVir, CHUNK_BYTES);
         if (nRead != 0) {
-            printf("write thread EOF\n");
+            printf("pcm read fail:%s\n", pcm_get_error(pcm));
             bExit = 1;
             continue;
         }
@@ -385,10 +389,11 @@ void *thread_write_data(void *arg)
         io_arg.count = CHUNK_BYTES;
         xAIPC(aipc, MBX_CMD_IOBUF_ARM2DSP, &io_arg, sizeof(io_arg));
         cnt += CHUNK_BYTES;
-        if (cnt > pWriteCtx->fileSize) {
+        if (cnt >= pWriteCtx->fileSize) {
             break;
         }
     }
+    printf("Write thread exit\n");
     xAudio_Ipc_Deinit(aipc);
     AML_MEM_Free(hShm);
     pcm_close(pcm);
@@ -415,6 +420,7 @@ void *thread_read_data(void *arg)
         fwrite((void *)pVir, 1, io_arg.count, pReadCtx->fp);
         pReadCtx->fileSize -= io_arg.count;
     }
+    printf("Read thread exit\n");
     xAudio_Ipc_Deinit(aipc);
     AML_MEM_Free(hShm);
     return NULL;
@@ -459,7 +465,7 @@ int shm_loopback_test(int argc, char *argv[])
     io_arg.count = fileSize;
     xAIPC(aipc, MBX_CMD_IOBUF_DEMO, &io_arg, sizeof(io_arg));
     xAudio_Ipc_Deinit(aipc);
-
+    printf("HiFi4 loopback done\n");
     pthread_join(writeThread, NULL);
     pthread_join(readThread, NULL);
 
