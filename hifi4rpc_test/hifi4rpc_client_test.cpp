@@ -95,7 +95,6 @@ void aml_hifi4_timer_wakeup();
 int aml_rsp_unit_test(int argc, char* argv[]);
 int flat_buf_test(int argc, char* argv[]);
 int aml_pcm_gain_unit_test(int argc, char* argv[]);
-int hifi4_tbuf_test(int argc, char* argv[]);
 #ifdef __cplusplus
 }
 #endif
@@ -142,7 +141,6 @@ static void usage()
     printf ("\033[1mpcm-file Usage:\033[m hifi4rpc_client_test --pcm-file read pcm file /data/out_lb.wav.raw, and send to DSP's tinycapturer\n");
     printf ("\033[1mpcm-cap Usage:\033[m hifi4rpc_client_test --pcm-cap  read pcm data from tinyalsa, and send to DSP's tinycapturer\n");
     printf ("\033[1mxaf Usage:\033[m hifi4rpc_client_test --xaf start XAF test case\n");
-    printf ("\033[1mtbuf Usage:\033[m hifi4rpc_client_test --tbuf $input $output0 $output1\n");
 }
 
 
@@ -174,7 +172,6 @@ int main(int argc, char* argv[]) {
         {"pcm-file", no_argument, NULL, 20},
         {"pcm-cap", no_argument, NULL, 21},
         {"xaf", no_argument, NULL, 22},
-        {"tbuf", no_argument, NULL, 23},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -353,9 +350,6 @@ int main(int argc, char* argv[]) {
             break;
         case 23:
             xaf_test(argc - optind, &argv[optind]);
-            break;
-        case 23:
-            hifi4_tbuf_test(argc - optind, &argv[optind]);
             break;
         case '?':
             usage();
