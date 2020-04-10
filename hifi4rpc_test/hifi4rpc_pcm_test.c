@@ -66,15 +66,15 @@ uint32_t audio_play_data_len = sizeof(audio_play_data);
 
 int pcm_play_buildin()
 {
-    rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
+    rpc_pcm_config *pconfig = (rpc_pcm_config *)malloc(sizeof(rpc_pcm_config));
     pconfig->channels = 2;
     pconfig->rate = 48000;
     pconfig->format = PCM_FORMAT_S32_LE;
     pconfig->period_size = 1024;
     pconfig->period_count = 2;
     pconfig->start_threshold = 1024;
-    pconfig->silence_threshold = 1024*2;
-    pconfig->stop_threshold = 1024*2;
+    pconfig->silence_threshold = 1024 * 2;
+    pconfig->stop_threshold = 1024 * 2;
     tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMOUT_B, PCM_OUT, pconfig);
     AML_MEM_HANDLE hShmBuf;
 
@@ -100,17 +100,17 @@ int pcm_play_buildin()
     return 0;
 }
 
-int pcm_play_test(int argc, char* argv[])
+int pcm_play_test(int argc, char *argv[])
 {
-    rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
+    rpc_pcm_config *pconfig = (rpc_pcm_config *)malloc(sizeof(rpc_pcm_config));
     pconfig->channels = 2;
     pconfig->rate = 48000;
     pconfig->format = PCM_FORMAT_S32_LE;
     pconfig->period_size = 1024;
     pconfig->period_count = 2;
     pconfig->start_threshold = 1024;
-    pconfig->silence_threshold = 1024*2;
-    pconfig->stop_threshold = 1024*2;
+    pconfig->silence_threshold = 1024 * 2;
+    pconfig->stop_threshold = 1024 * 2;
     tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMOUT_B, PCM_OUT, pconfig);
     AML_MEM_HANDLE hShmBuf;
 
@@ -151,7 +151,7 @@ long get_us() {
     return us;
 }
 
-int bcm_file_test(int argc, char* argv[])
+int bcm_file_test(int argc, char *argv[])
 {
     printf("all arg begin\n");
     int i;
@@ -203,7 +203,7 @@ int bcm_file_test(int argc, char* argv[])
 }
 
 // !!! depend on libtinyalsa, only link in Android.mk !!!
-int bcm_pcm_test(int argc, char* argv[])
+int bcm_pcm_test(int argc, char *argv[])
 {
     int i;
     for (i = 0; i != argc; i++) {
@@ -279,21 +279,22 @@ int xaf_test(int argc, char **argv) {
     return 0;
 }
 
-#define PCM_CAPTURE_SAMPLES (48000*20)
-int pcm_capture_test(int argc, char* argv[])
+#define PCM_CAPTURE_SAMPLES (48000 * 20)
+int pcm_capture_test(int argc, char *argv[])
 {
     enum ALSA_DEVICE_IN device = DEVICE_TDMIN_B;
-    if (argc >= 2)
+    if (argc >= 2) {
         device = (enum ALSA_DEVICE_IN)atoi(argv[1]);
-    rpc_pcm_config* pconfig = (rpc_pcm_config*)malloc(sizeof(rpc_pcm_config));
-    pconfig->channels = (device == DEVICE_LOOPBACK)?4:2;
+    }
+    rpc_pcm_config *pconfig = (rpc_pcm_config *)malloc(sizeof(rpc_pcm_config));
+    pconfig->channels = (device == DEVICE_LOOPBACK) ? 4 : 2;
     pconfig->rate = 48000;
     pconfig->format = PCM_FORMAT_S32_LE;
     pconfig->period_size = 1024;
     pconfig->period_count = 4;
     pconfig->start_threshold = 1024;
-    pconfig->silence_threshold = 1024*2;
-    pconfig->stop_threshold = 1024*2;
+    pconfig->silence_threshold = 1024 * 2;
+    pconfig->stop_threshold = 1024 * 2;
     tAmlPcmhdl p = pcm_client_open(0, device, PCM_IN, pconfig);
     AML_MEM_HANDLE hShmBuf;
 
@@ -325,3 +326,143 @@ int pcm_capture_test(int argc, char* argv[])
     return 0;
 }
 
+#define SAMPLE_MS 48
+#define SAMPLE_BYTES 4
+#define SAMPLE_CH 16
+#define CHUNK_MS 16
+#define CHUNK_BYTES (SAMPLE_MS * SAMPLE_BYTES * SAMPLE_CH * CHUNK_MS)
+typedef struct _io_thread_context_ {
+    int id;
+    FILE *fp;
+    size_t fileSize;
+} io_thread_context;
+void *thread_write_data(void *arg)
+{
+
+    struct pcm_config cfg;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.channels = 16;
+    cfg.rate = 48000;
+    cfg.period_size = 128;
+    cfg.period_count = 4;
+    // !!! linux's TINYALSA side's header file's, PCM_FORMAT_S32_LE is 1
+    // !!! DSP's TINYALSA side's headefile, PCM_FORMAT_S32_LE is 7
+    cfg.format = 1;
+    cfg.start_threshold = 0;
+    cfg.stop_threshold = 0;
+    cfg.silence_threshold = 0;
+    uint32_t card = 0, device = 8, flags = PCM_IN;
+    printf("ch=%d rate=%d period=%dx%d format=%d thr=%d,%d,%d card=%d device=%d\n",
+           cfg.channels, cfg.rate, cfg.period_size, cfg.period_count,
+           cfg.format, cfg.start_threshold, cfg.stop_threshold,
+           cfg.silence_threshold, card, device);
+    struct pcm *pcm = pcm_open(card, device, flags, &cfg);
+    if (pcm == NULL) {
+        printf("failed to open pcm\n");
+        return NULL;
+    }
+
+    void *pVir = NULL;
+    void *pPhy = NULL;
+    io_thread_context *pWriteCtx = (io_thread_context *)arg;
+    AML_MEM_HANDLE hShm = AML_MEM_Allocate(CHUNK_BYTES);
+    int aipc = xAudio_Ipc_Init(pWriteCtx->id);
+    pVir = AML_MEM_GetVirtAddr(hShm);
+    pPhy = AML_MEM_GetPhyAddr(hShm);
+    int bExit = 0;
+    size_t cnt = 0;
+    while (!bExit) {
+        int nRead = 0;
+        nRead = pcm_read(pcm, (void *)pVir, CHUNK_BYTES);
+        if (nRead != 0) {
+            printf("write thread EOF\n");
+            bExit = 1;
+            continue;
+        }
+        AML_MEM_Clean(pPhy, CHUNK_BYTES);
+        pcm_io_st io_arg;
+        io_arg.data = (xpointer)pPhy;
+        io_arg.count = CHUNK_BYTES;
+        xAIPC(aipc, MBX_CMD_IOBUF_ARM2DSP, &io_arg, sizeof(io_arg));
+        cnt += CHUNK_BYTES;
+        if (cnt > pWriteCtx->fileSize) {
+            break;
+        }
+    }
+    xAudio_Ipc_Deinit(aipc);
+    AML_MEM_Free(hShm);
+    pcm_close(pcm);
+
+    return NULL;
+}
+
+void *thread_read_data(void *arg)
+{
+    void *pVir = NULL;
+    void *pPhy = NULL;
+    io_thread_context *pReadCtx = (io_thread_context *)arg;
+    AML_MEM_HANDLE hShm = AML_MEM_Allocate(CHUNK_BYTES);
+    int aipc = xAudio_Ipc_Init(pReadCtx->id);
+    pVir = AML_MEM_GetVirtAddr(hShm);
+    pPhy = AML_MEM_GetPhyAddr(hShm);
+    while (pReadCtx->fileSize) {
+        pcm_io_st io_arg;
+        io_arg.data = (xpointer)pPhy;
+        io_arg.count = CHUNK_BYTES;
+        xAIPC(aipc, MBX_CMD_IOBUF_DSP2ARM, &io_arg, sizeof(io_arg));
+        AML_MEM_Invalidate(pPhy, io_arg.count);
+
+        fwrite((void *)pVir, 1, io_arg.count, pReadCtx->fp);
+        pReadCtx->fileSize -= io_arg.count;
+    }
+    xAudio_Ipc_Deinit(aipc);
+    AML_MEM_Free(hShm);
+    return NULL;
+}
+
+int shm_loopback_test(int argc, char *argv[])
+{
+    int aipc = -1;
+    io_thread_context writeCtx;
+    io_thread_context readCtx;
+    if (argc != 3) {
+        printf("Invalid parameter\n");
+        return -1;
+    }
+    int id = atoi(argv[0]);
+    int chunkNum = atoi(argv[1]);
+
+    FILE *fpOut = fopen(argv[2], "w+b");
+    if (fpOut == NULL) {
+        printf("Failed to open %s\n", argv[2]);
+        fclose(fpOut);
+        return -1;
+    }
+
+    int fileSize = CHUNK_BYTES * chunkNum;
+    printf("chunk=%d num=%d size=%d\n", CHUNK_BYTES, chunkNum, fileSize);
+
+    writeCtx.fileSize = fileSize;
+    writeCtx.id = id;
+
+    readCtx.fileSize = fileSize;
+    readCtx.fp = fpOut;
+    readCtx.id = id;
+
+    pthread_t writeThread;
+    pthread_t readThread;
+    pthread_create(&writeThread, NULL, thread_write_data, (void *)&writeCtx);
+    pthread_create(&readThread, NULL, thread_read_data, (void *)&readCtx);
+
+    aipc = xAudio_Ipc_Init(id);
+    pcm_io_st io_arg;
+    io_arg.count = fileSize;
+    xAIPC(aipc, MBX_CMD_IOBUF_DEMO, &io_arg, sizeof(io_arg));
+    xAudio_Ipc_Deinit(aipc);
+
+    pthread_join(writeThread, NULL);
+    pthread_join(readThread, NULL);
+
+    fclose(fpOut);
+    return 0;
+}

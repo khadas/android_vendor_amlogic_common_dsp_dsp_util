@@ -110,7 +110,7 @@ static void usage()
 
     printf ("\033[1mshared memory unit test usage:\033[m hifi4rpc_client_test --shm\n");
 
-    printf ("\033[1mshared memory loopback test usage:\033[m hifi4rpc_client_test --shmloopback $hifiId $input $output\n");
+    printf ("\033[1mpcm loopback test usage:\033[m hifi4rpc_client_test --pcm-loopback $hifiId $chunkNum $output\n");
 
     printf ("\033[1mmp3dec Usage:\033[m hifi4rpc_client_test --mp3dec $input_file $output_file\n");
 
@@ -168,7 +168,7 @@ int main(int argc, char* argv[]) {
         {"ipc1", no_argument, NULL, 16},
         {"pcm-gain", no_argument, NULL, 17},
         {"ipc2", no_argument, NULL, 18},
-        {"shmloopback", no_argument, NULL, 19},
+        {"pcm-loopback", no_argument, NULL, 19},
         {"pcm-file", no_argument, NULL, 20},
         {"pcm-cap", no_argument, NULL, 21},
         {"xaf", no_argument, NULL, 22},
