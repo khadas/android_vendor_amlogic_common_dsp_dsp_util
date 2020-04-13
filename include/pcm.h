@@ -215,8 +215,6 @@ struct pcm_config {
 	unsigned int stop_threshold;
 	/** The minimum number of frames to silence the PCM */
 	unsigned int silence_threshold;
-
-    int avail_min;
 };
 
 /** Enumeration of a PCM's hardware parameters.
