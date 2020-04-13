@@ -42,8 +42,6 @@
 #include "rpc_client_shm.h"
 #include "aml_tbuf_api.h"
 
-#define TBUF_DEBUG(...)
-//#define TBUF_DEBUG printf
 
 #define SAMPLE_MS 48
 #define SAMPLE_BYTES 4
@@ -94,7 +92,7 @@ void* thread_capture_pcm(void * arg)
         /*Try to capture audio to T buffer align with chunk*/
         while (1) {
             AML_TBUF_GetSpace(pCapturerCtx->tbuf, &szAvail);
-            if (szAvail <= CHUNK_BYTES) {
+            if (szAvail < CHUNK_BYTES) {
                 usleep(1000);
                 sleepCnt++;
                 if (sleepCnt > 1000) {

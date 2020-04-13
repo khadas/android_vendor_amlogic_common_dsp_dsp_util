@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include "rpc_client_shm.h"
 #include "aml_tbuf_api.h"
 
@@ -94,8 +95,8 @@ void AML_TBUF_Destory(AML_TBUF_HANDLE hTbuf)
 TBUF_RET AML_TBUF_UpdateWrOffset(AML_TBUF_HANDLE hTbuf, size_t size)
 {
     TBUFS* tbuf = (TBUFS*)hTbuf;
-    tbuf->wr += size;
-    tbuf->wr %= tbuf->tbufSize;
+    tbuf->wr = (tbuf->wr + size) % tbuf->tbufSize;
+    TBUF_DEBUG("%s:wr=%d\n", __FUNCTION__, tbuf->wr);
     return TBUF_RET_OK;
 }
 
@@ -104,11 +105,11 @@ TBUF_RET AML_TBUF_UpdateRdOffset(AML_TBUF_HANDLE hTbuf,  TBUF_READER_T rdType, s
     TBUF_RET ret = TBUF_RET_OK;
     TBUFS* tbuf = (TBUFS*)hTbuf;
     if (rdType == TBUF_READER_A) {
-        tbuf->rdA += size;
-        tbuf->rdA %= tbuf->tbufSize;
+        tbuf->rdA = (tbuf->rdA + size) % tbuf->tbufSize;
+        TBUF_DEBUG("%s:A-rd=%d\n", __FUNCTION__, tbuf->rdA);
     } else if (rdType == TBUF_READER_B) {
-        tbuf->rdB += size;
-        tbuf->rdB %= tbuf->tbufSize;
+        tbuf->rdB = (tbuf->rdB + size) % tbuf->tbufSize;
+        TBUF_DEBUG("%s:B-rd=%d\n", __FUNCTION__, tbuf->rdB);
     } else {
         printf("Invalid reader:%d\n", rdType);
         ret = TBUF_RET_ERR_INV_PARAM;
@@ -119,8 +120,9 @@ TBUF_RET AML_TBUF_UpdateRdOffset(AML_TBUF_HANDLE hTbuf,  TBUF_READER_T rdType, s
 TBUF_RET AML_TBUF_GetWrPtr(AML_TBUF_HANDLE hTbuf, void** phy, void** vir)
 {
     TBUFS* tbuf = (TBUFS*)hTbuf;
-    *phy = (uint8_t*)tbuf->phyBase + tbuf->wr;
-    *vir = (uint8_t*)tbuf->virBase + tbuf->wr;
+    uint32_t wr = tbuf->wr;
+    *phy = (uint8_t*)tbuf->phyBase + wr;
+    *vir = (uint8_t*)tbuf->virBase + wr;
     return TBUF_RET_OK;
 }
 
@@ -137,11 +139,22 @@ TBUF_RET AML_TBUF_GetRdPtr(AML_TBUF_HANDLE hTbuf, TBUF_READER_T rdType, void** p
 TBUF_RET AML_TBUF_GetSpace(AML_TBUF_HANDLE hTbuf, size_t* szAvail)
 {
     TBUFS* tbuf = (TBUFS*)hTbuf;
-    uint32_t rd = AML_TBUF_MIN(tbuf->rdA, tbuf->rdB);
+    size_t szAvailA = 0;
+    size_t szAvailB = 0;
 
-    *szAvail =  (rd > tbuf->wr) ? \
-               (rd - tbuf->wr - 1)  : \
-               (tbuf->tbufSize + rd - tbuf->wr - 1);
+    uint32_t rd = tbuf->rdA;
+    uint32_t wr = tbuf->wr;
+    szAvailA =  (rd > wr) ? \
+               (rd - wr - 1)  : \
+               (tbuf->tbufSize + rd - wr - 1);
+
+    rd = tbuf->rdB;
+    wr = tbuf->wr;
+    szAvailB =  (rd > wr) ? \
+               (rd - wr - 1)  : \
+               (tbuf->tbufSize + rd - wr - 1);
+
+    *szAvail = AML_TBUF_MIN(szAvailA, szAvailB);
     return TBUF_RET_OK;
 }
 
@@ -149,9 +162,11 @@ TBUF_RET AML_TBUF_GetFullness(AML_TBUF_HANDLE hTbuf, TBUF_READER_T rdType, size_
 {
     TBUFS* tbuf = (TBUFS*)hTbuf;
     uint32_t rd = (rdType == TBUF_READER_A)?tbuf->rdA:tbuf->rdB;
-    *szAvail = (tbuf->wr >= rd) ? \
-           (tbuf->wr - rd) :
-           (tbuf->tbufSize + tbuf->wr - rd);
+    uint32_t wr = tbuf->wr;
+    *szAvail = (wr >= rd) ? \
+           (wr - rd) :
+           (tbuf->tbufSize + wr - rd);
+    TBUF_DEBUG("%s:type=%d, rd=%d, wr=%d, full=%d\n", __FUNCTION__, rdType, rd, wr, *szAvail);
     return TBUF_RET_OK;
 }
 

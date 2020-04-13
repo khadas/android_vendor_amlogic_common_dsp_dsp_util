@@ -35,6 +35,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define TBUF_DEBUG(...)
+//#define TBUF_DEBUG printf
+#define AML_TBUF_MIN(a, b) ((a) < (b) ? (a) : (b))
+
 typedef void* AML_TBUF_HANDLE;
 
 typedef enum {
@@ -49,8 +53,6 @@ typedef enum {
     TBUF_RET_ERR_NO_MEM = -1,
     TBUF_RET_ERR_INV_PARAM = -1,
 } TBUF_RET;
-
-#define AML_TBUF_MIN(a, b) ((a) < (b) ? (a) : (b))
 
 /**
 * Create a T buffer.
