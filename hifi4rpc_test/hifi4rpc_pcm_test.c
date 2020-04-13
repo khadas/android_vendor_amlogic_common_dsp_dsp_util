@@ -426,7 +426,7 @@ void *thread_read_data(void *arg)
     return NULL;
 }
 
-int shm_loopback_test(int argc, char *argv[])
+int pcm_loopback_test(int argc, char *argv[])
 {
     int aipc = -1;
     io_thread_context writeCtx;
