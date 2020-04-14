@@ -1,6 +1,7 @@
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 LOCAL_C_INCLUDES += \
+                $(TOP)/external/tinyalsa/include/tinyalsa \
                 $(LOCAL_PATH)/../include
 LOCAL_SRC_FILES  += \
                 aml_audio_util.c \
@@ -14,10 +15,12 @@ LOCAL_SRC_FILES  += \
                 rpc_client_shm.c \
                 rpc_client_vsp.c \
                 aml_pcm_gain_api.c \
-                aml_tbuf_api.c
+                aml_tbuf_api.c \
+                aml_pcm_api.c
 LOCAL_MODULE := libhifi4rpc_client
 LOCAL_SHARED_LIBRARIES += \
-                libhifi4rpc
+                libhifi4rpc \
+                libtinyalsa
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_SHARED_LIBRARY)

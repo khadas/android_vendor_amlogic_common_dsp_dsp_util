@@ -73,6 +73,7 @@ int aml_rsp_unit_test(int argc, char* argv[]);
 int flat_buf_test(int argc, char* argv[]);
 int aml_pcm_gain_unit_test(int argc, char* argv[]);
 int hifi4_tbuf_test(int argc, char* argv[]);
+int aml_pcm_test(int argc, char **argv);
 #ifdef __cplusplus
 }
 #endif
@@ -129,6 +130,8 @@ static void usage()
 
     printf ("\033[1mtbuf-pcm Usage:\033[m hifi4rpc_client_test --tbuf-pcm $seconds $output0 $output1\n");
 
+    printf ("\033[1maml-pcm Usage:\033[m hifi4rpc_client_test --aml-pcm $seconds $output0 $output1\n");
+
 	printf ("\033[1mxaf Usage:\033[m hifi4rpc_client_test --xaf $hifiId[0:HiFiA, 1:HiFiB] $case\n"
 	        "Case 0: Trigger TinyCapturer -> PcmGain pipeline\n"
 	        "Case 1: Trigger PcmGain -> TinyRenderer pipeline\n"
@@ -169,6 +172,7 @@ int main(int argc, char* argv[]) {
         {"pcm-dump", no_argument, NULL, 24},
         {"shm-loopback", no_argument, NULL, 25},
         {"tbuf-pcm", no_argument, NULL, 26},
+        {"aml-pcm", no_argument, NULL, 27},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -392,6 +396,9 @@ int main(int argc, char* argv[]) {
                 hifi4_tbuf_test(4, tbuf_arg);
             } else
                 printf("The param should be liks this --tbuf-pcm $input $output0 $output1\n");
+            break;
+        case 27:
+            aml_pcm_test(argc - optind, &argv[optind]);
             break;
         case '?':
             usage();

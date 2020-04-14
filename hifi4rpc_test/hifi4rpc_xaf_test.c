@@ -49,7 +49,8 @@
 #include "asoundlib.h"
 #include "generic_macro.h"
 #include "aml_audio_util.h"
-
+#include "aml_pcm_api.h"
+//#define PROFILE_RTT
 long get_us() {
     struct timespec tp;
     clock_gettime(CLOCK_MONOTONIC_RAW, &tp);
@@ -301,7 +302,9 @@ static void* thread_read_pcm(void * arg)
             //io_thread_context* pWriteCtx = (io_thread_context*)pReadCtx->ctx;
             //printf("%d:%d\n", pReadCtx->chunkNum,  aprofiler_msec_duration(&pReadCtx->timeStamp[pReadCtx->chunkNum], &pWriteCtx->timeStamp[pReadCtx->chunkNum]));
         }
+        #ifndef PROFILE_RTT
         fwrite((void*)pVir, 1, io_arg.count, pReadCtx->fp);
+        #endif
         pReadCtx->fileSize -= io_arg.count;
         pReadCtx->chunkNum++;
     }
@@ -386,20 +389,21 @@ int pcm_loopback_test(int argc, char* argv[])
 
     pthread_join(writeThread,NULL);
     pthread_join(readThread,NULL);
-
+#ifdef PROFILE_RTT
     uint32_t i;
-    uint32_t averageRTT = 0;
+    float averageRTT = 0;
     uint32_t largestRTT = 0;
     uint32_t numRTT = AMX_MIN(256, readCtx.chunkNum);
     for (i = 0; i < numRTT; i++) {
         uint32_t rtt = aprofiler_msec_duration(&readCtx.timeStamp[i], &writeCtx.timeStamp[i]);
         if (largestRTT < rtt)
             largestRTT = rtt;
-        averageRTT += rtt;
+        averageRTT += (float)rtt;
     }
     printf("largestRTT: %dms\n", largestRTT);
-    printf("averageRTT: %dms\n", averageRTT/numRTT);
+    printf("averageRTT: %fms\n", averageRTT/(float)numRTT);
     printf("num of round: %d\n", numRTT);
+#endif
 recycle_resource:
     if (writeCtx.fp)
         fclose(writeCtx.fp);
@@ -452,6 +456,84 @@ int xaf_dump(int argc, char **argv) {
     AML_MEM_Free(hShmBuf);
     fclose(fpOut);
     xAudio_Ipc_Deinit(hdl);
+    return 0;
+}
+
+typedef struct _aml_pcm_test_context_t_ {
+    int card;
+    FILE *fp;
+    int remained;
+} aml_pcm_test_context;
+
+void* thread_aml_pcm_test(void *arg)
+{
+    aml_pcm_test_context* pContext = (aml_pcm_test_context*)arg;
+    struct aml_pcm_config cfg;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.channels = 16;
+    cfg.rate = 48000;
+    cfg.period_size = 16*48;//16 ms peroid
+    cfg.period_count = 4;
+    cfg.format = AML_PCM_FORMAT_S32_LE;
+    AML_PCM_HANDLE hPcm = AML_PCM_Open(pContext->card, 0, PCM_IN, &cfg);
+
+    /*16 ms per chunk*/
+    size_t szChunk = 16*cfg.channels*cfg.rate*sizeof(uint32_t)/1000;
+    void* buf = malloc(szChunk);
+    while (pContext->remained) {
+        size_t bytes = AMX_MIN((int)szChunk, pContext->remained);
+        int nRead = AML_PCM_Read(hPcm, buf, bytes);
+        if (nRead != (int)bytes) {
+            printf("AML_PCM_Read something wrong:%d\n", nRead);
+            break;
+        }
+        fwrite(buf, 1, nRead, pContext->fp);
+        pContext->remained -= nRead;
+    }
+    free(buf);
+    AML_PCM_Close(hPcm);
+    printf("Exit thread_aml_pcm_test\n");
+    return NULL;
+}
+
+int aml_pcm_test(int argc, char **argv) {
+    if (argc != 3) {
+        printf("Invalid argc:%d\n", argc);
+        return -1;
+    }
+    aml_pcm_test_context contextA;
+    memset(&contextA, 0, sizeof(aml_pcm_test_context));
+    aml_pcm_test_context contextB;
+    memset(&contextB, 0, sizeof(aml_pcm_test_context));
+
+    int sec = atoi(argv[0]);
+    printf("Capture %d seconds\n", sec);
+    contextA.remained = sec*1000*48*16*sizeof(uint32_t);
+    contextB.remained = sec*1000*48*16*sizeof(uint32_t);
+
+    contextA.card = 0;
+    contextB.card = 1;
+
+    contextA.fp = fopen(argv[1], "w+b");
+    contextB.fp = fopen(argv[2], "w+b");
+
+    if (contextA.fp == NULL || contextB.fp == NULL) {
+        printf("Failed to open file %s or %s\n", argv[1], argv[2]);
+        goto aml_pcm_test_recycle;
+    }
+
+    pthread_t pcmReadThreadA;
+    pthread_t pcmReadThreadB;
+    pthread_create(&pcmReadThreadA, NULL, thread_aml_pcm_test, (void *)&contextA);
+    pthread_create(&pcmReadThreadB, NULL, thread_aml_pcm_test, (void *)&contextB);
+    pthread_join(pcmReadThreadA, NULL);
+    pthread_join(pcmReadThreadB, NULL);
+
+aml_pcm_test_recycle:
+    if (contextA.fp)
+        fclose(contextA.fp);
+    if (contextB.fp)
+        fclose(contextB.fp);
     return 0;
 }
 
