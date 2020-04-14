@@ -340,7 +340,7 @@ recycle_resource:
         fclose(readerACtx.fp);
     if (readerBCtx.fp != NULL)
         fclose(readerBCtx.fp);
-    AML_TBUF_Destory(tbuf);
+    AML_TBUF_Destroy(tbuf);
     return 0;
 }
 

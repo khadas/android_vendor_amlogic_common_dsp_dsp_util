@@ -70,7 +70,7 @@ AML_TBUF_HANDLE AML_TBUF_Create(size_t size);
 *
 * @return
 */
-void AML_TBUF_Destory(AML_TBUF_HANDLE hTbuf);
+void AML_TBUF_Destroy(AML_TBUF_HANDLE hTbuf);
 
 
 /**

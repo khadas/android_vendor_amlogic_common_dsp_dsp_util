@@ -97,7 +97,7 @@ recycle_of_tbuf_create:
     return NULL;
 }
 
-void AML_TBUF_Destory(AML_TBUF_HANDLE hTbuf)
+void AML_TBUF_Destroy(AML_TBUF_HANDLE hTbuf)
 {
     internal_tbuf_destroy(hTbuf);
 }
