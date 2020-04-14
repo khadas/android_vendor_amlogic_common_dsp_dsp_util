@@ -124,6 +124,7 @@ void* thread_write_dsp(void * arg)
 {
     hifi4_writer_t* pWriterCtx = (hifi4_writer_t*)arg;
     int sleepCnt = 0;
+    AML_TBUF_AddReader(pWriterCtx->tbuf, pWriterCtx->eType);
     while(pWriterCtx->remaindSize > 0) {
         size_t szAvail = 0;
         void* phy = NULL;
@@ -164,6 +165,7 @@ void* thread_write_dsp(void * arg)
         pWriterCtx->chunkNum++;
         TBUF_DEBUG("%d %s %d %d\n", pWriterCtx->remaindSize, pWriterCtx->name, szAvail, io_arg.count);
     }
+    AML_TBUF_RemoveReader(pWriterCtx->tbuf, pWriterCtx->eType);
     printf("Exit write thread %s:%d\n", pWriterCtx->name, pWriterCtx->chunkNum);
     return NULL;
 }

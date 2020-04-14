@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <pthread.h>
 #include "rpc_client_shm.h"
 #include "aml_tbuf_api.h"
@@ -46,6 +47,10 @@ typedef struct _TBUFS {
     uint32_t wr;
     uint32_t rdA;
     uint32_t rdB;
+    bool isAEnabled;
+    bool isBEnabled;
+    TBUF_READER_T rdMaster;
+    pthread_mutex_t tMutex;
 } TBUFS;
 
 static void internal_tbuf_destroy(AML_TBUF_HANDLE hTbuf)
@@ -54,6 +59,7 @@ static void internal_tbuf_destroy(AML_TBUF_HANDLE hTbuf)
     if (tbuf) {
         if (tbuf->hShm)
             AML_MEM_Free(tbuf->hShm);
+        pthread_mutex_destroy(&tbuf->tMutex);
         free(tbuf);
     }
 }
@@ -80,6 +86,10 @@ AML_TBUF_HANDLE AML_TBUF_Create(size_t size)
     tbuf->phyBase = AML_MEM_GetPhyAddr(tbuf->hShm);
     tbuf->virBase = AML_MEM_GetVirtAddr(tbuf->hShm);
     tbuf->tbufSize = size;
+    tbuf->isAEnabled = false;
+    tbuf->isBEnabled = false;
+    tbuf->rdMaster = TBUF_READER_INV;
+    pthread_mutex_init(&tbuf->tMutex, NULL);
 
     return tbuf;
 recycle_of_tbuf_create:
@@ -90,6 +100,58 @@ recycle_of_tbuf_create:
 void AML_TBUF_Destory(AML_TBUF_HANDLE hTbuf)
 {
     internal_tbuf_destroy(hTbuf);
+}
+
+TBUF_RET AML_TBUF_AddReader(AML_TBUF_HANDLE hTbuf,  TBUF_READER_T rdType)
+{
+    TBUF_RET ret = TBUF_RET_OK;
+    TBUFS* tbuf = (TBUFS*)hTbuf;
+    pthread_mutex_lock(&tbuf->tMutex);
+    if (rdType == TBUF_READER_A) {
+        if (tbuf->rdMaster == TBUF_READER_INV) {
+            tbuf->rdA = 0;
+        } else if (tbuf->rdMaster == TBUF_READER_B) {
+            tbuf->rdA = tbuf->rdB;
+        }
+        tbuf->rdMaster = TBUF_READER_A;
+        tbuf->isAEnabled = true;
+    }
+    else if (rdType == TBUF_READER_B) {
+        if (tbuf->rdMaster == TBUF_READER_INV) {
+            tbuf->rdB = 0;
+        } else if (tbuf->rdMaster == TBUF_READER_A) {
+            tbuf->rdB = tbuf->rdA;
+        }
+        tbuf->rdMaster = TBUF_READER_B;
+        tbuf->isBEnabled = true;
+    }
+    else {
+        printf("Invalid rdType:%d\n", rdType);
+        ret = TBUF_RET_ERR_INV_PARAM;
+    }
+    pthread_mutex_unlock(&tbuf->tMutex);
+    return ret;
+}
+
+TBUF_RET AML_TBUF_RemoveReader(AML_TBUF_HANDLE hTbuf,  TBUF_READER_T rdType)
+{
+    TBUF_RET ret = TBUF_RET_OK;
+    TBUFS* tbuf = (TBUFS*)hTbuf;
+    pthread_mutex_lock(&tbuf->tMutex);
+    if (rdType == TBUF_READER_A) {
+        tbuf->isAEnabled = false;
+        tbuf->rdMaster = (tbuf->isBEnabled)?TBUF_READER_B:TBUF_READER_INV;
+    }
+    else if (rdType == TBUF_READER_B) {
+        tbuf->isBEnabled = false;
+        tbuf->rdMaster = (tbuf->isAEnabled)?TBUF_READER_A:TBUF_READER_INV;
+    }
+    else {
+        printf("Invalid rdType:%d\n", rdType);
+        ret = TBUF_RET_ERR_INV_PARAM;
+    }
+    pthread_mutex_unlock(&tbuf->tMutex);
+    return ret;
 }
 
 TBUF_RET AML_TBUF_UpdateWrOffset(AML_TBUF_HANDLE hTbuf, size_t size)
@@ -139,20 +201,28 @@ TBUF_RET AML_TBUF_GetRdPtr(AML_TBUF_HANDLE hTbuf, TBUF_READER_T rdType, void** p
 TBUF_RET AML_TBUF_GetSpace(AML_TBUF_HANDLE hTbuf, size_t* szAvail)
 {
     TBUFS* tbuf = (TBUFS*)hTbuf;
-    size_t szAvailA = 0;
-    size_t szAvailB = 0;
+    pthread_mutex_lock(&tbuf->tMutex);
+    size_t szAvailA = tbuf->tbufSize;
+    size_t szAvailB = tbuf->tbufSize;
 
-    uint32_t rd = tbuf->rdA;
-    uint32_t wr = tbuf->wr;
-    szAvailA =  (rd > wr) ? \
-               (rd - wr - 1)  : \
-               (tbuf->tbufSize + rd - wr - 1);
+    uint32_t rd = 0;
+    uint32_t wr = 0;
+    if (tbuf->isAEnabled) {
+        rd = tbuf->rdA;
+        wr = tbuf->wr;
+        szAvailA =  (rd > wr) ? \
+                   (rd - wr - 1)  : \
+                   (tbuf->tbufSize + rd - wr - 1);
+    }
 
-    rd = tbuf->rdB;
-    wr = tbuf->wr;
-    szAvailB =  (rd > wr) ? \
-               (rd - wr - 1)  : \
-               (tbuf->tbufSize + rd - wr - 1);
+    if (tbuf->isBEnabled) {
+        rd = tbuf->rdB;
+        wr = tbuf->wr;
+        szAvailB =  (rd > wr) ? \
+                   (rd - wr - 1)  : \
+                   (tbuf->tbufSize + rd - wr - 1);
+    }
+    pthread_mutex_unlock(&tbuf->tMutex);
 
     *szAvail = AML_TBUF_MIN(szAvailA, szAvailB);
     return TBUF_RET_OK;
