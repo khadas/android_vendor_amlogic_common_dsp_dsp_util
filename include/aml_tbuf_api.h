@@ -74,6 +74,30 @@ void AML_TBUF_Destroy(AML_TBUF_HANDLE hTbuf);
 
 
 /**
+* Add a consumer
+*
+* @param[in] T buffer handle
+*
+* @param[in] see TBUF_READER_T
+*
+* @return TBUF_RET_OK if success, otherwise see TBUF_RET
+*/
+TBUF_RET AML_TBUF_AddConsumer(AML_TBUF_HANDLE hTbuf,  TBUF_READER_T rdType);
+
+
+/**
+* Remove a consumer
+*
+* @param[in] T buffer handle
+*
+* @param[in] see TBUF_READER_T
+*
+* @return TBUF_RET_OK if success, otherwise see TBUF_RET
+*/
+TBUF_RET AML_TBUF_RemoveConsumer(AML_TBUF_HANDLE hTbuf,  TBUF_READER_T rdType);
+
+
+/**
 * Update write offset
 *
 * @param[in] T buffer handle

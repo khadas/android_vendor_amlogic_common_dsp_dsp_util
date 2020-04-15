@@ -297,6 +297,9 @@ int hifi4_tbuf_test(int argc, char* argv[])
         goto recycle_resource;
     }
 
+    AML_TBUF_AddConsumer(tbuf, TBUF_READER_A);
+    AML_TBUF_AddConsumer(tbuf, TBUF_READER_B);
+
     pthread_t captureThread;
     pthread_t writeAThread;
     pthread_t writeBThread;
@@ -318,6 +321,9 @@ int hifi4_tbuf_test(int argc, char* argv[])
     pthread_join(readerBThread,NULL);
     pthread_join(loopbackAThread,NULL);
     pthread_join(loopbackBThread,NULL);
+
+    AML_TBUF_RemoveConsumer(tbuf, TBUF_READER_A);
+    AML_TBUF_RemoveConsumer(tbuf, TBUF_READER_B);
 
 recycle_resource:
     if (writerACtx.aipc != -1)
