@@ -41,7 +41,7 @@
 #include "rpc_client_aipc.h"
 #include "rpc_client_shm.h"
 #include "aml_tbuf_api.h"
-
+#include "asoundlib.h"
 
 #define SAMPLE_MS 48
 #define SAMPLE_BYTES 4
@@ -50,11 +50,20 @@
 #define CHUNK_BYTES (SAMPLE_MS*SAMPLE_BYTES*SAMPLE_CH*CHUNK_MS)
 #define TBUF_SIZE (10*CHUNK_BYTES)
 
+typedef enum {
+    CAPTURE_INPUT_INV = 0,
+    CAPTURE_INPUT_FILE = 1,
+    CAPTURE_INPUT_PCM = 2,
+    CAPTURE_INPUT_MAX = 3,
+} CAPTURE_INPUT_T;
+
 typedef struct {
     AML_TBUF_HANDLE tbuf;
     FILE* fp;
-    int totalSize;
+    struct pcm *pcm;
+    int remaindSize;
     int chunkNum;
+    CAPTURE_INPUT_T inputType;
 } capturer_t;
 
 typedef struct {
@@ -79,14 +88,36 @@ typedef struct {
     char name[64];
 } hifi4_loopback_t;
 
+int capturer_input(capturer_t* pCapturerCtx, void* data, size_t* size)
+{
+    int ret = 0;
+    if (pCapturerCtx->inputType == CAPTURE_INPUT_FILE) {
+        size_t nRead = 0;
+        nRead = fread(data, 1, *size, pCapturerCtx->fp);
+        if (nRead != *size) {
+            printf("Capture thread reach EOF:%d\n", nRead);
+            *size = nRead;
+            ret = -1;
+        }
+    }
+    else if (pCapturerCtx->inputType == CAPTURE_INPUT_PCM) {
+        ret = pcm_read(pCapturerCtx->pcm, data, *size);
+        if (ret != 0) {
+            printf("/n Errors appears in hw\n");
+            *size = 0;
+        }
+    }
+    return ret;
+}
+
 void* thread_capture_pcm(void * arg)
 {
     capturer_t* pCapturerCtx = (capturer_t*)arg;
     int bExit = 0;
     int sleepCnt = 0;
-    while(!bExit) {
+    while(!bExit && pCapturerCtx->remaindSize) {
         size_t szAvail = 0;
-        int nRead = 0;
+        int ret = 0;
         void* phy = NULL;
         void* vir = NULL;
         /*Try to capture audio to T buffer align with chunk*/
@@ -96,7 +127,7 @@ void* thread_capture_pcm(void * arg)
                 usleep(1000);
                 sleepCnt++;
                 if (sleepCnt > 1000) {
-                    printf("T buffer overrun:%zu %d %d\n", szAvail, pCapturerCtx->totalSize, pCapturerCtx->chunkNum);
+                    printf("T buffer overrun:%zu %d %d\n", szAvail, pCapturerCtx->remaindSize, pCapturerCtx->chunkNum);
                     sleepCnt = 0;
                 }
             }
@@ -106,17 +137,16 @@ void* thread_capture_pcm(void * arg)
             }
         }
         AML_TBUF_GetWrPtr(pCapturerCtx->tbuf, &phy, &vir);
-        nRead = fread(vir, 1, szAvail, pCapturerCtx->fp);
-        if (nRead != szAvail) {
+        ret = capturer_input(pCapturerCtx, vir, &szAvail);
+        if (ret != 0) {
             bExit = 1;
-            printf("Capture thread reach EOF:%d\n", nRead);
         }
-        AML_TBUF_UpdateWrOffset(pCapturerCtx->tbuf, nRead);
-        pCapturerCtx->totalSize += nRead;
+        AML_TBUF_UpdateWrOffset(pCapturerCtx->tbuf, szAvail);
+        pCapturerCtx->remaindSize -= szAvail;
         pCapturerCtx->chunkNum++;
         TBUF_DEBUG("capture total:%d\n", pCapturerCtx->totalSize);
     }
-    printf("Exit capture thread:%d,%d\n", pCapturerCtx->totalSize, pCapturerCtx->chunkNum);
+    printf("Exit capture thread:%d,%d\n", pCapturerCtx->remaindSize, pCapturerCtx->chunkNum);
     return NULL;
 }
 
@@ -232,16 +262,59 @@ int hifi4_tbuf_test(int argc, char* argv[])
     memset(&loopbackBCtx, 0, sizeof(hifi4_loopback_t));
     loopbackBCtx.aipc = -1;
 
-
-    if (argc != 3) {
+    if (argc != 4) {
         printf("Invalid parameter:%d\n", argc);
         return -1;
     }
-    FILE* fInput = fopen(argv[0], "rb");
-    FILE* fOutputA = fopen(argv[1], "w+b");
-    FILE* fOutputB = fopen(argv[2], "w+b");
-    if (!fInput || !fOutputA || !fOutputB) {
-        printf("Failed to open file:%p %p %p\n", fInput, fOutputA, fOutputB);
+
+    if (!strcmp("file", argv[0])) {
+        captureCtx.inputType = CAPTURE_INPUT_FILE;
+        FILE* fInput = fopen(argv[1], "rb");
+        if (!fInput) {
+            printf("Failed to open files:%s\n", argv[1]);
+            goto recycle_resource;
+        }
+        captureCtx.fp = fInput;
+        fseek(captureCtx.fp, 0, SEEK_END);
+        fileSize = ftell(captureCtx.fp);
+        fseek(captureCtx.fp, 0, SEEK_SET);
+    } else if (!strcmp("pcm", argv[0])) {
+        captureCtx.inputType = CAPTURE_INPUT_PCM;
+        struct pcm_config cfg;
+        memset(&cfg, 0, sizeof(cfg));
+        cfg.channels = SAMPLE_CH;
+        cfg.rate = SAMPLE_MS*1000;
+        cfg.period_size = 128;
+        cfg.period_count = 4;
+        // !!! linux's TINYALSA side's header file's, PCM_FORMAT_S32_LE is 1
+        // !!! DSP's TINYALSA side's headefile, PCM_FORMAT_S32_LE is 7
+        cfg.format = 1;
+        cfg.start_threshold = 0;
+        cfg.stop_threshold = 0;
+        cfg.silence_threshold = 0;
+        cfg.avail_min = 0;
+        uint32_t card = 0, device = 8, flags = PCM_IN;
+        printf("ch=%d rate=%d period=%dx%d format=%d thr=%d,%d,%d card=%d device=%d\n",
+               cfg.channels, cfg.rate, cfg.period_size, cfg.period_count,
+               cfg.format, cfg.start_threshold, cfg.stop_threshold,
+               cfg.silence_threshold, card, device);
+        captureCtx.pcm = pcm_open(card, device, flags, &cfg);
+        if (captureCtx.pcm == NULL) {
+            printf("failed to open pcm\n");
+            goto recycle_resource;
+        }
+        if (!pcm_is_ready(captureCtx.pcm)) {
+            printf("pcm is not ready:%s\n", pcm_get_error(captureCtx.pcm));
+            goto recycle_resource;
+        }
+        int seconds = atoi(argv[1]);
+        fileSize = seconds*1000*SAMPLE_MS*SAMPLE_CH*SAMPLE_BYTES;
+    }
+
+    FILE* fOutputA = fopen(argv[2], "w+b");
+    FILE* fOutputB = fopen(argv[3], "w+b");
+    if (!fOutputA || !fOutputB) {
+        printf("Failed to open files:%s or %s\n", argv[2], argv[3]);
         goto recycle_resource;
     }
 
@@ -250,13 +323,8 @@ int hifi4_tbuf_test(int argc, char* argv[])
         printf("Failed create T buf\n");
         goto recycle_resource;
     }
-
-    captureCtx.fp = fInput;
     captureCtx.tbuf = tbuf;
-
-    fseek(captureCtx.fp, 0, SEEK_END);
-    fileSize = ftell(captureCtx.fp);
-    fseek(captureCtx.fp, 0, SEEK_SET);
+    captureCtx.remaindSize = fileSize;
 
     writerACtx.eType = TBUF_READER_A;
     writerACtx.tbuf = tbuf;
@@ -338,8 +406,10 @@ recycle_resource:
         xAudio_Ipc_Deinit(loopbackACtx.aipc);
     if (loopbackBCtx.aipc != -1)
         xAudio_Ipc_Deinit(loopbackBCtx.aipc);
-    if (captureCtx.fp != NULL)
+    if (captureCtx.fp != NULL && captureCtx.inputType == CAPTURE_INPUT_FILE)
         fclose(captureCtx.fp);
+    if (captureCtx.pcm != NULL && captureCtx.inputType == CAPTURE_INPUT_PCM)
+        pcm_close(captureCtx.pcm);
     if (readerACtx.fp != NULL)
         fclose(readerACtx.fp);
     if (readerBCtx.fp != NULL)

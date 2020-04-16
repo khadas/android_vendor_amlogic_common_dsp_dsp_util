@@ -1,0 +1,23 @@
+1. --shm-loopback $hifiId[0:HiFiA, 1:HiFiB] $input $output
+a. Read pcm from local file $input
+b. Feed pcm to HiFiA or HiFiB
+c. Loopback pcm from HiFiA or HiFiB
+d. Dump pcm to local file $output
+
+2. --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $chunkNum $output
+a. Capture pcm from tinyalsa, the duration is calc by the # of $chunkNum, 16ms per chunk
+b. Feed pcm to HiFiA or HiFiB
+c. Loopback pcm from HiFiA or HiFiB
+d. Dump pcm to local file $output
+
+3. --tbuf-file $input $output0 $output1
+a. Read pcm from local file $input
+b. Feed pcm to both of two HiFi cores with shared buffer
+c. Loopback pcm from two HiFi cores separately
+d. Dump HiFiA's output to local file $input0 and dump HiFiB's output to local file $input1
+
+4. --tbuf-pcm $seconds $output0 $output1
+a. Capture pcm from tinyalsa, the duration is $seconds
+b. Feed pcm to both of two HiFi cores with shared buffer
+c. Loopback pcm from two HiFi cores separately
+d. Dump HiFiA's output to local file $input0 and dump HiFiB's output to local file $input1
