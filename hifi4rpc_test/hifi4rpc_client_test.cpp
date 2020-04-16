@@ -376,7 +376,10 @@ int main(int argc, char* argv[]) {
                 tbuf_arg[1] = argv[optind];
                 tbuf_arg[2] = argv[optind + 1];
                 tbuf_arg[3] = argv[optind + 2];
+                TIC;
                 hifi4_tbuf_test(4, tbuf_arg);
+                TOC;
+                printf("tbuf unit test use:%u ms\n", ms);
             } else
                 printf("The param should be liks this --tbuf-file $input $output0 $output1\n");
             break;
@@ -384,7 +387,12 @@ int main(int argc, char* argv[]) {
             xaf_dump(argc - optind, &argv[optind]);
             break;
         case 25:
-            shm_loopback_test(argc - optind, &argv[optind]);
+            {
+                TIC;
+                shm_loopback_test(argc - optind, &argv[optind]);
+                TOC;
+                printf("buffer loopback unit test use:%u ms\n", ms);
+            }
             break;
         case 26:
             if (argc == 5 && optind == 2)
