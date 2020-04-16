@@ -142,19 +142,23 @@ static void usage()
 
     printf ("\033[1mpcm-gain Usage:\033[m hifi4rpc_client_test --pcm-gain $sampleRate $bitdepth $channels $gain $input $output\n");
 
-    printf ("\033[1mpcm-file Usage:\033[m hifi4rpc_client_test --pcm-file $hifiId[0:HiFiA, 1:HiFiB] $input\n");
+    printf ("\033[1mpcm-file Usage:\033[m hifi4rpc_client_test --pcm-file $hifiId[0:HiFiA, 1:HiFiB] $input\n File -> TinyCapturer");
 
-    printf ("\033[1mpcm-cap Usage:\033[m hifi4rpc_client_test --pcm-cap $hifiId[0:HiFiA, 1:HiFiB]\n");
+    printf ("\033[1mpcm-cap Usage:\033[m hifi4rpc_client_test --pcm-cap $hifiId[0:HiFiA, 1:HiFiB]\n Tinyalsa -> TinyCapturer\n");
 
-    printf ("\033[1mpcm loopback test usage:\033[m hifi4rpc_client_test --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $chunkNum $output\n");
+    printf ("\033[1mpcm-loopback test usage:\033[m hifi4rpc_client_test --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $chunkNum $output\n");
 
-    printf ("\033[1mxaf Usage:\033[m hifi4rpc_client_test --xaf $hifiId[0:HiFiA, 1:HiFiB] \n");
+    printf ("\033[1mpcm-dump Usage:\033[m hifi4rpc_client_test --pcm-dump $hifiId[0:HiFiA, 1:HiFiB] $output\n");
 
-    printf ("\033[1mxaf dump Usage:\033[m hifi4rpc_client_test --xaf-dump $hifiId[0:HiFiA, 1:HiFiB] $output\n");
+    printf ("\033[1mtbuf-file Usage:\033[m hifi4rpc_client_test --tbuf-file $input $output0 $output1\n");
 
-    printf ("\033[1mtbuf Usage:\033[m hifi4rpc_client_test --tbuf-file $input $output0 $output1\n");
+    printf ("\033[1mtbuf-pcm Usage:\033[m hifi4rpc_client_test --tbuf-pcm $seconds $output0 $output1\n");
 
-    printf ("\033[1mtbuf Usage:\033[m hifi4rpc_client_test --tbuf-pcm $seconds $output0 $output1\n");
+	printf ("\033[1mxaf Usage:\033[m hifi4rpc_client_test --xaf $hifiId[0:HiFiA, 1:HiFiB] $case\n"
+	        "Case 0: Trigger TinyCapturer -> PcmGain pipeline\n"
+	        "Case 1: Trigger PcmGain -> TinyRenderer pipeline\n"
+	        "Case 2: Trigger TinyCapturer -> PcmGain -> TinyRenderer pipeline\n"
+	        );
 }
 
 
@@ -187,7 +191,7 @@ int main(int argc, char* argv[]) {
         {"pcm-cap", no_argument, NULL, 21},
         {"xaf", no_argument, NULL, 22},
         {"tbuf-file", no_argument, NULL, 23},
-        {"xaf-dump", no_argument, NULL, 24},
+        {"pcm-dump", no_argument, NULL, 24},
         {"shm-loopback", no_argument, NULL, 25},
         {"tbuf-pcm", no_argument, NULL, 26},
         {0, 0, 0, 0}
@@ -355,18 +359,13 @@ int main(int argc, char* argv[]) {
                 pcm_loopback_test(argc - optind, &argv[optind]);
             }
             break;
-        case 20:
-            {
-                hifi4_tbuf_test(argc - optind, &argv[optind]);
-            }
-            break;
-        case 21:
+        case 20: // pcm-file
             bcm_file_test(argc - optind, &argv[optind]);
-			break;
-        case 22:
+            break;
+        case 21: // pcm-cap
             bcm_pcm_test(argc - optind, &argv[optind]);
             break;
-        case 23:
+        case 22:
             xaf_test(argc - optind, &argv[optind]);
             break;
         case 23:
@@ -381,7 +380,7 @@ int main(int argc, char* argv[]) {
             } else
                 printf("The param should be liks this --tbuf-file $input $output0 $output1\n");
             break;
-        case 24:
+        case 24: // pcm-dump
             xaf_dump(argc - optind, &argv[optind]);
             break;
         case 25:

@@ -362,14 +362,15 @@ int pcm_loopback_test(int argc, char *argv[])
 }
 
 int xaf_test(int argc, char **argv) {
-    if (argc != 1) {
+    if (argc != 2) {
         printf("Invalid argc:%d\n", argc);
         return -1;
     }
     int id = atoi(argv[0]);
-    printf("Invoke HiFi%d\n", id);
+    int caseId = atoi(argv[1]);
+    printf("Invoke HiFi%d case=%d\n", id, caseId);
     int hdl = xAudio_Ipc_Init(id);
-    xAIPC(hdl, MBX_CMD_XAF_TEST, NULL, 0);
+    xAIPC(hdl, MBX_CMD_XAF_TEST, &caseId, sizeof(caseId));
     xAudio_Ipc_Deinit(hdl);
     return 0;
 }
@@ -382,21 +383,22 @@ int xaf_dump(int argc, char **argv) {
     int id = atoi(argv[0]);
     printf("Invoke HiFi%d\n", id);
     int hdl = xAudio_Ipc_Init(id);
-    FILE* fpOut = fopen(argv[1], "w+b");
+    FILE* fpOut = fopen(argv[1], "wb");
     const int ms = 16;
     const int oneshot = 48 * ms; // 48KHz
     uint32_t size = oneshot * 16 * 4; // 16channel, 32bit
     AML_MEM_HANDLE hShmBuf = AML_MEM_Allocate(size);
     void *buf = AML_MEM_GetVirtAddr(hShmBuf);
     void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
-    int loop = 128 * 10; // test 10.24s
-    uint32_t remained = size*loop;
-    while (remained) {
+    int loop = 4; // test 10.24s
+    int32_t remained = size*loop;
+    while (remained > 0) {
         uint32_t r = xaf_min(size, remained);
         bcm_client_read(hdl, phybuf, r);
         AML_MEM_Invalidate(phybuf, r);
         fwrite(buf, 1, r, fpOut);
         remained -= r;
+        printf("recv data remained=%d\n", remained);
     }
     AML_MEM_Free(hShmBuf);
     fclose(fpOut);

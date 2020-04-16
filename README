@@ -1,23 +1,50 @@
-1. --shm-loopback $hifiId[0:HiFiA, 1:HiFiB] $input $output
+# --shm-loopback $hifiId[0:HiFiA, 1:HiFiB] $input $output
 a. Read pcm from local file $input
 b. Feed pcm to HiFiA or HiFiB
 c. Loopback pcm from HiFiA or HiFiB
 d. Dump pcm to local file $output
 
-2. --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $chunkNum $output
+# --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $chunkNum $output
 a. Capture pcm from tinyalsa, the duration is calc by the # of $chunkNum, 16ms per chunk
 b. Feed pcm to HiFiA or HiFiB
 c. Loopback pcm from HiFiA or HiFiB
 d. Dump pcm to local file $output
 
-3. --tbuf-file $input $output0 $output1
+# --tbuf-file $input $output0 $output1
 a. Read pcm from local file $input
 b. Feed pcm to both of two HiFi cores with shared buffer
 c. Loopback pcm from two HiFi cores separately
 d. Dump HiFiA's output to local file $input0 and dump HiFiB's output to local file $input1
 
-4. --tbuf-pcm $seconds $output0 $output1
+# --tbuf-pcm $seconds $output0 $output1
 a. Capture pcm from tinyalsa, the duration is $seconds
 b. Feed pcm to both of two HiFi cores with shared buffer
 c. Loopback pcm from two HiFi cores separately
 d. Dump HiFiA's output to local file $input0 and dump HiFiB's output to local file $input1
+
+# --xaf $hifiId[0:HiFiA, 1:HiFiB] $caseId
+Trigger XAF test pipeline at HiFi side
+Case 0: TinyCapturer -> PcmGain
+Case 1: PcmGain -> TinyRenderer
+Case 2: TinyCapturer -> PcmGain -> TinyRenderer
+
+# --pcm-file $hifiId[0:HiFiA, 1:HiFiB] $input &
+Read pcm file $input, and feed data to HiFi side's TinyCapturer
+It work at bakcground.  TinyCapturer plugin in XAF need cowork with this command.
+sample test commmand:
+    hifi4rpc_client_test --pcm-file 0 /data/out_lb.wav.raw &
+    hifi4rpc_client_test --xaf 0 0
+
+# --pcm-cap $hifiId[0:HiFiA, 1:HiFiB] &
+Capture pcm from tinyalsa, and feed data to HiFi side's TinyCapturer
+It work at background. TinyCapturer plugin in XAF need cowork with this command.
+sample test command:
+    hifi4rpc_client_test --pcm-cap 0 &
+    hifi4rpc_client_test --xaf 0 0
+
+# --pcm-dump $hifiId[0:HiFiA, 1:HiFiB] $output &
+Receive pcm data form TinyRenderer at HiFi side, and write it to local file
+It work at background. TinyRenderer plugin in XAF need cowork with this command.
+sample test command:
+    hifi4rpc_client_test --pcm-dump 0 /data/dump.raw &
+    hifi4rpc_client_test --xaf 0 1

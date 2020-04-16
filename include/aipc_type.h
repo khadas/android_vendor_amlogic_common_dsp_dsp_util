@@ -324,7 +324,6 @@ typedef struct {
     int32_t out_ret; // long to int32_t
 } __attribute__((packed)) pcm_get_latency_st;
 
-
 #ifdef __cplusplus
 }
 #endif
