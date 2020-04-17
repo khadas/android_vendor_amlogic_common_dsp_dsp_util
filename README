@@ -4,8 +4,8 @@ b. Feed pcm to HiFiA or HiFiB
 c. Loopback pcm from HiFiA or HiFiB
 d. Dump pcm to local file $output
 
-# --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $chunkNum $output
-a. Capture pcm from tinyalsa, the duration is calc by the # of $chunkNum, 16ms per chunk
+# --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $seconds $output
+a. Capture pcm from tinyalsa, the duration is $seconds
 b. Feed pcm to HiFiA or HiFiB
 c. Loopback pcm from HiFiA or HiFiB
 d. Dump pcm to local file $output

@@ -278,3 +278,19 @@ int AML_SRCS16LE_Exec(void *h,
     return r;
 }
 
+#define MSECS_PER_SEC (1000L)
+#define NSECS_PER_MSEC (1000000L)
+
+void aprofiler_get_cur_timestamp(struct timespec* ts)
+{
+    clock_gettime(CLOCK_MONOTONIC, ts);
+    return;
+}
+
+uint32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStart)
+{
+    uint32_t uEndMSec = (uint32_t)(tsEnd->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsEnd->tv_nsec/NSECS_PER_MSEC);
+    uint32_t uStartMSec = (uint32_t)(tsStart->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsStart->tv_nsec/NSECS_PER_MSEC);
+    //printf("uEndMSec:%d, uStartMSec:%d\n", uEndMSec, uStartMSec);
+    return (uEndMSec - uStartMSec);
+}

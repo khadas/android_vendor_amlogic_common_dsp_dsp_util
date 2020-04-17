@@ -42,6 +42,7 @@
 #include "rpc_client_shm.h"
 #include "aml_tbuf_api.h"
 #include "asoundlib.h"
+#include "generic_macro.h"
 
 #define SAMPLE_MS 48
 #define SAMPLE_BYTES 4
@@ -137,6 +138,7 @@ void* thread_capture_pcm(void * arg)
             }
         }
         AML_TBUF_GetWrPtr(pCapturerCtx->tbuf, &phy, &vir);
+        szAvail = AMX_MIN((int)szAvail, pCapturerCtx->remaindSize);
         ret = capturer_input(pCapturerCtx, vir, &szAvail);
         if (ret != 0) {
             bExit = 1;

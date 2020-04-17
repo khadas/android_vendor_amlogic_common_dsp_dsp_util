@@ -39,6 +39,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include <time.h>
 void* AML_SRCS16LE_Init(int32_t in_rate, int32_t out_rate, uint32_t channel);
 
 void AML_SRCS16LE_DeInit(void *h);
@@ -46,6 +47,19 @@ void AML_SRCS16LE_DeInit(void *h);
 int AML_SRCS16LE_Exec(void *h,
                  int16_t *dst, size_t dst_frame,
                  int16_t *src, size_t src_frame);
+
+
+void aprofiler_get_cur_timestamp(struct timespec* ts);
+uint32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStart);
+
+#define TIC              \
+    struct timespec bgn, end; \
+    aprofiler_get_cur_timestamp(&bgn)
+
+#define TOC                            \
+    aprofiler_get_cur_timestamp(&end); \
+    uint32_t ms = aprofiler_msec_duration(&end, &bgn)
+
 
 #ifdef __cplusplus
 }

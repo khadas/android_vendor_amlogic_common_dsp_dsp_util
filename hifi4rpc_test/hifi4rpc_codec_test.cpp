@@ -33,7 +33,6 @@
  */
 
 #include <fcntl.h>
-#include <sys/time.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -44,7 +43,6 @@
 #include <getopt.h>
 #include <math.h>
 #include <pthread.h>
-#include <time.h>
 #include <signal.h>
 #include "mp3reader.h"
 #include "sndfile.h"

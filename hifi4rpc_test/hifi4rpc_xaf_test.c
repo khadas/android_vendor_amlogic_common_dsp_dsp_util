@@ -33,7 +33,6 @@
  */
 
 #include <fcntl.h>
-#include <sys/time.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -43,13 +42,13 @@
 #include <string.h>
 #include <math.h>
 #include <pthread.h>
-#include <time.h>
 #include <signal.h>
 #include "aipc_type.h"
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
 #include "asoundlib.h"
 #include "generic_macro.h"
+#include "aml_audio_util.h"
 
 long get_us() {
     struct timespec tp;
@@ -219,80 +218,73 @@ int bcm_pcm_test(int argc, char* argv[])
 #define CHUNK_BYTES (SAMPLE_MS * SAMPLE_BYTES * SAMPLE_CH * CHUNK_MS)
 typedef struct _io_thread_context_ {
     int id;
-    FILE *fp;
+    FILE* fp;
+    struct pcm *ppcm;
     size_t fileSize;
+    struct timespec timeStamp[256];
+    int chunkNum;
+    void* ctx;
 } io_thread_context;
-static void *thread_write_pcm(void *arg)
+int read_wrapper(io_thread_context* pWriteCtx, void* data, size_t* size)
 {
-
-    struct pcm_config cfg;
-    memset(&cfg, 0, sizeof(cfg));
-    cfg.channels = 16;
-    cfg.rate = 48000;
-    cfg.period_size = 128;
-    cfg.period_count = 4;
-    // !!! linux's TINYALSA side's header file's, PCM_FORMAT_S32_LE is 1
-    // !!! DSP's TINYALSA side's headefile, PCM_FORMAT_S32_LE is 7
-    cfg.format = 1;
-    cfg.start_threshold = 0;
-    cfg.stop_threshold = 0;
-    cfg.silence_threshold = 0;
-    cfg.avail_min = 0;
-    uint32_t card = 0, device = 8, flags = PCM_IN;
-    printf("ch=%d rate=%d period=%dx%d format=%d thr=%d,%d,%d card=%d device=%d\n",
-           cfg.channels, cfg.rate, cfg.period_size, cfg.period_count,
-           cfg.format, cfg.start_threshold, cfg.stop_threshold,
-           cfg.silence_threshold, card, device);
-    struct pcm *pcm = pcm_open(card, device, flags, &cfg);
-    if (pcm == NULL) {
-        printf("failed to open pcm\n");
-        return NULL;
+    int ret = 0;
+    if (pWriteCtx->fp) {
+        size_t nRead = 0;
+        nRead = fread(data, 1, *size, pWriteCtx->fp);
+        if (nRead != *size) {
+            printf("Capture thread reach EOF:%d\n", nRead);
+            *size = nRead;
+            ret = -1;
+        }
     }
-    if (!pcm_is_ready(pcm)) {
-        printf("pcm is not ready:%s\n", pcm_get_error(pcm));
-        return NULL;
+    else if (pWriteCtx->ppcm) {
+        ret = pcm_read(pWriteCtx->ppcm, data, *size);
+        if (ret != 0) {
+            printf("/n Errors appears in hw\n");
+            *size = 0;
+        }
     }
+    return ret;
+}
 
-    void *pVir = NULL;
-    void *pPhy = NULL;
-    io_thread_context *pWriteCtx = (io_thread_context *)arg;
+static void* thread_write_pcm(void * arg)
+{
+    void* pVir = NULL;
+    void* pPhy = NULL;
+    io_thread_context* pWriteCtx = (io_thread_context*)arg;
     AML_MEM_HANDLE hShm = AML_MEM_Allocate(CHUNK_BYTES);
     int aipc = xAudio_Ipc_Init(pWriteCtx->id);
     pVir = AML_MEM_GetVirtAddr(hShm);
     pPhy = AML_MEM_GetPhyAddr(hShm);
     int bExit = 0;
-    size_t cnt = 0;
-    while (!bExit) {
-        int nRead = 0;
-        nRead = pcm_read(pcm, (void *)pVir, CHUNK_BYTES);
-        if (nRead != 0) {
-            printf("pcm read fail:%s\n", pcm_get_error(pcm));
+    while (!bExit && pWriteCtx->fileSize > 0) {
+        int ret = 0;
+        size_t nRead = AMX_MIN(CHUNK_BYTES, pWriteCtx->fileSize);
+        ret = read_wrapper(pWriteCtx, (void*)pVir, &nRead);
+        if (pWriteCtx->chunkNum < 256)
+            aprofiler_get_cur_timestamp(&pWriteCtx->timeStamp[pWriteCtx->chunkNum]);
+        if (ret != 0) {
             bExit = 1;
-            continue;
         }
         AML_MEM_Clean(pPhy, CHUNK_BYTES);
         pcm_io_st io_arg;
         io_arg.data = (xpointer)pPhy;
-        io_arg.count = CHUNK_BYTES;
+        io_arg.count = nRead;
         xAIPC(aipc, MBX_CMD_IOBUF_ARM2DSP, &io_arg, sizeof(io_arg));
-        cnt += CHUNK_BYTES;
-        if (cnt >= pWriteCtx->fileSize) {
-            break;
-        }
+        pWriteCtx->chunkNum++;
+        pWriteCtx->fileSize -= nRead;
     }
-    printf("Write thread exit\n");
     xAudio_Ipc_Deinit(aipc);
     AML_MEM_Free(hShm);
-    pcm_close(pcm);
 
     return NULL;
 }
 
-static void *thread_read_pcm(void *arg)
+static void* thread_read_pcm(void * arg)
 {
-    void *pVir = NULL;
-    void *pPhy = NULL;
-    io_thread_context *pReadCtx = (io_thread_context *)arg;
+    void* pVir = NULL;
+    void* pPhy = NULL;
+    io_thread_context* pReadCtx = (io_thread_context*)arg;
     AML_MEM_HANDLE hShm = AML_MEM_Allocate(CHUNK_BYTES);
     int aipc = xAudio_Ipc_Init(pReadCtx->id);
     pVir = AML_MEM_GetVirtAddr(hShm);
@@ -300,63 +292,121 @@ static void *thread_read_pcm(void *arg)
     while (pReadCtx->fileSize) {
         pcm_io_st io_arg;
         io_arg.data = (xpointer)pPhy;
-        io_arg.count = CHUNK_BYTES;
+        io_arg.count = AMX_MIN(CHUNK_BYTES, pReadCtx->fileSize);
         xAIPC(aipc, MBX_CMD_IOBUF_DSP2ARM, &io_arg, sizeof(io_arg));
         AML_MEM_Invalidate(pPhy, io_arg.count);
 
-        fwrite((void *)pVir, 1, io_arg.count, pReadCtx->fp);
+        if (pReadCtx->chunkNum < 256) {
+            aprofiler_get_cur_timestamp(&pReadCtx->timeStamp[pReadCtx->chunkNum]);
+            //io_thread_context* pWriteCtx = (io_thread_context*)pReadCtx->ctx;
+            //printf("%d:%d\n", pReadCtx->chunkNum,  aprofiler_msec_duration(&pReadCtx->timeStamp[pReadCtx->chunkNum], &pWriteCtx->timeStamp[pReadCtx->chunkNum]));
+        }
+        fwrite((void*)pVir, 1, io_arg.count, pReadCtx->fp);
         pReadCtx->fileSize -= io_arg.count;
+        pReadCtx->chunkNum++;
     }
-    printf("Read thread exit\n");
     xAudio_Ipc_Deinit(aipc);
     AML_MEM_Free(hShm);
     return NULL;
 }
 
-int pcm_loopback_test(int argc, char *argv[])
+int pcm_loopback_test(int argc, char* argv[])
 {
     int aipc = -1;
+    int fileSize = 0;
     io_thread_context writeCtx;
+    memset(&writeCtx, 0, sizeof(io_thread_context));
     io_thread_context readCtx;
-    if (argc != 3) {
-        printf("Invalid parameter\n");
+    memset(&readCtx, 0, sizeof(io_thread_context));
+
+    if (argc != 4) {
+        printf("pcm_loopback_test: invalid parameter number %d\n", argc);
         return -1;
     }
     int id = atoi(argv[0]);
-    int chunkNum = atoi(argv[1]);
 
-    FILE *fpOut = fopen(argv[2], "w+b");
-    if (fpOut == NULL) {
-        printf("Failed to open %s\n", argv[2]);
-        fclose(fpOut);
-        return -1;
+    if (!strcmp("file", argv[1])) {
+        FILE* fInput = fopen(argv[2], "rb");
+        if (!fInput) {
+            printf("Failed to open files:%s\n", argv[2]);
+            goto recycle_resource;
+        }
+        writeCtx.fp = fInput;
+        fseek(writeCtx.fp, 0, SEEK_END);
+        fileSize = ftell(writeCtx.fp);
+        fseek(writeCtx.fp, 0, SEEK_SET);
+    } else if (!strcmp("pcm", argv[1])) {
+        struct pcm_config cfg;
+        memset(&cfg, 0, sizeof(cfg));
+        cfg.channels = SAMPLE_CH;
+        cfg.rate = SAMPLE_MS*1000;
+        cfg.period_size = 128;
+        cfg.period_count = 4;
+        cfg.format = 1;
+        cfg.start_threshold = 0;
+        cfg.stop_threshold = 0;
+        cfg.silence_threshold = 0;
+        cfg.avail_min = 0;
+        writeCtx.ppcm = pcm_open(0, 8, PCM_IN, &cfg);
+        if (writeCtx.ppcm == NULL) {
+            printf("failed to open pcm\n");
+            goto recycle_resource;
+        }
+        if (!pcm_is_ready(writeCtx.ppcm)) {
+            printf("pcm is not ready:%s\n", pcm_get_error(writeCtx.ppcm));
+            goto recycle_resource;
+        }
+        int seconds = atoi(argv[2]);
+        fileSize = seconds*1000*SAMPLE_MS*SAMPLE_CH*SAMPLE_BYTES;
+        printf("pcm open:%p\n", writeCtx.ppcm);
     }
-
-    int fileSize = CHUNK_BYTES * chunkNum;
-    printf("chunk=%d num=%d size=%d\n", CHUNK_BYTES, chunkNum, fileSize);
 
     writeCtx.fileSize = fileSize;
     writeCtx.id = id;
 
     readCtx.fileSize = fileSize;
-    readCtx.fp = fpOut;
     readCtx.id = id;
+    readCtx.ctx = (void*)&writeCtx;
+    readCtx.fp = fopen(argv[3], "w+b");
+    if (readCtx.fp == NULL) {
+        printf("Failed to open %s\n", argv[3]);
+        goto recycle_resource;
+    }
 
     pthread_t writeThread;
     pthread_t readThread;
-    pthread_create(&writeThread, NULL, thread_write_pcm, (void *)&writeCtx);
-    pthread_create(&readThread, NULL, thread_read_pcm, (void *)&readCtx);
+    pthread_create(&writeThread, NULL, thread_write_pcm, (void*)&writeCtx);
+    pthread_create(&readThread, NULL, thread_read_pcm, (void*)&readCtx);
 
     aipc = xAudio_Ipc_Init(id);
     pcm_io_st io_arg;
     io_arg.count = fileSize;
     xAIPC(aipc, MBX_CMD_IOBUF_DEMO, &io_arg, sizeof(io_arg));
     xAudio_Ipc_Deinit(aipc);
-    printf("HiFi4 loopback done\n");
-    pthread_join(writeThread, NULL);
-    pthread_join(readThread, NULL);
 
-    fclose(fpOut);
+    pthread_join(writeThread,NULL);
+    pthread_join(readThread,NULL);
+
+    uint32_t i;
+    uint32_t averageRTT = 0;
+    uint32_t largestRTT = 0;
+    uint32_t numRTT = AMX_MIN(256, readCtx.chunkNum);
+    for (i = 0; i < numRTT; i++) {
+        uint32_t rtt = aprofiler_msec_duration(&readCtx.timeStamp[i], &writeCtx.timeStamp[i]);
+        if (largestRTT < rtt)
+            largestRTT = rtt;
+        averageRTT += rtt;
+    }
+    printf("largestRTT: %dms\n", largestRTT);
+    printf("averageRTT: %dms\n", averageRTT/numRTT);
+    printf("num of round: %d\n", numRTT);
+recycle_resource:
+    if (writeCtx.fp)
+        fclose(writeCtx.fp);
+    if (writeCtx.ppcm)
+        pcm_close(writeCtx.ppcm);
+    if (readCtx.fp)
+        fclose(readCtx.fp);
     return 0;
 }
 
@@ -392,7 +442,7 @@ int xaf_dump(int argc, char **argv) {
     int loop = 4; // test 10.24s
     int32_t remained = size*loop;
     while (remained > 0) {
-        uint32_t r = AMX_MIN(size, remained);
+        uint32_t r = AMX_MIN(size, (uint32_t)remained);
         bcm_client_read(hdl, phybuf, r);
         AML_MEM_Invalidate(phybuf, r);
         fwrite(buf, 1, r, fpOut);

@@ -37,7 +37,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
-#include <time.h>
 #include "aipc_type.h"
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"

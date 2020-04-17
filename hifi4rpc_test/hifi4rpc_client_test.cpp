@@ -33,7 +33,6 @@
  */
 #include <stdint.h>
 #include <fcntl.h>
-#include <sys/time.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -44,31 +43,8 @@
 #include <getopt.h>
 #include <math.h>
 #include <pthread.h>
+#include "aml_audio_util.h"
 
-#define MSECS_PER_SEC (1000L)
-#define NSECS_PER_MSEC (1000000L)
-
-void aprofiler_get_cur_timestamp(struct timespec* ts)
-{
-    clock_gettime(CLOCK_MONOTONIC, ts);
-    return;
-}
-
-uint32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStart)
-{
-    uint32_t uEndMSec = (uint32_t)(tsEnd->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsEnd->tv_nsec/NSECS_PER_MSEC);
-    uint32_t uStartMSec = (uint32_t)(tsStart->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsStart->tv_nsec/NSECS_PER_MSEC);
-	//printf("uEndMSec:%d, uStartMSec:%d\n", uEndMSec, uStartMSec);
-	return (uEndMSec - uStartMSec);
-}
-
-#define TIC              \
-    struct timespec bgn, end; \
-    aprofiler_get_cur_timestamp(&bgn)
-
-#define TOC                            \
-    aprofiler_get_cur_timestamp(&end); \
-    uint32_t ms = aprofiler_msec_duration(&end, &bgn)
 int mp3_offload_dec(int argc, char* argv[]);
 int aac_offload_dec(int argc, char* argv[]);
 
@@ -89,7 +65,6 @@ int ipc_uint_test(int id);
 int ipc_uint_test1(int id);
 int rpc_unit_test(int argc, char* argv[]) ;
 int shm_uint_test(void);
-int shm_loopback_test(int argc, char* argv[]);
 int pcm_loopback_test(int argc, char* argv[]);
 void aml_s16leresampler(int argc, char* argv[]);
 void aml_hifi4_inside_wakeup();
@@ -355,9 +330,15 @@ int main(int argc, char* argv[]) {
             }
             break;
         case 19:
-            {
-                pcm_loopback_test(argc - optind, &argv[optind]);
-            }
+            if (argc == 5 && optind == 2) {
+                char* tbuf_arg[4];
+                tbuf_arg[0] = argv[optind];
+                tbuf_arg[1] = "pcm";
+                tbuf_arg[2] = argv[optind + 1];
+                tbuf_arg[3] = argv[optind + 2];
+                pcm_loopback_test(4, tbuf_arg);
+            } else
+                printf("The param should be liks this --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $seconds $output\n");
             break;
         case 20: // pcm-file
             bcm_file_test(argc - optind, &argv[optind]);
@@ -387,12 +368,18 @@ int main(int argc, char* argv[]) {
             xaf_dump(argc - optind, &argv[optind]);
             break;
         case 25:
-            {
+            if (argc == 5 && optind == 2) {
+                char* tbuf_arg[4];
+                tbuf_arg[0] = argv[optind];
+                tbuf_arg[1] = "file";
+                tbuf_arg[2] = argv[optind + 1];
+                tbuf_arg[3] = argv[optind + 2];
                 TIC;
-                shm_loopback_test(argc - optind, &argv[optind]);
+                pcm_loopback_test(4, tbuf_arg);
                 TOC;
                 printf("buffer loopback unit test use:%u ms\n", ms);
-            }
+            } else
+                printf("The param should be liks this --shm-loopback $hifiId[0:HiFiA, 1:HiFiB] $input $output\n");
             break;
         case 26:
             if (argc == 5 && optind == 2)

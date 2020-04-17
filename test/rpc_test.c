@@ -34,13 +34,13 @@ struct mbox_uint {
 #define MSECS_PER_SEC (1000L)
 #define NSECS_PER_MSEC (1000000L)
 
-void aprofiler_get_cur_timestamp(struct timespec* ts)
+static void rpc_get_cur_timestamp(struct timespec* ts)
 {
 	clock_gettime(CLOCK_MONOTONIC, ts);
 	return;
 }
 
-uint32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStart)
+static uint32_t rpc_msec_duration(struct timespec* tsEnd, struct timespec* tsStart)
 {
 	uint32_t uEndMSec = (uint32_t)(tsEnd->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsEnd->tv_nsec/NSECS_PER_MSEC);
 	uint32_t uStartMSec = (uint32_t)(tsStart->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsStart->tv_nsec/NSECS_PER_MSEC);
@@ -49,11 +49,11 @@ uint32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStar
 }
 #define TIC              \
     struct timespec bgn, end; \
-    aprofiler_get_cur_timestamp(&bgn)
+    rpc_get_cur_timestamp(&bgn)
 
 #define TOC                            \
-    aprofiler_get_cur_timestamp(&end); \
-    uint32_t ms = aprofiler_msec_duration(&end, &bgn)
+    rpc_get_cur_timestamp(&end); \
+    uint32_t ms = rpc_msec_duration(&end, &bgn)
 
 
 static struct option long_opts[] = {
