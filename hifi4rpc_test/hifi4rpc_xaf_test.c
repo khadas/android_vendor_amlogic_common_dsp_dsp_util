@@ -49,8 +49,7 @@
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
 #include "asoundlib.h"
-
-#define xaf_min(a, b) ((a) < (b) ? (a) : (b))
+#include "generic_macro.h"
 
 long get_us() {
     struct timespec tp;
@@ -393,7 +392,7 @@ int xaf_dump(int argc, char **argv) {
     int loop = 4; // test 10.24s
     int32_t remained = size*loop;
     while (remained > 0) {
-        uint32_t r = xaf_min(size, remained);
+        uint32_t r = AMX_MIN(size, remained);
         bcm_client_read(hdl, phybuf, r);
         AML_MEM_Invalidate(phybuf, r);
         fwrite(buf, 1, r, fpOut);

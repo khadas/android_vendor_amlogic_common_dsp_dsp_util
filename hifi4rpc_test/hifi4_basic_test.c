@@ -49,8 +49,8 @@
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
 #include "aml_audio_util.h"
+#include "generic_macro.h"
 
-#define UNUSED(x) (void)(x)
 #define VOICE_CHUNK_LEN_MS 20
 #define IPC_UNIT_TEST_REPEAT 50
 int ipc_uint_test(int id) {
@@ -348,7 +348,7 @@ void aml_s16leresampler(int argc, char* argv[])
     int16_t* outBuf;
     void* hsrc;
     int nread;
-    UNUSED(argc);
+    AMX_UNUSED(argc);
 
     inRate = atoi(argv[0]);
     outRate = atoi(argv[1]);

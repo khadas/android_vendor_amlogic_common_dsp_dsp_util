@@ -39,7 +39,6 @@
 #include "rpc_client_aipc.h"
 #include "rpc_client_shm.h"
 #include "aml_flatbuf_api.h"
-#define UNUSED(x) (void)(x)
 typedef struct _FLATBUFS {
     int aipchdl;
     tAmlFlatBufHdlRpc hFbuf;

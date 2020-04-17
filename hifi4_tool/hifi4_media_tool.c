@@ -45,8 +45,6 @@
 #include "aml_flatbuf_api.h"
 #include "rpc_client_aipc.h"
 
-#define UNUSED(x) (void)(x)
-
 struct audio_dump_context {
     int32_t ch;
     int32_t rate;

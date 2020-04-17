@@ -37,6 +37,7 @@
 #include "rpc_client_shm.h"
 #include "rpc_client_vsp.h"
 #include "aml_resampler.h"
+#include "generic_macro.h"
 
 typedef struct {
     int32_t Fs_Hz_in;
@@ -58,7 +59,6 @@ struct resampler {
     int32_t outRate;
 };
 
-#define rspmin(a, b) ((a) < (b) ? (a) : (b))
 #define VOICE_MS 48
 resampler_handle *aml_resampler_init(
         int Fs_Hz_in,                   /* I    Input sampling rate (Hz)                                    */
@@ -125,7 +125,7 @@ int aml_resampler(
     meta_param->Fs = rsp->inRate;
     while (inLen > 0) {
         size_t bytesRead = 0;
-        bytesRead = rspmin(inLen, rsp->voiceChunkInByte);
+        bytesRead = AMX_MIN(inLen, rsp->voiceChunkInByte);
         memcpy(inputBuf + sizeof(aml_vsp_meta_param), &in[inidx], bytesRead);
         inLen -= bytesRead;
 

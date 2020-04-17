@@ -41,6 +41,7 @@
 #include "rpc_client_vsp.h"
 #include "rpc_client_shm.h"
 #include "aml_wakeup_api.h"
+#include "generic_macro.h"
 
 #define VOICE_CHUNK_MS 20
 #define VOICE_CHUNK_NUM 50
@@ -49,7 +50,6 @@
     {printf("%s:%d:NULL POINT\n", __FUNCTION__, __LINE__);return AWE_RET_ERR_NULL_POINTER;}
 #define AWE_CHECK_STATUS(st0,st1)    if ((st0) != (st1))          \
     {printf("%s:%d:Invalid status:%d\n", __FUNCTION__, __LINE__, (st0));return AWE_RET_ERR_NOT_SUPPORT;}
-#define min(a, b) ((a) < (b) ? (a) : (b))
 
 typedef enum {
     /* Set to IDLE in Create*/
@@ -556,8 +556,8 @@ AWE_RET AML_AWE_Process(AWE *awe, void* in[],
     AWE_CHECK_STATUS(awe->aweStatus, AWE_STATUS_EXECUTE);
     if (awe->inputMode == AWE_USER_INPUT_MODE) {
         unsigned int i;
-        int32_t inLen = min(*inLenInByte, awe->inWorkBufLen);
-        int32_t outLen = min(*outLenInByte, awe->outWorkBufLen);
+        int32_t inLen = AMX_MIN(*inLenInByte, awe->inWorkBufLen);
+        int32_t outLen = AMX_MIN(*outLenInByte, awe->outWorkBufLen);
         for (i = 0; i < (awe->refInChannels + awe->micInChannels); i++) {
             memcpy(AML_MEM_GetVirtAddr(awe->hinWorkBuf[i]), in[i], inLen);
             AML_MEM_Clean(AML_MEM_GetPhyAddr(awe->hinWorkBuf[i]), inLen);

@@ -42,15 +42,15 @@
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
 #include "aml_flatbuf_api.h"
-#define UNUSED(x) (void)(x)
+#include "generic_macro.h"
+
 #define FLAT_TEST_TYPE_UNIT 0
 #define FLAT_TEST_TYPE_THROUGHPUT 1
-#define min(x, y)	(((x) > (y))?(y):(x))
 
 char* strRdSamples = "flat buffer api test, this is test samples FlatBufCmdDsp2Arm";
 void* flat_buffers_read_cmd(void* arg)
 {
-    UNUSED(arg);
+    AMX_UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
 
     int strRdSamplesLen = strlen(strRdSamples) + 1;
@@ -73,7 +73,7 @@ void* flat_buffers_read_cmd(void* arg)
          * read random number of chars every time
          */
         int size = rand() % config.size;
-        size = min(size, strRdSamplesLen);
+        size = AMX_MIN(size, strRdSamplesLen);
         /*
          * Read bytes with 1 ms time out
          */
@@ -99,7 +99,7 @@ exit_capture:
 char* strWrSamples = "flat buffer api test, this is test samples FlatBufCmdArm2Dsp";
 void* flat_buffers_write_cmd(void* arg)
 {
-    UNUSED(arg);
+    AMX_UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
 
     int strWrSamplesLen = strlen(strWrSamples) + 1;
@@ -122,7 +122,7 @@ void* flat_buffers_write_cmd(void* arg)
          * write random number of chars every time
          */
         int size = rand() % config.size;
-        size = min(size, strWrSamplesLen);
+        size = AMX_MIN(size, strWrSamplesLen);
         /*
          * block here till all bytes are wrriten
          */
@@ -142,7 +142,7 @@ exit_capture:
 #define FLAT_TEST_SAMPLE_BYTE 2
 void* flat_buffers_read_data(void* arg)
 {
-    UNUSED(arg);
+    AMX_UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
 
     int32_t rdLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
@@ -167,7 +167,7 @@ void* flat_buffers_read_data(void* arg)
          * read size should not be larger than config.size
          */
         int size = config.size/2;
-        size = min(rdLen, size);
+        size = AMX_MIN(rdLen, size);
         /*
          * block here till all bytes are read
          */
@@ -187,7 +187,7 @@ exit_capture:
 
 void* flat_buffers_write_data(void* arg)
 {
-    UNUSED(arg);
+    AMX_UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
 
     int32_t wrLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
@@ -212,7 +212,7 @@ void* flat_buffers_write_data(void* arg)
          * write size should not be larger than config.size
          */
         int size = config.size/2;
-        size = min(wrLen, size);
+        size = AMX_MIN(wrLen, size);
         /*
          * block here till all bytes are written
          */

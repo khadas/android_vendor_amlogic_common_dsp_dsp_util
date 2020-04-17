@@ -52,8 +52,7 @@
 #include "rpc_client_pcm.h"
 #include "aml_wakeup_api.h"
 #include "aml_audio_util.h"
-
-#define UNUSED(x) (void)(x)
+#include "generic_macro.h"
 
 #define VOICE_CHUNK_LEN_MS 20
 #define AWE_SAMPLE_RATE 16000
@@ -67,7 +66,7 @@ static uint32_t uTotalBytesWrite = 0;
 void aml_wake_engine_asr_data_handler(AWE *awe, const AWE_DATA_TYPE type,
                                             char* out, size_t size, void *user_data)
 {
-    UNUSED(awe);
+    AMX_UNUSED(awe);
     FILE* fout = (FILE*)user_data;
     if (AWE_DATA_TYPE_ASR == type) {
         fwrite(out, 1, size, fout);
@@ -79,7 +78,7 @@ void aml_wake_engine_asr_data_handler(AWE *awe, const AWE_DATA_TYPE type,
 void aml_wake_engine_voip_data_handler(AWE *awe, const AWE_DATA_TYPE type,
                                             char* out, size_t size, void *user_data)
 {
-    UNUSED(awe);
+    AMX_UNUSED(awe);
     FILE* fout = (FILE*)user_data;
     if (AWE_DATA_TYPE_VOIP == type) {
         fwrite(out, 1, size, fout);
@@ -89,10 +88,10 @@ void aml_wake_engine_voip_data_handler(AWE *awe, const AWE_DATA_TYPE type,
 void aml_wake_engine_event_handler(AWE *awe, const AWE_EVENT_TYPE type, int32_t code,
                                              const void *payload, void *user_data)
 {
-    UNUSED(awe);
-    UNUSED(code);
-    UNUSED(payload);
-    UNUSED(user_data);
+    AMX_UNUSED(awe);
+    AMX_UNUSED(code);
+    AMX_UNUSED(payload);
+    AMX_UNUSED(user_data);
     if (type == AWE_EVENT_TYPE_WAKE)
         printf("wake word detected !!!! \n");
 }
@@ -100,7 +99,7 @@ void aml_wake_engine_event_handler(AWE *awe, const AWE_EVENT_TYPE type, int32_t 
 static AWE *gAwe = NULL;
 void awe_test_sighandler(int signum)
 {
-    UNUSED(signum);
+    AMX_UNUSED(signum);
     if (gAwe)
         AML_AWE_Close(gAwe);
     if (gAwe)
@@ -414,7 +413,7 @@ receiver_end:
 void aml_wake_engine_voip_data_transfer(AWE *awe, const AWE_DATA_TYPE type,
                                             char* out, size_t size, void *user_data)
 {
-    UNUSED(awe);
+    AMX_UNUSED(awe);
     int* pfifo = (int*)user_data;
     int fifo_writer_fd = pfifo[0];
     int fifo_cmdsend_fd = pfifo[1];
@@ -426,7 +425,7 @@ void aml_wake_engine_voip_data_transfer(AWE *awe, const AWE_DATA_TYPE type,
 }
 
 int aml_wake_engine_dspin_test(int argc, char* argv[]) {
-    UNUSED(argc);
+    AMX_UNUSED(argc);
     AWE_PARA awe_para;
     int ret = 0;
     AWE_RET awe_ret = AWE_RET_OK;
