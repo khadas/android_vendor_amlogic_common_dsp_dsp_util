@@ -335,7 +335,7 @@ recycle_of_aml_pcm_instance_init:
             xAudio_Ipc_Deinit(pPcm->loopback.aipc);
         if (!pPcm->reader.hShm)
             AML_MEM_Free(pPcm->reader.hShm);
-        if (pPcm->loopback.aipc != -1)
+        if (pPcm->reader.aipc != -1)
             xAudio_Ipc_Deinit(pPcm->reader.aipc);
         free(pPcm);
     }
