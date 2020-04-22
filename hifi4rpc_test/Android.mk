@@ -17,7 +17,6 @@ LOCAL_SRC_FILES  += \
                 hifi4_tbuf_test.c
 LOCAL_MODULE := hifi4rpc_client_test
 LOCAL_SHARED_LIBRARIES += \
-                        libc \
                         libhifi4rpc_client \
                         libhifi4rpc \
                         libmp3tools
