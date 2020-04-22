@@ -230,7 +230,6 @@ typedef struct {
     tAmlFlatBufHdlRpc hFbuf;
     char buf_id[FLATBUFFERS_MAX];
     int32_t flags;
-    xpointer phy_addr;
     xsize_t size;
 } __attribute__((packed)) aml_flatbuf_create_st;
 
@@ -242,12 +241,14 @@ typedef struct {
     tAmlFlatBufHdlRpc hFbuf;
     xpointer mem;
     xsize_t size;
+    uint32_t ms;
 } __attribute__((packed)) aml_flatbuf_write_st;
 
 typedef struct {
     tAmlFlatBufHdlRpc hFbuf;
     xpointer mem;
     xsize_t size;
+    uint32_t ms;
 } __attribute__((packed)) aml_flatbuf_read_st;
 
 typedef struct {

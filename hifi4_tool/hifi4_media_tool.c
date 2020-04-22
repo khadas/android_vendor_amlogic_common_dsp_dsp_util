@@ -64,7 +64,7 @@ void* thread_dump(void* arg) {
 
     while(!pContext->bExit) {
         size_t nbytesRead;
-        nbytesRead = AML_FLATBUF_Read(pContext->hFbuf, pbuf,chunkSize);
+        nbytesRead = AML_FLATBUF_Read(pContext->hFbuf, pbuf,chunkSize, 0);
         fwrite(pbuf, 1, nbytesRead, pContext->fdump);
         usleep(10*1000);
     }
@@ -95,7 +95,6 @@ int audio_dump(int argc, char* argv[])
 
     struct flatbuffer_config config;
     config.size = (context.ch*context.rate*context.bytesSample*50)/1000;//50 ms buffer
-    config.phy_addr = 0;
     context.hFbuf = AML_FLATBUF_Create(argv[4], FLATBUF_FLAG_RD, &config);
     if (!context.hFbuf) {
         printf("Can not create flat file:%p\n", context.hFbuf);
