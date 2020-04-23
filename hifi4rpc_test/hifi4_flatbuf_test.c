@@ -59,12 +59,8 @@ void* flat_buffers_read_string(void* arg)
     struct flatbuffer_config config;
     memset(&config, 0, sizeof(config));
     config.size = strRdSamplesLen/2;
-    config.phy_addr = 0;
 
-    /*
-     * Config to work at block mode
-     */
-    hFbuf = AML_FLATBUF_Create("FlatBufFifoDsp2Arm", FLATBUF_FLAG_RD | FLATBUF_FLAG_BLOCK, &config);
+    hFbuf = AML_FLATBUF_Create("FlatBufFifoDsp2Arm", FLATBUF_FLAG_RD, &config);
     if (hFbuf == NULL) {
         printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
         goto exit_capture;
@@ -79,9 +75,9 @@ void* flat_buffers_read_string(void* arg)
         int size = rand() % config.size;
         size = min(size, strRdSamplesLen);
         /*
-         * flat buffers works in block mode, the call return only when all bytes are read
+         * Read bytes with 1 ms time out
          */
-        size = AML_FLATBUF_Read(hFbuf, &recBuf[i], size);
+        size = AML_FLATBUF_Read(hFbuf, &recBuf[i], size, 1);
         strRdSamplesLen -= size;
         i += size;
     }
@@ -112,12 +108,8 @@ void* flat_buffers_write_string(void* arg)
     struct flatbuffer_config config;
     memset(&config, 0, sizeof(config));
     config.size = strWrSamplesLen/2;
-    config.phy_addr = 0;
 
-    /*
-     * Config to work at block mode
-     */
-    hFbuf = AML_FLATBUF_Create("FlatBufFifoArm2Dsp", FLATBUF_FLAG_WR | FLATBUF_FLAG_BLOCK, &config);
+    hFbuf = AML_FLATBUF_Create("FlatBufFifoArm2Dsp", FLATBUF_FLAG_WR, &config);
     if (hFbuf == NULL) {
         printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
         goto exit_capture;
@@ -132,9 +124,9 @@ void* flat_buffers_write_string(void* arg)
         int size = rand() % config.size;
         size = min(size, strWrSamplesLen);
         /*
-         * flat buffers works in block mode, the call return only when all bytes are written
+         * block here till all bytes are wrriten
          */
-        size = AML_FLATBUF_Write(hFbuf, &sendBuf[i], size);
+        size = AML_FLATBUF_Write(hFbuf, &sendBuf[i], size, -1);
         strWrSamplesLen -= size;
         i += size;
     }
@@ -162,12 +154,8 @@ void* flat_buffers_read_throughput(void* arg)
      * Config internal CC buffer size.
      */
     config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
-    config.phy_addr = 0;
 
-    /*
-     * Config to work at block mode
-     */
-    hFbuf = AML_FLATBUF_Create("FlatBufFifoDsp2Arm", FLATBUF_FLAG_RD | FLATBUF_FLAG_BLOCK, &config);
+    hFbuf = AML_FLATBUF_Create("FlatBufFifoDsp2Arm", FLATBUF_FLAG_RD, &config);
     if (hFbuf == NULL) {
         printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
         goto exit_capture;
@@ -181,9 +169,9 @@ void* flat_buffers_read_throughput(void* arg)
         int size = config.size/2;
         size = min(rdLen, size);
         /*
-         * flat buffers works in block mode, the call return only when all bytes are read out
+         * block here till all bytes are read
          */
-        size = AML_FLATBUF_Read(hFbuf, recBuf, size);
+        size = AML_FLATBUF_Read(hFbuf, recBuf, size, -1);
         rdLen -= size;
     }
 
@@ -211,12 +199,8 @@ void* flat_buffers_write_throughput(void* arg)
      * Config internal CC buffer size.
      */
     config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
-    config.phy_addr = 0;
 
-    /*
-     * Config to work at block mode
-     */
-    hFbuf = AML_FLATBUF_Create("FlatBufFifoArm2Dsp", FLATBUF_FLAG_WR | FLATBUF_FLAG_BLOCK, &config);
+    hFbuf = AML_FLATBUF_Create("FlatBufFifoArm2Dsp", FLATBUF_FLAG_WR, &config);
     if (hFbuf == NULL) {
         printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
         goto exit_capture;
@@ -230,9 +214,9 @@ void* flat_buffers_write_throughput(void* arg)
         int size = config.size/2;
         size = min(wrLen, size);
         /*
-         * flat buffers works in block mode, the calls return only when all bytes are written in.
+         * block here till all bytes are written
          */
-        size = AML_FLATBUF_Write(hFbuf, sendBuf, size);
+        size = AML_FLATBUF_Write(hFbuf, sendBuf, size, -1);
         wrLen -= size;
     }
 

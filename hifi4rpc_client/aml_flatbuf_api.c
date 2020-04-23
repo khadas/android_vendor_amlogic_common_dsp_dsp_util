@@ -55,7 +55,6 @@ AML_FLATBUF_HANDLE AML_FLATBUF_Create(const char* buf_id, int flags,
     memset(pFbufCtx, 0, sizeof(FLATBUFS));
     strcpy(arg.buf_id, buf_id);
     arg.flags = flags;
-    arg.phy_addr = (xpointer)config->phy_addr;
     arg.size = config->size;
     pFbufCtx->aipchdl = xAudio_Ipc_init();
     xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_CREATE, &arg, sizeof(arg));
@@ -83,7 +82,7 @@ void AML_FLATBUF_Destory(AML_FLATBUF_HANDLE hFbuf)
     free(pFbufCtx);
 }
 
-size_t AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size)
+size_t AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size, int msTimeout)
 {
     aml_flatbuf_read_st arg;
     FLATBUFS * pFbufCtx = (FLATBUFS*)hFbuf;
@@ -91,7 +90,8 @@ size_t AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size)
     arg.hFbuf = (tAmlFlatBufHdlRpc)pFbufCtx->hFbuf;
     arg.mem = (xpointer)AML_MEM_GetPhyAddr(pFbufCtx->hShm);
     arg.size = size;
-	xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_READ, &arg, sizeof(arg));
+    arg.ms = (uint32_t)msTimeout;
+    xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_READ, &arg, sizeof(arg));
     AML_MEM_Invalidate(pFbufCtx->hShm, arg.size);
     memcpy(buf, AML_MEM_GetVirtAddr(pFbufCtx->hShm), arg.size);
 
@@ -99,7 +99,7 @@ size_t AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size)
 }
 
 
-size_t AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, const void* buf, size_t size)
+size_t AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, const void* buf, size_t size, int msTimeout)
 {
     aml_flatbuf_write_st arg;
     FLATBUFS * pFbufCtx = (FLATBUFS*)hFbuf;
@@ -107,6 +107,7 @@ size_t AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, const void* buf, size_t size)
     arg.hFbuf = (tAmlFlatBufHdlRpc)pFbufCtx->hFbuf;
     arg.mem = (xpointer)AML_MEM_GetPhyAddr(pFbufCtx->hShm);
     arg.size = size;
+    arg.ms = (uint32_t)msTimeout;
     memcpy(AML_MEM_GetVirtAddr(pFbufCtx->hShm), buf, arg.size);
     AML_MEM_Clean(pFbufCtx->hShm, arg.size);
     xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_WRITE, &arg, sizeof(arg));

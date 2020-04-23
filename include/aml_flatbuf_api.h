@@ -51,19 +51,8 @@ extern "C" {
  */
 #define FLATBUF_FLAG_RD 0x10000000
 
-/* MASK to block caller, till all requested bytes are finished
- * Masking this flag simultaneously in both side is not recommended,
- * since this possibly cause dead lock
- */
-#define FLATBUF_FLAG_BLOCK 0x00000002
-
 #define BUF_STR_ID_MAX 32
 struct flatbuffer_config {
-    /* Physical address of the internal CC buffer
-   * If user has pre-allocated a buffer, pass in its physical address.
-   * Otherwise pass in NULL.
-   */
-    void* phy_addr;
     /*Size of CC buffer*/
     size_t size;
 };
@@ -99,12 +88,9 @@ void AML_FLATBUF_Destory(AML_FLATBUF_HANDLE hFbuf);
 /**
  * Read data from flat buffer.
  *
- * The API works in unblock mode by default.
- * In unblock mode, the call returns if it can not read any more.
- * Part of bytes may be read, the return value is real size of read.
- *
- * The API works in block mode, if the flags parameter is masked as FLATBUF_FLAG_BLOCK.
- * In block mode, the call blocks there till all requested bytes are read.
+ * The API blocks till all bytes are read, when msTimeout is equal to -1.
+ * Time out mechanism is enabled when msTimeout is not equal to -1.
+ * When time out is enabled, all bytes or part of bytes are read before time out.
  *
  * @param[in] flat buffer handler
  *
@@ -112,20 +98,18 @@ void AML_FLATBUF_Destory(AML_FLATBUF_HANDLE hFbuf);
  *
  * @param[in] size in bytes, to be read
  *
+ * @param[in] time out in micro seconds
+ *
  * @return real size of the read
  */
-size_t AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size);
-
+size_t AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size, int msTimeout);
 
 /**
  * Write data to flat buffer
  *
- * The API works in unblock mode by default.
- * In unblock mode, the call returns if it can not write any more.
- * Part of bytes may be written, the return value is real size of write.
- *
- * The API works in block mode, if the flags is masked as FLATBUF_FLAG_BLOCK.
- * In block mode, the call blocks there till all requested bytes are written.
+ * The API blocks till all bytes are written when msTimeout is equal to -1
+ * Time out mechanism is enabled when msTimeout is not equal to -1,
+ * When time out is enabled, all bytes or part of bytes are written before time out
  *
  * @param[in] flat buffer handler
  *
@@ -133,9 +117,12 @@ size_t AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size);
  *
  * @param[in] size in bytes, to be written
  *
+ * @param[in] time out in micro seconds
+ *
  * @return real size of the write
  */
-size_t AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, const void* buf, size_t size);
+size_t AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, const void* buf, size_t size, int msTimeout);
+
 
 /**
  * Get flat buffer fullness
