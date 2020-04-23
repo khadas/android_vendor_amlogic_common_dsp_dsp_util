@@ -82,9 +82,15 @@ void* flat_buffers_read_cmd(void* arg)
     }
 
     if (!strcmp(strRdSamples, recBuf)) {
+<<<<<<< HEAD
         printf("arm_flat_buffers_read_cmd_success\n");
     } else {
         printf("arm_flat_buffers_read_cmd_fails\n");
+=======
+        printf("arm_flat_buffers_read_cmd success\n");
+    } else {
+        printf("arm_flat_buffers_read_cmd fails\n");
+>>>>>>> 2b15a64... audio: improve flat buffer sample codes [1/1]
     }
 exit_capture:
     if (recBuf)
@@ -229,12 +235,19 @@ exit_capture:
 
 int flat_buf_test(int argc, char* argv[])
 {
+<<<<<<< HEAD
+=======
+    UNUSED(argc);
+    UNUSED(argv);
+
+>>>>>>> 2b15a64... audio: improve flat buffer sample codes [1/1]
     pthread_t wr_thread_cmd;
     pthread_t rd_thread_cmd;
     pthread_t wr_thread_data;
     pthread_t rd_thread_data;
 
     int handle = xAudio_Ipc_init();
+<<<<<<< HEAD
     uint32_t cmd = 0;
 
     if (argc == 0) {
@@ -266,6 +279,20 @@ int flat_buf_test(int argc, char* argv[])
     } else {
         printf("Invalid argc=%d\n", argc);
     }
+=======
+    xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP, NULL, 0);
+    xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, NULL, 0);
+    xAudio_Ipc_Deinit(handle);
+
+    pthread_create(&wr_thread_cmd, NULL, flat_buffers_write_cmd, NULL);
+    pthread_create(&rd_thread_cmd, NULL, flat_buffers_read_cmd, NULL);
+    pthread_create(&wr_thread_data, NULL, flat_buffers_write_data, NULL);
+    pthread_create(&rd_thread_data, NULL, flat_buffers_read_data, NULL);
+    pthread_join(wr_thread_cmd,NULL);
+    pthread_join(rd_thread_cmd,NULL);
+    pthread_join(wr_thread_data,NULL);
+    pthread_join(rd_thread_data,NULL);
+>>>>>>> 2b15a64... audio: improve flat buffer sample codes [1/1]
 
     xAudio_Ipc_Deinit(handle);
     return 0;
