@@ -47,8 +47,8 @@
 #define FLAT_TEST_TYPE_THROUGHPUT 1
 #define min(x, y)	(((x) > (y))?(y):(x))
 
-char* strRdSamples = "flat buffer api test, this is test samples FlatBufFifoDsp2Arm";
-void* flat_buffers_read_string(void* arg)
+char* strRdSamples = "flat buffer api test, this is test samples FlatBufCmdDsp2Arm";
+void* flat_buffers_read_cmd(void* arg)
 {
     UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
@@ -60,7 +60,7 @@ void* flat_buffers_read_string(void* arg)
     memset(&config, 0, sizeof(config));
     config.size = strRdSamplesLen/2;
 
-    hFbuf = AML_FLATBUF_Create("FlatBufFifoDsp2Arm", FLATBUF_FLAG_RD, &config);
+    hFbuf = AML_FLATBUF_Create("FlatBufCmdDsp2Arm", FLATBUF_FLAG_RD, &config);
     if (hFbuf == NULL) {
         printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
         goto exit_capture;
@@ -83,9 +83,9 @@ void* flat_buffers_read_string(void* arg)
     }
 
     if (!strcmp(strRdSamples, recBuf)) {
-        printf("arm_flat_buffers_read success\n");
+        printf("arm_flat_buffers_read_cmd success\n");
     } else {
-        printf("arm_flat_buffers_read fails\n");
+        printf("arm_flat_buffers_read_cmd fails\n");
     }
 exit_capture:
     if (recBuf)
@@ -96,8 +96,8 @@ exit_capture:
 }
 
 
-char* strWrSamples = "flat buffer api test, this is test samples FlatBufFifoArm2Dsp";
-void* flat_buffers_write_string(void* arg)
+char* strWrSamples = "flat buffer api test, this is test samples FlatBufCmdArm2Dsp";
+void* flat_buffers_write_cmd(void* arg)
 {
     UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
@@ -109,7 +109,7 @@ void* flat_buffers_write_string(void* arg)
     memset(&config, 0, sizeof(config));
     config.size = strWrSamplesLen/2;
 
-    hFbuf = AML_FLATBUF_Create("FlatBufFifoArm2Dsp", FLATBUF_FLAG_WR, &config);
+    hFbuf = AML_FLATBUF_Create("FlatBufCmdArm2Dsp", FLATBUF_FLAG_WR, &config);
     if (hFbuf == NULL) {
         printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
         goto exit_capture;
@@ -140,7 +140,7 @@ exit_capture:
 #define FLAT_TEST_PERIOD_SEC 60
 #define FLAT_TEST_CH_NUM 3
 #define FLAT_TEST_SAMPLE_BYTE 2
-void* flat_buffers_read_throughput(void* arg)
+void* flat_buffers_read_data(void* arg)
 {
     UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
@@ -155,7 +155,7 @@ void* flat_buffers_read_throughput(void* arg)
      */
     config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
 
-    hFbuf = AML_FLATBUF_Create("FlatBufFifoDsp2Arm", FLATBUF_FLAG_RD, &config);
+    hFbuf = AML_FLATBUF_Create("FlatBufDataDsp2Arm", FLATBUF_FLAG_RD, &config);
     if (hFbuf == NULL) {
         printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
         goto exit_capture;
@@ -171,11 +171,11 @@ void* flat_buffers_read_throughput(void* arg)
         /*
          * block here till all bytes are read
          */
-        size = AML_FLATBUF_Read(hFbuf, recBuf, size, -1);
+        size = AML_FLATBUF_Read(hFbuf, recBuf, size, 1);
         rdLen -= size;
     }
 
-    printf("arm_flat_buffers_read_finish_rdLen:%d\n",
+    printf("arm_flat_buffers_read_data_finish_rdLen:%d\n",
         FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE);
 exit_capture:
     if (recBuf)
@@ -185,7 +185,7 @@ exit_capture:
     return NULL;
 }
 
-void* flat_buffers_write_throughput(void* arg)
+void* flat_buffers_write_data(void* arg)
 {
     UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
@@ -200,7 +200,7 @@ void* flat_buffers_write_throughput(void* arg)
      */
     config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
 
-    hFbuf = AML_FLATBUF_Create("FlatBufFifoArm2Dsp", FLATBUF_FLAG_WR, &config);
+    hFbuf = AML_FLATBUF_Create("FlatBufDataArm2Dsp", FLATBUF_FLAG_WR, &config);
     if (hFbuf == NULL) {
         printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
         goto exit_capture;
@@ -219,9 +219,6 @@ void* flat_buffers_write_throughput(void* arg)
         size = AML_FLATBUF_Write(hFbuf, sendBuf, size, -1);
         wrLen -= size;
     }
-
-    printf("arm_flat_buffers_write_finish_wrLen:%d\n",
-        FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE);
 exit_capture:
     if (sendBuf)
         free(sendBuf);
@@ -234,27 +231,26 @@ exit_capture:
 int flat_buf_test(int argc, char* argv[])
 {
     UNUSED(argc);
-    pthread_t wr_thread;
-    pthread_t rd_thread;
-    int32_t test_cmd = atoi(argv[0]);
+    UNUSED(argv);
+
+    pthread_t wr_thread_cmd;
+    pthread_t rd_thread_cmd;
+    pthread_t wr_thread_data;
+    pthread_t rd_thread_data;
 
     int handle = xAudio_Ipc_init();
-    xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP, &test_cmd, sizeof(int32_t));
-    xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, &test_cmd, sizeof(int32_t));
+    xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP, NULL, 0);
+    xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, NULL, 0);
     xAudio_Ipc_Deinit(handle);
 
-    if (test_cmd == FLAT_TEST_TYPE_UNIT) {
-        pthread_create(&wr_thread, NULL, flat_buffers_write_string, NULL);
-        pthread_create(&rd_thread, NULL, flat_buffers_read_string, NULL);
-    } else if (test_cmd == FLAT_TEST_TYPE_THROUGHPUT) {
-        pthread_create(&wr_thread, NULL, flat_buffers_write_throughput, NULL);
-        pthread_create(&rd_thread, NULL, flat_buffers_read_throughput, NULL);
-    } else {
-        printf("Invalid test type\n");
-        return -1;
-    }
-    pthread_join(wr_thread,NULL);
-    pthread_join(rd_thread,NULL);
+    pthread_create(&wr_thread_cmd, NULL, flat_buffers_write_cmd, NULL);
+    pthread_create(&rd_thread_cmd, NULL, flat_buffers_read_cmd, NULL);
+    pthread_create(&wr_thread_data, NULL, flat_buffers_write_data, NULL);
+    pthread_create(&rd_thread_data, NULL, flat_buffers_read_data, NULL);
+    pthread_join(wr_thread_cmd,NULL);
+    pthread_join(rd_thread_cmd,NULL);
+    pthread_join(wr_thread_data,NULL);
+    pthread_join(rd_thread_data,NULL);
 
     return 0;
 }

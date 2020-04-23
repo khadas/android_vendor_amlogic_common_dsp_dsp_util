@@ -133,7 +133,7 @@ static void usage()
 
     printf ("\033[1mtimerwakeup Usage:\033[m hifi4rpc_client_test --timerwakeup\n");
 
-    printf ("\033[1mflatbuffer Usage:\033[m hifi4rpc_client_test --flatbuf-unit $test_type[0:unit test, 1:throughput test]\n");
+    printf ("\033[1mflatbuffer Usage:\033[m hifi4rpc_client_test --flatbuf-unit\n");
 
     printf ("\033[1mpcm-gain Usage:\033[m hifi4rpc_client_test --pcm-gain $sampleRate $bitdepth $channels $gain $input $output\n");
 
@@ -296,16 +296,13 @@ int main(int argc, char* argv[]) {
             aml_hifi4_timer_wakeup();
             break;
         case 15:
-            if (1 == argc - optind){
+            {
                 uint32_t msHighest = 450;
                 TIC;
                 flat_buf_test(argc - optind, &argv[optind]);
                 TOC;
                 printf("flat buf test use:%u ms, flatbuf_performance_result_%s\n",
                         ms, (ms < msHighest)?"success":"failure");
-            } else {
-                usage();
-                exit(1);
             }
             break;
         case 16:
