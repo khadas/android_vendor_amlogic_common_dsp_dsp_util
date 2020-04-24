@@ -114,7 +114,7 @@ AML_MEM_HANDLE AML_MEM_Allocate(size_t size)
     arg.size = size;
     arg.pid = getpid();
     if (gACodecShmPoolInfo.rpchdl < 0) {
-        if(Aml_ACodecMemory_Init()) {
+        if (Aml_ACodecMemory_Init()) {
             printf("Initialize audio codec shm pool fail\n");
             return NULL;
         }
@@ -150,6 +150,12 @@ void AML_MEM_Recycle(int pid)
 void* AML_MEM_GetVirtAddr(AML_MEM_HANDLE hShm)
 {
     void* pVir = NULL;
+    if (gACodecShmPoolInfo.rpchdl < 0) {
+        if (Aml_ACodecMemory_Init()) {
+            printf("Initialize audio codec shm pool fail\n");
+            return NULL;
+        }
+    }
     pVir = (void*)(((long)hShm - gACodecShmPoolInfo.ShmPhyBase) + (long)gACodecShmPoolInfo.ShmVirBase);
     return pVir;
 }
@@ -167,6 +173,13 @@ int32_t AML_MEM_Clean(AML_MEM_HANDLE phy, size_t size)
     info.addr = (long)phy;
     info.size = size;
 
+    if (gACodecShmPoolInfo.rpchdl < 0) {
+        if (Aml_ACodecMemory_Init()) {
+            printf("Initialize audio codec shm pool fail\n");
+            return -1;
+        }
+    }
+
     if ((ret = ioctl(gACodecShmPoolInfo.fd, HIFI4DSP_SHM_CLEAN, &info)) < 0)
     {
         printf("ioctl clean cache fail:%s\n", strerror(errno));
@@ -182,6 +195,13 @@ int32_t AML_MEM_Invalidate(AML_MEM_HANDLE phy, size_t size)
     info.addr = (long)phy;
     info.size = size;
 
+    if (gACodecShmPoolInfo.rpchdl < 0) {
+        if (Aml_ACodecMemory_Init()) {
+            printf("Initialize audio codec shm pool fail\n");
+            return -1;
+        }
+    }
+
     if ((ret = ioctl(gACodecShmPoolInfo.fd, HIFI4DSP_SHM_INV, &info)) < 0)
     {
         printf("ioctl invalidate cache fail:%s\n", strerror(errno));
@@ -189,5 +209,4 @@ int32_t AML_MEM_Invalidate(AML_MEM_HANDLE phy, size_t size)
     }
     return 0;
 }
-
 

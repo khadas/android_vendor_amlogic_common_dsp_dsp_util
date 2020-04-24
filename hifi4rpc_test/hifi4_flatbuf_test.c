@@ -83,15 +83,15 @@ void* flat_buffers_read_cmd(void* arg)
     }
 
     if (!strcmp(strRdSamples, recBuf)) {
-        printf("arm_flat_buffers_read_cmd success\n");
+        printf("arm_flat_buffers_read_cmd_success\n");
     } else {
-        printf("arm_flat_buffers_read_cmd fails\n");
+        printf("arm_flat_buffers_read_cmd_fails\n");
     }
 exit_capture:
     if (recBuf)
         free(recBuf);
     if (hFbuf)
-        AML_FLATBUF_Destory(hFbuf);
+        AML_FLATBUF_Destroy(hFbuf);
     return NULL;
 }
 
@@ -132,7 +132,7 @@ void* flat_buffers_write_cmd(void* arg)
     }
 exit_capture:
     if (hFbuf)
-        AML_FLATBUF_Destory(hFbuf);
+        AML_FLATBUF_Destroy(hFbuf);
     return NULL;
 }
 
@@ -181,7 +181,7 @@ exit_capture:
     if (recBuf)
         free(recBuf);
     if (hFbuf)
-        AML_FLATBUF_Destory(hFbuf);
+        AML_FLATBUF_Destroy(hFbuf);
     return NULL;
 }
 
@@ -223,35 +223,52 @@ exit_capture:
     if (sendBuf)
         free(sendBuf);
     if (hFbuf)
-        AML_FLATBUF_Destory(hFbuf);
+        AML_FLATBUF_Destroy(hFbuf);
     return NULL;
 }
 
 
 int flat_buf_test(int argc, char* argv[])
 {
-    UNUSED(argc);
-    UNUSED(argv);
-
     pthread_t wr_thread_cmd;
     pthread_t rd_thread_cmd;
     pthread_t wr_thread_data;
     pthread_t rd_thread_data;
 
     int handle = xAudio_Ipc_init();
-    xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP, NULL, 0);
-    xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, NULL, 0);
+    uint32_t cmd = 0;
+
+    if (argc == 0) {
+        xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP, &cmd, sizeof(uint32_t));
+        xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, &cmd, sizeof(uint32_t));
+        pthread_create(&wr_thread_cmd, NULL, flat_buffers_write_cmd, NULL);
+        pthread_create(&rd_thread_cmd, NULL, flat_buffers_read_cmd, NULL);
+        pthread_create(&wr_thread_data, NULL, flat_buffers_write_data, NULL);
+        pthread_create(&rd_thread_data, NULL, flat_buffers_read_data, NULL);
+        pthread_join(wr_thread_cmd,NULL);
+        pthread_join(rd_thread_cmd,NULL);
+        pthread_join(wr_thread_data,NULL);
+        pthread_join(rd_thread_data,NULL);
+    } else if (argc == 1){
+        if (!strcmp(argv[0], "arm2dsp_write")) {
+            pthread_create(&wr_thread_cmd, NULL, flat_buffers_write_cmd, NULL);
+            pthread_join(wr_thread_cmd,NULL);
+        } else if (!strcmp(argv[0], "arm2dsp_read")) {
+            cmd = 1;
+            xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP, &cmd, sizeof(uint32_t));
+        } else if (!strcmp(argv[0], "dsp2arm_write")) {
+            cmd = 1;
+            xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, &cmd, sizeof(uint32_t));
+        } else if (!strcmp(argv[0], "dsp2arm_read")) {
+            pthread_create(&rd_thread_cmd, NULL, flat_buffers_read_cmd, NULL);
+            pthread_join(rd_thread_cmd,NULL);
+        } else
+            printf("Invalid argv: %s\n", argv[0]);
+    } else {
+        printf("Invalid argc=%d\n", argc);
+    }
+
     xAudio_Ipc_Deinit(handle);
-
-    pthread_create(&wr_thread_cmd, NULL, flat_buffers_write_cmd, NULL);
-    pthread_create(&rd_thread_cmd, NULL, flat_buffers_read_cmd, NULL);
-    pthread_create(&wr_thread_data, NULL, flat_buffers_write_data, NULL);
-    pthread_create(&rd_thread_data, NULL, flat_buffers_read_data, NULL);
-    pthread_join(wr_thread_cmd,NULL);
-    pthread_join(rd_thread_cmd,NULL);
-    pthread_join(wr_thread_data,NULL);
-    pthread_join(rd_thread_data,NULL);
-
     return 0;
 }
 

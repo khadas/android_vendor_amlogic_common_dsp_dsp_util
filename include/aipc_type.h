@@ -226,8 +226,15 @@ typedef struct {
 /*hifi flat buffer*/
 typedef xpointer tAmlFlatBufHdlRpc;
 #define FLATBUFFERS_MAX 32
+
 typedef struct {
     tAmlFlatBufHdlRpc hFbuf;
+    uint32_t clear;
+} __attribute__((packed)) aml_flatbuf_reset_st;
+
+typedef struct {
+    tAmlFlatBufHdlRpc hFbuf;
+    AML_MEM_HANDLERpc hInterBuf;
     char buf_id[FLATBUFFERS_MAX];
     int32_t flags;
     xsize_t size;

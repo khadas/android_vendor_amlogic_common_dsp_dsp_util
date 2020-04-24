@@ -42,6 +42,7 @@ extern "C" {
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 /** A flag that specifies that the flat buffer support write operation.
  */
@@ -59,6 +60,18 @@ struct flatbuffer_config {
 
 
 typedef void* AML_FLATBUF_HANDLE;
+
+
+/**
+ * Reset flat buffer.
+ *
+ * @param[in] flat buffer handle
+ *
+ * @param[in] set to ture when user want to zero out buffer
+ *
+ * @return a flat buffer handler if success, otherwise return 0
+ */
+void AML_FLATBUF_Reset(AML_FLATBUF_HANDLE hFbuf, bool bClear);
 
 /**
  * Create a flat buffer.
@@ -83,7 +96,7 @@ AML_FLATBUF_HANDLE AML_FLATBUF_Create(const char* buf_id, int flags,
  *
  * @return
  */
-void AML_FLATBUF_Destory(AML_FLATBUF_HANDLE hFbuf);
+void AML_FLATBUF_Destroy(AML_FLATBUF_HANDLE hFbuf);
 
 /**
  * Read data from flat buffer.

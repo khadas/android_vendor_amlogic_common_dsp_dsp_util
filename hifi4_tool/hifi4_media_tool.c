@@ -115,7 +115,7 @@ int audio_dump(int argc, char* argv[])
 
 end_tab:
     if (context.hFbuf)
-        AML_FLATBUF_Destory(context.hFbuf);
+        AML_FLATBUF_Destroy(context.hFbuf);
     if (context.fdump)
         fclose(context.fdump);
     return 0;
