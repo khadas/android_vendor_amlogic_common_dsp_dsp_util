@@ -42,7 +42,7 @@
 #include <getopt.h>
 #include "aml_pcm_gain_api.h"
 
-#define CHUNK_MS 10
+#define GAIN_CHUNK_MS 10
 int aml_pcm_gain_unit_test(int argc, char* argv[]) {
     int i = 0;
     PCMGAIN *pcmgain = NULL;
@@ -67,8 +67,8 @@ int aml_pcm_gain_unit_test(int argc, char* argv[]) {
     sampleBytes = (atoi(argv[1]) >> 3);
     chnNum = atoi(argv[2]);
     gain = atoi(argv[3]);
-    chunkBytes = CHUNK_MS*sampleRate*sampleBytes*chnNum/1000;
-    chunkFrames = CHUNK_MS*sampleRate/1000;
+    chunkBytes = GAIN_CHUNK_MS*sampleRate*sampleBytes*chnNum/1000;
+    chunkFrames = GAIN_CHUNK_MS*sampleRate/1000;
     in = malloc(chunkBytes);
     out = malloc(chunkBytes);
     if (!in || !out) {

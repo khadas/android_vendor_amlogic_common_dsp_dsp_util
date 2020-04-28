@@ -58,6 +58,7 @@ void* flat_buffers_read_cmd(void* arg)
     struct flatbuffer_config config;
     memset(&config, 0, sizeof(config));
     config.size = strRdSamplesLen/2;
+    config.phy_ch = FLATBUF_CH_ARM2DSPA;
 
     hFbuf = AML_FLATBUF_Create("FlatBufCmdDsp2Arm", FLATBUF_FLAG_RD, &config);
     if (hFbuf == NULL) {
@@ -107,6 +108,7 @@ void* flat_buffers_write_cmd(void* arg)
     struct flatbuffer_config config;
     memset(&config, 0, sizeof(config));
     config.size = strWrSamplesLen/2;
+    config.phy_ch = FLATBUF_CH_ARM2DSPA;
 
     hFbuf = AML_FLATBUF_Create("FlatBufCmdArm2Dsp", FLATBUF_FLAG_WR, &config);
     if (hFbuf == NULL) {
@@ -143,6 +145,7 @@ void* flat_buffers_read_data(void* arg)
 {
     AMX_UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
+    void* recBuf = NULL;
 
     int32_t rdLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
 
@@ -153,6 +156,7 @@ void* flat_buffers_read_data(void* arg)
      * Config internal CC buffer size.
      */
     config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
+    config.phy_ch = FLATBUF_CH_ARM2DSPA;
 
     hFbuf = AML_FLATBUF_Create("FlatBufDataDsp2Arm", FLATBUF_FLAG_RD, &config);
     if (hFbuf == NULL) {
@@ -160,7 +164,7 @@ void* flat_buffers_read_data(void* arg)
         goto exit_capture;
     }
 
-    void* recBuf = malloc(config.size);
+    recBuf = malloc(config.size);
     while (rdLen > 0) {
         /*
          * read size should not be larger than config.size
@@ -188,6 +192,7 @@ void* flat_buffers_write_data(void* arg)
 {
     AMX_UNUSED(arg);
     AML_FLATBUF_HANDLE hFbuf = NULL;
+    void* sendBuf = NULL;
 
     int32_t wrLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
 
@@ -198,6 +203,7 @@ void* flat_buffers_write_data(void* arg)
      * Config internal CC buffer size.
      */
     config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
+    config.phy_ch = FLATBUF_CH_ARM2DSPA;
 
     hFbuf = AML_FLATBUF_Create("FlatBufDataArm2Dsp", FLATBUF_FLAG_WR, &config);
     if (hFbuf == NULL) {
@@ -205,7 +211,7 @@ void* flat_buffers_write_data(void* arg)
         goto exit_capture;
     }
 
-    void* sendBuf = malloc(config.size);
+    sendBuf = malloc(config.size);
     while (wrLen > 0) {
         /*
          * write size should not be larger than config.size

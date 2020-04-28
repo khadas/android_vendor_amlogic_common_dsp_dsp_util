@@ -93,6 +93,7 @@ int audio_dump(int argc, char* argv[])
 
     struct flatbuffer_config config;
     config.size = (context.ch*context.rate*context.bytesSample*50)/1000;//50 ms buffer
+    config.phy_ch = FLATBUF_CH_ARM2DSPA;
     context.hFbuf = AML_FLATBUF_Create(argv[4], FLATBUF_FLAG_RD, &config);
     if (!context.hFbuf) {
         printf("Can not create flat file:%p\n", context.hFbuf);

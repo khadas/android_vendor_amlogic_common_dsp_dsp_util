@@ -42,15 +42,11 @@
 #include "rpc_client_aipc.h"
 #include "rpc_client_shm.h"
 #include "aml_tbuf_api.h"
+#include "aml_flatbuf_api.h"
 #include "aml_pcm_api.h"
 #include "asoundlib.h"
 #include "generic_macro.h"
 
-#define SAMPLE_MS 48
-#define SAMPLE_BYTES 4
-#define SAMPLE_CH 16
-#define CHUNK_MS 16
-#define CHUNK_BYTES (SAMPLE_MS*SAMPLE_BYTES*SAMPLE_CH*CHUNK_MS)
 #define TBUF_SIZE (10*CHUNK_BYTES)
 
 typedef struct {
@@ -66,19 +62,16 @@ typedef struct {
 typedef struct {
     AML_TBUF_HANDLE tbuf;
     TBUF_READER_T eType;
+    AML_FLATBUF_HANDLE hFlat;
     int strmPos;
     int chunkNum;
-    int aipc;
     bool bExit;
     pthread_t hThread;
     char name[64];
 } dsp_writer_t;
 
 typedef struct {
-    AML_MEM_HANDLE hShm;
-    void* phy;
-    void* vir;
-    int aipc;
+    AML_FLATBUF_HANDLE hFlat;
     char name[64];
     int strmPos;
 } dsp_reader_t;
@@ -163,10 +156,10 @@ void* thread_aml_pcm_dsp_loopback(void * arg)
 
 void* thread_aml_pcm_dsp_write(void * arg)
 {
-    pcm_io_st io_arg;
     dsp_writer_t* pWriterCtx = (dsp_writer_t*)arg;
     int sleepCnt = 0;
-    AML_TBUF_AddConsumer(pWriterCtx->tbuf, pWriterCtx->eType);
+    AML_TBUF_AddConsumer(pWriterCtx->tbuf, pWriterCtx->eType);    
+    uint32_t cmd = 0xdeaddead;    
     while(!pWriterCtx->bExit) {
         size_t szAvail = 0;
         void* phy = NULL;
@@ -193,20 +186,15 @@ void* thread_aml_pcm_dsp_write(void * arg)
         AML_TBUF_GetRdPtr(pWriterCtx->tbuf, pWriterCtx->eType, &phy, &vir);
         AML_MEM_Clean(phy, szAvail);
         /*IPC to HiFi, block here till HiFi consume the buffer*/
-        memset(&io_arg, 0, sizeof(io_arg));
-        io_arg.data = (xpointer)phy;
-        io_arg.count = szAvail;
-        xAIPC(pWriterCtx->aipc, MBX_CMD_IOBUF_ARM2DSP, &io_arg, sizeof(io_arg));
+        AML_FLATBUF_Write(pWriterCtx->hFlat, vir, szAvail, -1);
         AML_TBUF_UpdateRdOffset(pWriterCtx->tbuf, pWriterCtx->eType, szAvail);
-        pWriterCtx->strmPos += io_arg.count;
+        pWriterCtx->strmPos += szAvail;
         pWriterCtx->chunkNum++;
-        AM_PCM_DEBUG(" %s: %d %d %d\n", pWriterCtx->name,  pWriterCtx->strmPos, szAvail, io_arg.count);
+        AM_PCM_DEBUG(" %s: %d %d\n", pWriterCtx->name,  pWriterCtx->strmPos, szAvail);
     }
 exit_aml_pcm_dsp_write:
     /*Close loopback task*/
-    io_arg.data = (xpointer)NULL;
-    io_arg.count = 0;
-    xAIPC(pWriterCtx->aipc, MBX_CMD_IOBUF_ARM2DSP, &io_arg, sizeof(io_arg));
+    AML_FLATBUF_Write(pWriterCtx->hFlat, &cmd, sizeof(cmd), -1);
     AML_TBUF_RemoveConsumer(pWriterCtx->tbuf, pWriterCtx->eType);
     printf("Exit write thread %s:%d\n", pWriterCtx->name, pWriterCtx->chunkNum);
     return NULL;
@@ -277,9 +265,12 @@ AML_PCM_T* aml_pcm_instance_init(unsigned int card, AML_ALSA_T* pAlsa)
     }
     memset(pPcm, 0, sizeof(AML_PCM_T));
 
-    pPcm->writer.aipc = xAudio_Ipc_Init(card);
-    if (pPcm->writer.aipc == -1) {
-        printf("Failed to init write thread ipc handle\n");
+    struct flatbuffer_config config;
+    config.size = 2*CHUNK_BYTES;    
+    config.phy_ch = (card == 0)?FLATBUF_CH_ARM2DSPA:FLATBUF_CH_ARM2DSPB;
+    pPcm->writer.hFlat = AML_FLATBUF_Create("IOBUF_ARM2DSP", FLATBUF_FLAG_WR, &config);
+    if (pPcm->writer.hFlat == NULL) {
+        printf("Failed to init write thread flatbuf handle\n");
         goto recycle_of_aml_pcm_instance_init;
     }
     pPcm->writer.eType = (card == 0)?TBUF_READER_A:TBUF_READER_B;
@@ -303,16 +294,9 @@ AML_PCM_T* aml_pcm_instance_init(unsigned int card, AML_ALSA_T* pAlsa)
     }
 
     snprintf(pPcm->reader.name, sizeof(pPcm->reader.name), (card == 0)?"ReaderA":"ReaderB");
-    pPcm->reader.hShm = AML_MEM_Allocate(CHUNK_BYTES);
-    if (!pPcm->reader.hShm) {
-        printf("Failed to allocate inter buffer for read api\n");
-        goto recycle_of_aml_pcm_instance_init;
-    }
-    pPcm->reader.phy = AML_MEM_GetPhyAddr(pPcm->reader.hShm);
-    pPcm->reader.vir = AML_MEM_GetVirtAddr(pPcm->reader.hShm);
-    pPcm->reader.aipc = xAudio_Ipc_Init(card);
-    if (pPcm->reader.aipc == -1) {
-        printf("Failed to init ipc handler for read api");
+    pPcm->reader.hFlat = AML_FLATBUF_Create("IOBUF_DSP2ARM", FLATBUF_FLAG_RD, &config);
+    if (pPcm->reader.hFlat == NULL) {
+        printf("Failed to create read thread flatbuf handle");
         goto recycle_of_aml_pcm_instance_init;
     }
 
@@ -324,8 +308,8 @@ recycle_of_aml_pcm_instance_init:
             pPcm->writer.bExit = 1;
             pthread_join(pPcm->writer.hThread, NULL);
         }
-        if (pPcm->writer.aipc != -1)
-            xAudio_Ipc_Deinit(pPcm->writer.aipc);
+        if (pPcm->writer.hFlat != NULL)
+            AML_FLATBUF_Destroy(pPcm->writer.hFlat);
         if (pPcm->loopback.hThread) {
             printf("Wait loopback thread exit:%s\n", pPcm->loopback.name);
             pthread_join(pPcm->loopback.hThread, NULL);
@@ -333,10 +317,8 @@ recycle_of_aml_pcm_instance_init:
         }
         if (pPcm->loopback.aipc != -1)
             xAudio_Ipc_Deinit(pPcm->loopback.aipc);
-        if (!pPcm->reader.hShm)
-            AML_MEM_Free(pPcm->reader.hShm);
-        if (pPcm->reader.aipc != -1)
-            xAudio_Ipc_Deinit(pPcm->reader.aipc);
+        if (pPcm->reader.hFlat != NULL)
+            AML_FLATBUF_Destroy(pPcm->reader.hFlat);
         free(pPcm);
     }
     return NULL;
@@ -347,13 +329,12 @@ void aml_pcm_instance_deinit(AML_PCM_T* pPcm)
     printf("aml_pcm_instance_deinit:%s\n", pPcm->reader.name);
     pPcm->writer.bExit = 1;
     pthread_join(pPcm->writer.hThread, NULL);
-    xAudio_Ipc_Deinit(pPcm->writer.aipc);
+    AML_FLATBUF_Destroy(pPcm->writer.hFlat);
 
     pthread_join(pPcm->loopback.hThread, NULL);
     xAudio_Ipc_Deinit(pPcm->loopback.aipc);
 
-    AML_MEM_Free(pPcm->reader.hShm);
-    xAudio_Ipc_Deinit(pPcm->reader.aipc);
+    AML_FLATBUF_Destroy(pPcm->reader.hFlat);
 
     if (pPcm->writer.eType == TBUF_READER_A)
         pPcm->pAlsa->isAUsed = false;
@@ -431,16 +412,11 @@ int AML_PCM_Read(AML_PCM_HANDLE Handle, void *data, unsigned int count)
     /*IPC to HiFi, block here till HiFi write audio to the buffer*/
     int remained = count;
     while(remained) {
-        pcm_io_st io_arg;
-        memset(&io_arg, 0, sizeof(io_arg));
-        io_arg.data = (xpointer)pReaderCtx->phy;
-        io_arg.count = AMX_MIN(remained, CHUNK_BYTES);
-        xAIPC(pReaderCtx->aipc, MBX_CMD_IOBUF_DSP2ARM, &io_arg, sizeof(io_arg));
-        AML_MEM_Invalidate(pReaderCtx->phy, io_arg.count);
-        memcpy(p, pReaderCtx->vir, io_arg.count);
-        p += io_arg.count;
-        remained -= io_arg.count;
-        pReaderCtx->strmPos += io_arg.count;
+        int nRead = AMX_MIN(remained, CHUNK_BYTES);
+        nRead = AML_FLATBUF_Read(pReaderCtx->hFlat, p, nRead, CHUNK_MS);
+        p += nRead;
+        remained -= nRead;
+        pReaderCtx->strmPos += nRead;
     }
     return count;
 }

@@ -53,7 +53,18 @@ extern "C" {
 #define FLATBUF_FLAG_RD 0x10000000
 
 #define BUF_STR_ID_MAX 32
+
+typedef enum {
+    FLATBUF_CH_ARM2DSPA,
+    FLATBUF_CH_ARM2DSPB,
+    FLATBUF_CH_DSPA2DSPB,
+    FLATBUF_CH_NATIVE,
+    FLATBUF_CH_MAX,
+} eFLATBUF_CH_TYPE;
+
 struct flatbuffer_config {
+    /*0 - HiFi4A, 1 - HiFi4B*/
+    eFLATBUF_CH_TYPE phy_ch;
     /*Size of CC buffer*/
     size_t size;
 };
@@ -154,6 +165,8 @@ size_t AML_FLATBUF_GetFullness(AML_FLATBUF_HANDLE hFbuf);
  * @return flat buffer space in bytes
  */
 size_t AML_FLATBUF_GetSpace(AML_FLATBUF_HANDLE hFbuf);
+
+
 
 #ifdef __cplusplus
 }

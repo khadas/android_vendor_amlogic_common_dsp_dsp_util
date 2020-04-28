@@ -122,7 +122,7 @@ static void usage()
 
     printf ("\033[1mpcm-cap Usage:\033[m hifi4rpc_client_test --pcm-cap $hifiId[0:HiFiA, 1:HiFiB]\n Tinyalsa -> TinyCapturer\n");
 
-    printf ("\033[1mpcm-loopback test usage:\033[m hifi4rpc_client_test --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $chunkNum $output\n");
+    printf ("\033[1mpcm-loopback test usage:\033[m hifi4rpc_client_test --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $seconds $output\n");
 
     printf ("\033[1mpcm-dump Usage:\033[m hifi4rpc_client_test --pcm-dump $hifiId[0:HiFiA, 1:HiFiB] $output\n");
 

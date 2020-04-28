@@ -50,6 +50,7 @@
 #include "generic_macro.h"
 #include "aml_audio_util.h"
 #include "aml_pcm_api.h"
+#include "aml_flatbuf_api.h"
 //#define PROFILE_RTT
 long get_us() {
     struct timespec tp;
@@ -57,28 +58,6 @@ long get_us() {
     long long us =  tp.tv_sec * 1000 * 1000 + tp.tv_nsec / (1000);
     // printf("cur us=%lld\n", us);
     return us;
-}
-
-int bcm_client_write(int aipchdl, const void *data, unsigned int count) {
-    pcm_io_st arg;
-    memset(&arg, 0, sizeof(arg));
-    arg.pcm = (xpointer)NULL;
-    arg.data = (xpointer)data;
-    arg.count = count;
-    arg.out_ret = 0;
-    xAIPC(aipchdl, MBX_CMD_IOBUF_ARM2DSP, &arg, sizeof(arg));
-    return arg.out_ret;
-}
-
-int bcm_client_read(int aipchdl, const void *data, unsigned int count) {
-    pcm_io_st arg;
-    memset(&arg, 0, sizeof(arg));
-    arg.pcm = (xpointer)NULL;
-    arg.data = (xpointer)data;
-    arg.count = count;
-    arg.out_ret = 0;
-    xAIPC(aipchdl, MBX_CMD_IOBUF_DSP2ARM, &arg, sizeof(arg));
-    return arg.out_ret;
 }
 
 int bcm_file_test(int argc, char* argv[])
@@ -95,21 +74,22 @@ int bcm_file_test(int argc, char* argv[])
     printf("all arg end\n");
     int id = atoi(argv[0]);
     printf("Invoke Hifi%d\n", id);
-    int hdl = xAudio_Ipc_Init(id);
-    AML_MEM_HANDLE hShmBuf;
 
     FILE *fileplay = fopen(argv[1], "rb");
     if (fileplay == NULL) {
         printf("failed to open played pcm file\n");
         return -1;
     }
-    const int ms = 16;
-    const int oneshot = 48 * ms; // 48KHz
-    uint32_t size = oneshot * 16 * 4; // 16channel, 32bit
+    const int ms = CHUNK_MS;
+    const int oneshot = SAMPLE_MS * ms; // 48KHz
+    uint32_t size = oneshot * SAMPLE_CH * SAMPLE_BYTES; // 16channel, 32bit
     uint32_t r;
-    hShmBuf = AML_MEM_Allocate(size);
-    void *buf = AML_MEM_GetVirtAddr(hShmBuf);
-    void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
+    struct flatbuffer_config config;
+    config.size = 2*size;
+    config.phy_ch = (id == 0)?FLATBUF_CH_ARM2DSPA:FLATBUF_CH_ARM2DSPB;
+    AML_FLATBUF_HANDLE hFlat = AML_FLATBUF_Create("AML.XAF.CAPTURE", FLATBUF_FLAG_WR,
+                                                &config);
+    void *buf = malloc(size);
     int loop = 128 * 10; // test 10.24s
     long d0, d1, e;
     for (i = 0; i != loop; i++) {
@@ -119,8 +99,7 @@ int bcm_file_test(int argc, char* argv[])
             rewind(fileplay);
             r = fread(buf, 1, size, fileplay);
         }
-        AML_MEM_Clean(phybuf, r);
-        bcm_client_write(hdl, phybuf, r);
+        AML_FLATBUF_Write(hFlat, buf, r, -1);
         d1 = get_us();
         e = 16 * 1000 - (d1 - d0);
         // if (i % (128 * 4) == 0) {
@@ -132,9 +111,9 @@ int bcm_file_test(int argc, char* argv[])
         //printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
         //   ms, p, buf, oneshot, fr);
     }
-    AML_MEM_Free(hShmBuf);
     fclose(fileplay);
-    xAudio_Ipc_Deinit(hdl);
+    free(buf);
+    AML_FLATBUF_Destroy(hFlat);
     return 0;
 }
 
@@ -151,12 +130,10 @@ int bcm_pcm_test(int argc, char* argv[])
     }
     int id = atoi(argv[0]);
     printf("Invoke Hifi%d\n", id);
-    int hdl = xAudio_Ipc_Init(id);
-    AML_MEM_HANDLE hShmBuf;
 
     struct pcm_config cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.channels = 16;
+    cfg.channels = SAMPLE_CH;
     cfg.rate = 48000;
     cfg.period_size = 128;
     cfg.period_count = 4;
@@ -182,13 +159,16 @@ int bcm_pcm_test(int argc, char* argv[])
     //     printf("pcm isn't ready\n");
     //     return -2;
     // }
-    const int ms = 16;
-    const int oneshot = 48 * ms; // 48KHz
-    uint32_t size = oneshot * 16 * 4; // 16channel, 32bit
+    const int ms = CHUNK_MS;
+    const int oneshot = SAMPLE_MS * ms; // 48KHz
+    uint32_t size = oneshot * SAMPLE_CH * SAMPLE_BYTES; // 16channel, 32bit
     uint32_t r;
-    hShmBuf = AML_MEM_Allocate(size);
-    void *buf = AML_MEM_GetVirtAddr(hShmBuf);
-    void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
+    struct flatbuffer_config config;
+    config.size = 2*size;
+    config.phy_ch = (id == 0)?FLATBUF_CH_ARM2DSPA:FLATBUF_CH_ARM2DSPB;
+    AML_FLATBUF_HANDLE hFlat = AML_FLATBUF_Create("AML.XAF.CAPTURE", FLATBUF_FLAG_WR,
+                                                &config);
+    void *buf = malloc(size);
     int loop = 128 * 10;
     for (i = 0; i != loop; i++) {
         /** Linux tinyalsa's pcm_read, it return error code
@@ -200,23 +180,17 @@ int bcm_pcm_test(int argc, char* argv[])
         }
         // int32_t *sp = (char *)buf;
         // printf("%08x %08x %08x %08x\n", sp[0], sp[1], sp[2], sp[3]);
-        AML_MEM_Clean(phybuf, size);
-        bcm_client_write(hdl, phybuf, size);
+        AML_FLATBUF_Write(hFlat, buf, size, -1);
         //printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
         //   ms, p, buf, oneshot, fr);
     }
     printf("i=%d loop=%d\n", i, loop);
-    AML_MEM_Free(hShmBuf);
     pcm_close(pcm);
-    xAudio_Ipc_Deinit(hdl);
+    free(buf);
+    AML_FLATBUF_Destroy(hFlat);
     return 0;
 }
 
-#define SAMPLE_MS 48
-#define SAMPLE_BYTES 4
-#define SAMPLE_CH 16
-#define CHUNK_MS 16
-#define CHUNK_BYTES (SAMPLE_MS * SAMPLE_BYTES * SAMPLE_CH * CHUNK_MS)
 typedef struct _io_thread_context_ {
     int id;
     FILE* fp;
@@ -250,66 +224,58 @@ int read_wrapper(io_thread_context* pWriteCtx, void* data, size_t* size)
 
 static void* thread_write_pcm(void * arg)
 {
-    void* pVir = NULL;
-    void* pPhy = NULL;
     io_thread_context* pWriteCtx = (io_thread_context*)arg;
-    AML_MEM_HANDLE hShm = AML_MEM_Allocate(CHUNK_BYTES);
-    int aipc = xAudio_Ipc_Init(pWriteCtx->id);
-    pVir = AML_MEM_GetVirtAddr(hShm);
-    pPhy = AML_MEM_GetPhyAddr(hShm);
+    void* buf = malloc(CHUNK_BYTES);
+    struct flatbuffer_config config;
+    config.size = 2*CHUNK_BYTES;
+    config.phy_ch = (pWriteCtx->id == 0)?FLATBUF_CH_ARM2DSPA:FLATBUF_CH_ARM2DSPB;
+    AML_FLATBUF_HANDLE hFlat = AML_FLATBUF_Create("IOBUF_ARM2DSP",  FLATBUF_FLAG_WR, &config);
     int bExit = 0;
     while (!bExit && pWriteCtx->fileSize > 0) {
         int ret = 0;
-        size_t nRead = AMX_MIN(CHUNK_BYTES, pWriteCtx->fileSize);
-        ret = read_wrapper(pWriteCtx, (void*)pVir, &nRead);
+        size_t nBytes = AMX_MIN(CHUNK_BYTES, pWriteCtx->fileSize);
+        ret = read_wrapper(pWriteCtx, (void*)buf, &nBytes);
         if (pWriteCtx->chunkNum < 256)
             aprofiler_get_cur_timestamp(&pWriteCtx->timeStamp[pWriteCtx->chunkNum]);
         if (ret != 0) {
             bExit = 1;
         }
-        AML_MEM_Clean(pPhy, CHUNK_BYTES);
-        pcm_io_st io_arg;
-        io_arg.data = (xpointer)pPhy;
-        io_arg.count = nRead;
-        xAIPC(aipc, MBX_CMD_IOBUF_ARM2DSP, &io_arg, sizeof(io_arg));
+        nBytes = AML_FLATBUF_Write(hFlat, buf, nBytes, -1);
         pWriteCtx->chunkNum++;
-        pWriteCtx->fileSize -= nRead;
+        pWriteCtx->fileSize -= nBytes;
+        printf("thread_write_pcm remained:%d\n", pWriteCtx->fileSize);
     }
-    xAudio_Ipc_Deinit(aipc);
-    AML_MEM_Free(hShm);
-
+    free(buf);
+    AML_FLATBUF_Destroy(hFlat);
     return NULL;
 }
 
 static void* thread_read_pcm(void * arg)
 {
-    void* pVir = NULL;
-    void* pPhy = NULL;
     io_thread_context* pReadCtx = (io_thread_context*)arg;
-    AML_MEM_HANDLE hShm = AML_MEM_Allocate(CHUNK_BYTES);
-    int aipc = xAudio_Ipc_Init(pReadCtx->id);
-    pVir = AML_MEM_GetVirtAddr(hShm);
-    pPhy = AML_MEM_GetPhyAddr(hShm);
+    void* buf = malloc(CHUNK_BYTES);
+    struct flatbuffer_config config;
+    config.size = 2*CHUNK_BYTES;
+    config.phy_ch = (pReadCtx->id == 0)?FLATBUF_CH_ARM2DSPA:FLATBUF_CH_ARM2DSPB;;
+    AML_FLATBUF_HANDLE hFlat = AML_FLATBUF_Create("IOBUF_DSP2ARM",  FLATBUF_FLAG_RD, &config);
     while (pReadCtx->fileSize) {
-        pcm_io_st io_arg;
-        io_arg.data = (xpointer)pPhy;
-        io_arg.count = AMX_MIN(CHUNK_BYTES, pReadCtx->fileSize);
-        xAIPC(aipc, MBX_CMD_IOBUF_DSP2ARM, &io_arg, sizeof(io_arg));
-        AML_MEM_Invalidate(pPhy, io_arg.count);
-
+        int nRead = AMX_MIN(CHUNK_BYTES, pReadCtx->fileSize);
+        nRead = AML_FLATBUF_Read(hFlat, buf, nRead, CHUNK_MS);
         if (pReadCtx->chunkNum < 256) {
             aprofiler_get_cur_timestamp(&pReadCtx->timeStamp[pReadCtx->chunkNum]);
             //io_thread_context* pWriteCtx = (io_thread_context*)pReadCtx->ctx;
             //printf("%d:%d\n", pReadCtx->chunkNum,  aprofiler_msec_duration(&pReadCtx->timeStamp[pReadCtx->chunkNum], &pWriteCtx->timeStamp[pReadCtx->chunkNum]));
         }
         #ifndef PROFILE_RTT
-        fwrite((void*)pVir, 1, io_arg.count, pReadCtx->fp);
+        if (nRead)
+            fwrite((void*)buf, 1, nRead, pReadCtx->fp);
         #endif
-        pReadCtx->fileSize -= io_arg.count;
+        pReadCtx->fileSize -= nRead;
         pReadCtx->chunkNum++;
+        printf("thread_read_pcm remained:%d\n", pReadCtx->fileSize);
     }
-    xAudio_Ipc_Deinit(aipc);
-    AML_MEM_Free(hShm);
+    free(buf);
+    AML_FLATBUF_Destroy(hFlat);
     return NULL;
 }
 
@@ -376,10 +342,10 @@ int pcm_loopback_test(int argc, char* argv[])
         goto recycle_resource;
     }
 
-    pthread_t writeThread;
     pthread_t readThread;
-    pthread_create(&writeThread, NULL, thread_write_pcm, (void*)&writeCtx);
+    pthread_t writeThread;
     pthread_create(&readThread, NULL, thread_read_pcm, (void*)&readCtx);
+    pthread_create(&writeThread, NULL, thread_write_pcm, (void*)&writeCtx);
 
     aipc = xAudio_Ipc_Init(id);
     pcm_io_st io_arg;
@@ -387,6 +353,7 @@ int pcm_loopback_test(int argc, char* argv[])
     xAIPC(aipc, MBX_CMD_IOBUF_DEMO, &io_arg, sizeof(io_arg));
     xAudio_Ipc_Deinit(aipc);
 
+    printf("Invoke loopback task done\n");
     pthread_join(writeThread,NULL);
     pthread_join(readThread,NULL);
 #ifdef PROFILE_RTT
@@ -435,27 +402,28 @@ int xaf_dump(int argc, char **argv) {
     }
     int id = atoi(argv[0]);
     printf("Invoke HiFi%d\n", id);
-    int hdl = xAudio_Ipc_Init(id);
     FILE* fpOut = fopen(argv[1], "wb");
-    const int ms = 16;
-    const int oneshot = 48 * ms; // 48KHz
-    uint32_t size = oneshot * 16 * 4; // 16channel, 32bit
-    AML_MEM_HANDLE hShmBuf = AML_MEM_Allocate(size);
-    void *buf = AML_MEM_GetVirtAddr(hShmBuf);
-    void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
+    const int ms = CHUNK_MS;
+    const int oneshot = SAMPLE_MS * ms; // 48KHz
+    uint32_t size = oneshot * SAMPLE_CH * SAMPLE_BYTES; // 16channel, 32bit
+    struct flatbuffer_config config;
+    config.size = 2*size;
+    config.phy_ch = (id == 0)?FLATBUF_CH_ARM2DSPA:FLATBUF_CH_ARM2DSPB;;
+    AML_FLATBUF_HANDLE hFlat = AML_FLATBUF_Create("AML.XAF.RENDER",  FLATBUF_FLAG_RD,
+                                                  &config);
+    void *buf = malloc(size);
     int loop = 4; // test 10.24s
     int32_t remained = size*loop;
     while (remained > 0) {
         uint32_t r = AMX_MIN(size, (uint32_t)remained);
-        bcm_client_read(hdl, phybuf, r);
-        AML_MEM_Invalidate(phybuf, r);
+        r = AML_FLATBUF_Read(hFlat, buf, r, -1);
         fwrite(buf, 1, r, fpOut);
         remained -= r;
         printf("recv data remained=%d\n", remained);
     }
-    AML_MEM_Free(hShmBuf);
+    AML_FLATBUF_Destroy(hFlat);
+    free(buf);
     fclose(fpOut);
-    xAudio_Ipc_Deinit(hdl);
     return 0;
 }
 
@@ -470,9 +438,9 @@ void* thread_aml_pcm_test(void *arg)
     aml_pcm_test_context* pContext = (aml_pcm_test_context*)arg;
     struct aml_pcm_config cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.channels = 16;
+    cfg.channels = SAMPLE_CH;
     cfg.rate = 48000;
-    cfg.period_size = 16*48;//16 ms peroid
+    cfg.period_size = CHUNK_MS * SAMPLE_MS;//16 ms peroid
     cfg.period_count = 4;
     cfg.format = AML_PCM_FORMAT_S32_LE;
     AML_PCM_HANDLE hPcm = AML_PCM_Open(pContext->card, 0, PCM_IN, &cfg);
@@ -508,8 +476,8 @@ int aml_pcm_test(int argc, char **argv) {
 
     int sec = atoi(argv[0]);
     printf("Capture %d seconds\n", sec);
-    contextA.remained = sec*1000*48*16*sizeof(uint32_t);
-    contextB.remained = sec*1000*48*16*sizeof(uint32_t);
+    contextA.remained = sec*1000*SAMPLE_MS*CHUNK_MS*sizeof(uint32_t);
+    contextB.remained = sec*1000*SAMPLE_MS*CHUNK_MS*sizeof(uint32_t);
 
     contextA.card = 0;
     contextB.card = 1;

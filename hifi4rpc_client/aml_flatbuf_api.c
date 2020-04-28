@@ -57,16 +57,23 @@ void AML_FLATBUF_Reset(AML_FLATBUF_HANDLE hFbuf, bool bClear)
 AML_FLATBUF_HANDLE AML_FLATBUF_Create(const char* buf_id, int flags,
                                     struct flatbuffer_config* config)
 {
+    if (config->phy_ch != FLATBUF_CH_ARM2DSPA &&
+        config->phy_ch != FLATBUF_CH_ARM2DSPB) {
+        printf("Not supported physical channel:%d\n", config->phy_ch);
+        return NULL;
+    }
+
     aml_flatbuf_create_st arg;
     FLATBUFS * pFbufCtx = (FLATBUFS*)malloc(sizeof(FLATBUFS));
     memset(pFbufCtx, 0, sizeof(FLATBUFS));
     strcpy(arg.buf_id, buf_id);
     arg.flags = flags;
     arg.size = config->size;
-    pFbufCtx->aipchdl = xAudio_Ipc_init();
+    int id = (config->phy_ch == FLATBUF_CH_ARM2DSPA)?0:1;
+    pFbufCtx->aipchdl = xAudio_Ipc_Init(id);
     xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_CREATE, &arg, sizeof(arg));
     pFbufCtx->hFbuf = arg.hFbuf;
-    pFbufCtx->hShm = (AML_MEM_HANDLE)arg.hInterBuf;
+    pFbufCtx->hShm = (AML_MEM_HANDLE)AML_MEM_Import((void*)arg.hInterBuf, arg.size);
     return pFbufCtx;
 }
 

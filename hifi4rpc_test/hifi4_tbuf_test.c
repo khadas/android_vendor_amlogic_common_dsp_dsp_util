@@ -41,14 +41,10 @@
 #include "rpc_client_aipc.h"
 #include "rpc_client_shm.h"
 #include "aml_tbuf_api.h"
+#include "aml_flatbuf_api.h"
 #include "asoundlib.h"
 #include "generic_macro.h"
 
-#define SAMPLE_MS 48
-#define SAMPLE_BYTES 4
-#define SAMPLE_CH 16
-#define CHUNK_MS 16
-#define CHUNK_BYTES (SAMPLE_MS*SAMPLE_BYTES*SAMPLE_CH*CHUNK_MS)
 #define TBUF_SIZE (10*CHUNK_BYTES)
 
 typedef enum {
@@ -72,15 +68,16 @@ typedef struct {
     TBUF_READER_T eType;
     int remaindSize;
     int chunkNum;
-    int aipc;
+    AML_FLATBUF_HANDLE hFlat;
     char name[64];
 } hifi4_writer_t;
 
 typedef struct {
     FILE* fp;
     int remaindSize;
-    int aipc;
+    AML_FLATBUF_HANDLE hFlat;
     char name[64];
+    int chunkNum;
 } hifi4_reader_t;
 
 typedef struct {
@@ -146,7 +143,7 @@ void* thread_capture_pcm(void * arg)
         AML_TBUF_UpdateWrOffset(pCapturerCtx->tbuf, szAvail);
         pCapturerCtx->remaindSize -= szAvail;
         pCapturerCtx->chunkNum++;
-        TBUF_DEBUG("capture total:%d\n", pCapturerCtx->totalSize);
+        TBUF_DEBUG("capture total:%d\n", pCapturerCtx->remaindSize);
     }
     printf("Exit capture thread:%d,%d\n", pCapturerCtx->remaindSize, pCapturerCtx->chunkNum);
     return NULL;
@@ -182,19 +179,15 @@ void* thread_write_dsp(void * arg)
             }
         }
         AML_TBUF_GetRdPtr(pWriterCtx->tbuf, pWriterCtx->eType, &phy, &vir);
-        AML_MEM_Clean(phy, szAvail);
         /*IPC to HiFi, block here till HiFi consume the buffer*/
-        pcm_io_st io_arg;
-        memset(&io_arg, 0, sizeof(io_arg));
-        io_arg.data = (xpointer)phy;
-        io_arg.count = szAvail;
-        TBUF_DEBUG("Before IPC:%s %d\n", pWriterCtx->name, io_arg.count);
-        xAIPC(pWriterCtx->aipc, MBX_CMD_IOBUF_ARM2DSP, &io_arg, sizeof(io_arg));
-        TBUF_DEBUG("After IPC:%s %d\n", pWriterCtx->name, io_arg.count);
+        TBUF_DEBUG("Before IPC:%s %d\n", pWriterCtx->name, szAvail);
+        szAvail = AML_FLATBUF_Write(pWriterCtx->hFlat, vir, szAvail, -1);
+        TBUF_DEBUG("After IPC:%s %d\n", pWriterCtx->name, szAvail);
         AML_TBUF_UpdateRdOffset(pWriterCtx->tbuf, pWriterCtx->eType, szAvail);
-        pWriterCtx->remaindSize -= io_arg.count;
-        pWriterCtx->chunkNum++;
-        TBUF_DEBUG("%d %s %d %d\n", pWriterCtx->remaindSize, pWriterCtx->name, szAvail, io_arg.count);
+        pWriterCtx->remaindSize -= szAvail;
+        if (szAvail)
+            pWriterCtx->chunkNum++;
+        TBUF_DEBUG("%s %d %d %d\n", pWriterCtx->name, pWriterCtx->remaindSize, szAvail, pWriterCtx->chunkNum);        
     }
     printf("Exit write thread %s:%d\n", pWriterCtx->name, pWriterCtx->chunkNum);
     return NULL;
@@ -203,25 +196,21 @@ void* thread_write_dsp(void * arg)
 void* thread_read_dsp(void * arg)
 {
     hifi4_reader_t* pReaderCtx = (hifi4_reader_t*)arg;
-    AML_MEM_HANDLE hShm = AML_MEM_Allocate(CHUNK_BYTES);
-    void* phy = AML_MEM_GetPhyAddr(hShm);
-    void* vir = AML_MEM_GetVirtAddr(hShm);
+    void* buf = malloc(CHUNK_BYTES);
     while(pReaderCtx->remaindSize > 0) {
         /*IPC to HiFi, block here till HiFi write audio to the buffer*/
-        pcm_io_st io_arg;
-        memset(&io_arg, 0, sizeof(io_arg));
-        io_arg.data = (xpointer)phy;
-        io_arg.count = CHUNK_BYTES;
-        TBUF_DEBUG("Before IPC: %s %d\n", pReaderCtx->name, io_arg.count);
-        xAIPC(pReaderCtx->aipc, MBX_CMD_IOBUF_DSP2ARM, &io_arg, sizeof(io_arg));
-        TBUF_DEBUG("After IPC: %s %d\n", pReaderCtx->name, io_arg.count);
-        AML_MEM_Invalidate(phy, io_arg.count);
-        fwrite(vir, 1, io_arg.count, pReaderCtx->fp);
-        pReaderCtx->remaindSize -= io_arg.count;
-        TBUF_DEBUG("%d %s %d %d\n", pReaderCtx->remaindSize, pReaderCtx->name, io_arg.count, io_arg.count);
+        int nRead = CHUNK_BYTES;
+        TBUF_DEBUG("Before IPC: %s %d\n", pReaderCtx->name, nRead);
+        nRead = AML_FLATBUF_Read(pReaderCtx->hFlat, buf, nRead, CHUNK_MS);
+        TBUF_DEBUG("After IPC: %s %d\n", pReaderCtx->name, nRead);
+        fwrite(buf, 1, nRead, pReaderCtx->fp);
+        pReaderCtx->remaindSize -= nRead;
+        if (nRead)
+            pReaderCtx->chunkNum++;
+        TBUF_DEBUG(" %s %d %d %d\n",  pReaderCtx->name, pReaderCtx->remaindSize, nRead, pReaderCtx->chunkNum);
     }
+    free(buf);
     printf("Exit read thread:%s\n", pReaderCtx->name);
-    AML_MEM_Free(hShm);
     return NULL;
 }
 
@@ -238,8 +227,11 @@ void* thread_loopback(void * arg)
     return NULL;
 }
 
+
 int hifi4_tbuf_test(int argc, char* argv[])
 {
+    struct flatbuffer_config flatCfg;
+    flatCfg.size = 2*CHUNK_BYTES;
     AML_TBUF_HANDLE tbuf = NULL;
     /*T buffer can store 1 seconds audio*/
     size_t fileSize = 0;
@@ -252,13 +244,9 @@ int hifi4_tbuf_test(int argc, char* argv[])
     hifi4_loopback_t loopbackBCtx;
     memset(&captureCtx, 0, sizeof(capturer_t));
     memset(&writerACtx, 0, sizeof(hifi4_writer_t));
-    writerACtx.aipc = -1;
     memset(&writerBCtx, 0, sizeof(hifi4_writer_t));
-    writerBCtx.aipc = -1;
     memset(&readerACtx, 0, sizeof(hifi4_reader_t));
-    readerACtx.aipc = -1;
     memset(&readerBCtx, 0, sizeof(hifi4_reader_t));
-    readerBCtx.aipc = -1;
     memset(&loopbackACtx, 0, sizeof(hifi4_loopback_t));
     loopbackACtx.aipc = -1;
     memset(&loopbackBCtx, 0, sizeof(hifi4_loopback_t));
@@ -331,25 +319,33 @@ int hifi4_tbuf_test(int argc, char* argv[])
     writerACtx.eType = TBUF_READER_A;
     writerACtx.tbuf = tbuf;
     writerACtx.remaindSize = fileSize;
-    writerACtx.aipc = xAudio_Ipc_Init(0);
+    flatCfg.phy_ch = FLATBUF_CH_ARM2DSPA;
+    writerACtx.hFlat = AML_FLATBUF_Create("IOBUF_ARM2DSP", FLATBUF_FLAG_WR, &flatCfg);
     snprintf(writerACtx.name, sizeof(writerACtx.name), "WriterA");
 
     writerBCtx.eType = TBUF_READER_B;
     writerBCtx.tbuf = tbuf;
     writerBCtx.remaindSize = fileSize;
-    writerBCtx.aipc = xAudio_Ipc_Init(1);
+    flatCfg.phy_ch = FLATBUF_CH_ARM2DSPB;
+    writerBCtx.hFlat = AML_FLATBUF_Create("IOBUF_ARM2DSP", FLATBUF_FLAG_WR, &flatCfg);
     snprintf(writerBCtx.name, sizeof(writerBCtx.name), "WriterB");
 
     readerACtx.fp = fOutputA;
-    readerACtx.aipc = xAudio_Ipc_Init(0);
+    flatCfg.phy_ch = FLATBUF_CH_ARM2DSPA;
+    readerACtx.hFlat = AML_FLATBUF_Create("IOBUF_DSP2ARM",  FLATBUF_FLAG_RD, &flatCfg);
     readerACtx.remaindSize = fileSize;
     snprintf(readerACtx.name, sizeof(readerACtx.name), "ReaderA");
 
     readerBCtx.fp = fOutputB;
-    readerBCtx.aipc = xAudio_Ipc_Init(1);
+    flatCfg.phy_ch = FLATBUF_CH_ARM2DSPB;
+    readerBCtx.hFlat = AML_FLATBUF_Create("IOBUF_DSP2ARM",  FLATBUF_FLAG_RD, &flatCfg);
     readerBCtx.remaindSize = fileSize;
     snprintf(readerBCtx.name, sizeof(readerBCtx.name), "ReaderB");
 
+    AML_TBUF_AddConsumer(tbuf, TBUF_READER_A);
+    AML_TBUF_AddConsumer(tbuf, TBUF_READER_B);
+
+    /*Start Dsp loopback task*/
     loopbackACtx.aipc = xAudio_Ipc_Init(0);
     loopbackACtx.remaindSize = fileSize;
     snprintf(loopbackACtx.name, sizeof(loopbackACtx.name), "LoopbackA");
@@ -358,17 +354,10 @@ int hifi4_tbuf_test(int argc, char* argv[])
     loopbackBCtx.remaindSize = fileSize;
     snprintf(loopbackBCtx.name, sizeof(loopbackBCtx.name), "LoopbackB");
 
-    if ((writerACtx.aipc == -1) || (writerBCtx.aipc == -1) ||
-        (readerACtx.aipc == -1) || (readerBCtx.aipc == -1) ||
-        (loopbackACtx.aipc == -1) || (loopbackBCtx.aipc == -1)) {
-        printf("Failed to init IPC handle:%d %d %d %d %d %d\n",
-            writerACtx.aipc, writerBCtx.aipc, readerACtx.aipc, readerBCtx.aipc,
-            loopbackACtx.aipc, loopbackBCtx.aipc);
-        goto recycle_resource;
+    if ((loopbackACtx.aipc == -1) || (loopbackBCtx.aipc == -1)) {
+       printf("Failed to init IPC handle:%d %d\n", loopbackACtx.aipc, loopbackBCtx.aipc);
+       goto recycle_resource;
     }
-
-    AML_TBUF_AddConsumer(tbuf, TBUF_READER_A);
-    AML_TBUF_AddConsumer(tbuf, TBUF_READER_B);
 
     pthread_t captureThread;
     pthread_t writeAThread;
@@ -380,8 +369,8 @@ int hifi4_tbuf_test(int argc, char* argv[])
     pthread_create(&captureThread, NULL, thread_capture_pcm, (void*)&captureCtx);
     pthread_create(&writeAThread, NULL, thread_write_dsp, (void*)&writerACtx);
     pthread_create(&writeBThread, NULL, thread_write_dsp, (void*)&writerBCtx);
-    pthread_create(&readerAThread, NULL, thread_read_dsp, (void*)&readerACtx);
     pthread_create(&readerBThread, NULL, thread_read_dsp, (void*)&readerBCtx);
+    pthread_create(&readerAThread, NULL, thread_read_dsp, (void*)&readerACtx);
     pthread_create(&loopbackAThread, NULL, thread_loopback, (void*)&loopbackACtx);
     pthread_create(&loopbackBThread, NULL, thread_loopback, (void*)&loopbackBCtx);
     pthread_join(captureThread,NULL);
@@ -392,18 +381,19 @@ int hifi4_tbuf_test(int argc, char* argv[])
     pthread_join(loopbackAThread,NULL);
     pthread_join(loopbackBThread,NULL);
 
+
     AML_TBUF_RemoveConsumer(tbuf, TBUF_READER_A);
     AML_TBUF_RemoveConsumer(tbuf, TBUF_READER_B);
 
 recycle_resource:
-    if (writerACtx.aipc != -1)
-        xAudio_Ipc_Deinit(writerACtx.aipc);
-    if (writerBCtx.aipc != -1)
-        xAudio_Ipc_Deinit(writerBCtx.aipc);
-    if (readerACtx.aipc != -1)
-        xAudio_Ipc_Deinit(readerACtx.aipc);
-    if (readerBCtx.aipc != -1)
-        xAudio_Ipc_Deinit(readerBCtx.aipc);
+    if (writerACtx.hFlat != NULL)
+        AML_FLATBUF_Destroy(writerACtx.hFlat);
+    if (writerBCtx.hFlat != NULL)
+        AML_FLATBUF_Destroy(writerBCtx.hFlat);
+    if (readerACtx.hFlat != NULL)
+        AML_FLATBUF_Destroy(readerACtx.hFlat);
+    if (readerBCtx.hFlat != NULL)
+        AML_FLATBUF_Destroy(readerBCtx.hFlat);
     if (loopbackACtx.aipc != -1)
         xAudio_Ipc_Deinit(loopbackACtx.aipc);
     if (loopbackBCtx.aipc != -1)
