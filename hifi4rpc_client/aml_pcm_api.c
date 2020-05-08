@@ -48,7 +48,21 @@ typedef struct AML_PCM_T_ {
     tAcodecPcmSrvHdl hRpcPcm;
     AML_MEM_HANDLE hShm;
     int aipc;
+    unsigned int sampleRate;
+    unsigned int sampleBytes;
+    unsigned int chNum;
+    unsigned int chunkSize;
 } AML_PCM_T;
+
+static unsigned int internal_pcm_format_to_bytes(enum aml_pcm_format format)
+{
+    switch (format) {
+        case AML_PCM_FORMAT_S32_LE:
+            return 4;
+        default:
+            return 0;
+    }
+}
 
 static void internal_pcm_close(AML_PCM_HANDLE Handle)
 {
@@ -84,8 +98,11 @@ AML_PCM_HANDLE AML_PCM_Open(unsigned int card, unsigned int device, unsigned int
         printf("Failed to init rpc handle\n");
         goto aml_pcm_open_recycle;
     }
-
-    pPcm->hShm = AML_MEM_Allocate(CHUNK_BYTES);
+    pPcm->chNum = config->channels;
+    pPcm->sampleRate = config->rate;
+    pPcm->sampleBytes = internal_pcm_format_to_bytes(config->format);
+    pPcm->chunkSize = pPcm->chNum*config->period_size*pPcm->sampleBytes;
+    pPcm->hShm = AML_MEM_Allocate(pPcm->chunkSize);
     if (!pPcm->hShm) {
         printf("Falied to allocate shared memory\n");
         goto aml_pcm_open_recycle;
@@ -103,7 +120,7 @@ AML_PCM_HANDLE AML_PCM_Open(unsigned int card, unsigned int device, unsigned int
     pPcm->hRpcPcm = openArg.out_pcm;
     if (!pPcm->hRpcPcm) {
         printf("Falied to create pcm handle\n");
-        goto aml_pcm_open_recycle;      
+        goto aml_pcm_open_recycle;
     }
 
     return (AML_PCM_HANDLE)pPcm;
@@ -130,7 +147,7 @@ int AML_PCM_Read(AML_PCM_HANDLE Handle, void *data, unsigned int count)
     unsigned int uRemained = count;
     unsigned int chunkSize = 0;
     while(uRemained) {
-        chunkSize = AMX_MIN(CHUNK_BYTES, uRemained);
+        chunkSize = AMX_MIN(pPcm->chunkSize, uRemained);
         ioArg.count = chunkSize;
         xAIPC(pPcm->aipc, MBX_AML_PCM_READ, &ioArg, sizeof(ioArg));
         AML_MEM_Invalidate(AML_MEM_GetPhyAddr(pPcm->hShm), ioArg.out_ret);

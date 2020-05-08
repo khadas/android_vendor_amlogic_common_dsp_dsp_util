@@ -130,7 +130,9 @@ static void usage()
 
     printf ("\033[1mtbuf-pcm Usage:\033[m hifi4rpc_client_test --tbuf-pcm $seconds $output0 $output1\n");
 
-    printf ("\033[1maml-pcm Usage:\033[m hifi4rpc_client_test --aml-pcm $seconds $output0 $output1\n");
+    printf ("\033[1maml-pcm Usage:\033[m hifi4rpc_client_test --aml-pcm $seconds $chunkMs $chn $sampleRate $sampleBytes $output0 $output1\n");
+
+    printf ("\033[1maml-pcm-single Usage:\033[m hifi4rpc_client_test --aml-pcm-single $seconds $chunkMs $chn $sampleRate $sampleBytes $hifiId[0:HiFiA, 1:HiFiB]0 $output\n");
 
 	printf ("\033[1mxaf Usage:\033[m hifi4rpc_client_test --xaf $hifiId[0:HiFiA, 1:HiFiB] $case\n"
 	        "Case 0: Trigger TinyCapturer -> PcmGain pipeline\n"
@@ -173,6 +175,7 @@ int main(int argc, char* argv[]) {
         {"shm-loopback", no_argument, NULL, 25},
         {"tbuf-pcm", no_argument, NULL, 26},
         {"aml-pcm", no_argument, NULL, 27},
+        {"aml-pcm-single", no_argument, NULL, 28},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -395,10 +398,39 @@ int main(int argc, char* argv[]) {
                 tbuf_arg[3] = argv[optind + 2];
                 hifi4_tbuf_test(4, tbuf_arg);
             } else
-                printf("The param should be liks this --tbuf-pcm $input $output0 $output1\n");
+                printf("The param should be liks this --tbuf-pcm $seconds $output0 $output1\n");
             break;
         case 27:
-            aml_pcm_test(argc - optind, &argv[optind]);
+            if (argc == 9 && optind == 2)
+            {
+                char* aml_pcm_arg[8];
+                aml_pcm_arg[0] = "dual";
+                aml_pcm_arg[1] = argv[optind];
+                aml_pcm_arg[2] = argv[optind + 1];
+                aml_pcm_arg[3] = argv[optind + 2];
+                aml_pcm_arg[4] = argv[optind + 3];
+                aml_pcm_arg[5] = argv[optind + 4];
+                aml_pcm_arg[6] = argv[optind + 5];
+                aml_pcm_arg[7] = argv[optind + 6];
+                aml_pcm_test(8, aml_pcm_arg);
+            } else
+                printf("The param should be like this --aml-pcm $seconds $chunkMs $chn $sampleRate $sampleBytes $output0 $output1\n");
+            break;
+        case 28:
+            if (argc == 9 && optind == 2)
+            {
+                char* aml_pcm_arg[8];
+                aml_pcm_arg[0] = "single";
+                aml_pcm_arg[1] = argv[optind];
+                aml_pcm_arg[2] = argv[optind + 1];
+                aml_pcm_arg[3] = argv[optind + 2];
+                aml_pcm_arg[4] = argv[optind + 3];
+                aml_pcm_arg[5] = argv[optind + 4];
+                aml_pcm_arg[6] = argv[optind + 5];
+                aml_pcm_arg[7] = argv[optind + 6];
+                aml_pcm_test(8, aml_pcm_arg);
+            } else
+                printf("The param should be like this --aml-pcm-single $secnds $chunkMs $chn $sampleRate $sampleBytes $hifiId[0:HiFiA, 1:HiFiB] $output\n");
             break;
         case '?':
             usage();

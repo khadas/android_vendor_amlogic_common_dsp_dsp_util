@@ -150,7 +150,7 @@ int pcm_capture_test(int argc, char *argv[])
         device = (enum ALSA_DEVICE_IN)atoi(argv[1]);
     }
     rpc_pcm_config *pconfig = (rpc_pcm_config *)malloc(sizeof(rpc_pcm_config));
-    pconfig->channels = (device == DEVICE_LOOPBACK) ? 4 : 2;
+    pconfig->channels = 16;
     pconfig->rate = 48000;
     pconfig->format = PCM_FORMAT_S32_LE;
     pconfig->period_size = 1024;

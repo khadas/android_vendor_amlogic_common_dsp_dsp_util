@@ -73,7 +73,7 @@ AML_FLATBUF_HANDLE AML_FLATBUF_Create(const char* buf_id, int flags,
     pFbufCtx->aipchdl = xAudio_Ipc_Init(id);
     xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_CREATE, &arg, sizeof(arg));
     pFbufCtx->hFbuf = arg.hFbuf;
-    pFbufCtx->hShm = (AML_MEM_HANDLE)AML_MEM_Import((void*)arg.hInterBuf, arg.size);
+    pFbufCtx->hShm = (AML_MEM_HANDLE)arg.hInterBuf;
     return pFbufCtx;
 }
 

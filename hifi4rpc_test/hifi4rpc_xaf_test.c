@@ -31,7 +31,7 @@
  * Version:
  * - 0.1        init
  */
-
+#include <stdbool.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -430,33 +430,43 @@ int xaf_dump(int argc, char **argv) {
 typedef struct _aml_pcm_test_context_t_ {
     int card;
     FILE *fp;
-    int remained;
+    int chNum;
+    int sampleRate;
+    int sampleBytes;
+    int chunkMs;
+    int sec;
 } aml_pcm_test_context;
 
 void* thread_aml_pcm_test(void *arg)
 {
     aml_pcm_test_context* pContext = (aml_pcm_test_context*)arg;
+    /*printf("Card-%d, capture %d seconds, %dms chunk, chn:%d, sampleRate:%d, sampleBytes:%d\n",
+            pContext->card, pContext->sec, pContext->chunkMs, pContext->chNum, pContext->sampleRate,
+            pContext->sampleBytes);*/
+
     struct aml_pcm_config cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.channels = SAMPLE_CH;
-    cfg.rate = 48000;
-    cfg.period_size = CHUNK_MS * SAMPLE_MS;//16 ms peroid
+    cfg.channels = pContext->chNum;
+    cfg.rate = pContext->sampleRate;
+    cfg.period_size = pContext->chunkMs * (pContext->sampleRate/1000);
     cfg.period_count = 4;
     cfg.format = AML_PCM_FORMAT_S32_LE;
     AML_PCM_HANDLE hPcm = AML_PCM_Open(pContext->card, 0, PCM_IN, &cfg);
 
     /*16 ms per chunk*/
-    size_t szChunk = 16*cfg.channels*cfg.rate*sizeof(uint32_t)/1000;
+    size_t szChunk = pContext->chunkMs*pContext->chNum*pContext->sampleBytes*(pContext->sampleRate/1000);
     void* buf = malloc(szChunk);
-    while (pContext->remained) {
-        size_t bytes = AMX_MIN((int)szChunk, pContext->remained);
+
+    int remained = pContext->sec*pContext->sampleRate*pContext->chNum*pContext->sampleBytes;
+    while (remained) {
+        size_t bytes = AMX_MIN((int)szChunk, remained);
         int nRead = AML_PCM_Read(hPcm, buf, bytes);
         if (nRead != (int)bytes) {
             printf("AML_PCM_Read something wrong:%d\n", nRead);
             break;
         }
         fwrite(buf, 1, nRead, pContext->fp);
-        pContext->remained -= nRead;
+        remained -= nRead;
     }
     free(buf);
     AML_PCM_Close(hPcm);
@@ -465,37 +475,88 @@ void* thread_aml_pcm_test(void *arg)
 }
 
 int aml_pcm_test(int argc, char **argv) {
-    if (argc != 3) {
-        printf("Invalid argc:%d\n", argc);
-        return -1;
-    }
+    int sec = 0;
+    int chunkMs = 0;
+    int chNum = 0;
+    int sampleRate = 0;
+    int sampleBytes = 0;
+    pthread_t pcmReadThreadA;
+    pthread_t pcmReadThreadB;
+    char* pFileNameA = NULL;
+    char* pFileNameB = NULL;
     aml_pcm_test_context contextA;
     memset(&contextA, 0, sizeof(aml_pcm_test_context));
     aml_pcm_test_context contextB;
     memset(&contextB, 0, sizeof(aml_pcm_test_context));
 
-    int sec = atoi(argv[0]);
-    printf("Capture %d seconds\n", sec);
-    contextA.remained = sec*1000*SAMPLE_MS*CHUNK_MS*sizeof(uint32_t);
-    contextB.remained = sec*1000*SAMPLE_MS*CHUNK_MS*sizeof(uint32_t);
-
-    contextA.card = 0;
-    contextB.card = 1;
-
-    contextA.fp = fopen(argv[1], "w+b");
-    contextB.fp = fopen(argv[2], "w+b");
-
-    if (contextA.fp == NULL || contextB.fp == NULL) {
-        printf("Failed to open file %s or %s\n", argv[1], argv[2]);
+    if (argc < 1) {
+        printf("Invalid argc %d\n", argc);
         goto aml_pcm_test_recycle;
     }
 
-    pthread_t pcmReadThreadA;
-    pthread_t pcmReadThreadB;
-    pthread_create(&pcmReadThreadA, NULL, thread_aml_pcm_test, (void *)&contextA);
-    pthread_create(&pcmReadThreadB, NULL, thread_aml_pcm_test, (void *)&contextB);
-    pthread_join(pcmReadThreadA, NULL);
-    pthread_join(pcmReadThreadB, NULL);
+    if (!strcmp("dual", argv[0]) && argc == 8) {
+        sec = atoi(argv[1]);
+        chunkMs = atoi(argv[2]);
+        chNum = atoi(argv[3]);
+        sampleRate = atoi(argv[4]);
+        sampleBytes = atoi(argv[5]);
+        pFileNameA = argv[6];
+        pFileNameB = argv[7];
+    } else if (!strcmp("single", argv[0]) && argc == 8) {
+        sec = atoi(argv[1]);
+        chunkMs = atoi(argv[2]);
+        chNum = atoi(argv[3]);
+        sampleRate = atoi(argv[4]);
+        sampleBytes = atoi(argv[5]);
+        int card = atoi(argv[6]);
+        if (0 == card)
+            pFileNameA = argv[7];
+        else if (1 == card)
+            pFileNameB = argv[7];
+        else {
+            printf("Invalid card:%d\n", card);
+            goto aml_pcm_test_recycle;
+        }
+    } else {
+        printf("Invalid parameter %s %d\n", argv[0], argc);
+        goto aml_pcm_test_recycle;
+    }
+    
+
+    if (pFileNameA) {
+        contextA.sec = sec;
+        contextA.chunkMs = chunkMs;
+        contextA.chNum = chNum;
+        contextA.sampleRate = sampleRate;
+        contextA.sampleBytes = sampleBytes;
+        contextA.card = 0;
+        contextA.fp = fopen(pFileNameA, "w+b");
+        pthread_create(&pcmReadThreadA, NULL, thread_aml_pcm_test, (void *)&contextA);
+        if (contextA.fp == NULL) {
+            printf("Failed to open file %s\n",pFileNameA);
+            goto aml_pcm_test_recycle;
+        }
+    }
+
+    if (pFileNameB) {
+        contextB.sec = sec;
+        contextB.chunkMs = chunkMs;
+        contextB.chNum = chNum;
+        contextB.sampleRate = sampleRate;
+        contextB.sampleBytes = sampleBytes;
+        contextB.card = 1;
+        contextB.fp = fopen(pFileNameB, "w+b");
+        pthread_create(&pcmReadThreadB, NULL, thread_aml_pcm_test, (void *)&contextB);
+        if (contextB.fp == NULL) {
+            printf("Failed to open file %s\n", pFileNameB);
+            goto aml_pcm_test_recycle;
+        }
+    }
+
+    if (pFileNameA)
+        pthread_join(pcmReadThreadA, NULL);
+    if (pFileNameB)
+        pthread_join(pcmReadThreadB, NULL);
 
 aml_pcm_test_recycle:
     if (contextA.fp)

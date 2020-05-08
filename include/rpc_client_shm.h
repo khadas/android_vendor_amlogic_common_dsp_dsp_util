@@ -127,17 +127,6 @@ int32_t AML_MEM_Clean(AML_MEM_HANDLE hShm, size_t size);
  */
 int32_t AML_MEM_Invalidate(AML_MEM_HANDLE hShm, size_t size);
 
-/**
- * Make a block of memory work as shared memory
- *
- * @param[in] physical base of memory block
- *
- * @param[in] The size of memory block
- *
- * @return valid shared memory handle if successful, return NULL if failed
- */
-AML_MEM_HANDLE AML_MEM_Import(void* phy, size_t size);
-
 
 #ifdef __cplusplus
  }

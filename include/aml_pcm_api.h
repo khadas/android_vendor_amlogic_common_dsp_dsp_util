@@ -38,6 +38,9 @@
 typedef void* AML_PCM_HANDLE;
 
 enum aml_pcm_format {
+    /** Signed, 24-bit (32-bit in memory), little endian */
+    AML_PCM_FORMAT_S24_LE,
+    /** Signed, 32-bit , little endian */
     AML_PCM_FORMAT_S32_LE,
     AML_PCM_FORMAT_MAX
 };
