@@ -22,8 +22,11 @@ b. Feed pcm to both of two HiFi cores with shared buffer
 c. Loopback pcm from two HiFi cores separately
 d. Dump HiFiA's output to local file $input0 and dump HiFiB's output to local file $input1
 
-# --aml-pcm $seconds $output0 $output1
-The data flow is same as --tbuf-pcm, but it calls aml pcm api to implement the case
+# --aml-pcm $seconds $chunkMs $chn $sampleRate $sampleBytes $output0 $output1
+Call aml pcm api to capture pcm from HiFiA and HiFiB
+a. tdm fifo is managed in HiFiA
+b. TBuf is managed in HiFiA
+c. HiFiA's pcm is dump to local file $output0 and HiFiB's pcm is dump to local file $input1
 
 # --xaf $hifiId[0:HiFiA, 1:HiFiB] $caseId
 Trigger XAF test pipeline at HiFi side

@@ -141,19 +141,37 @@ int pcm_play_test(int argc, char *argv[])
     return 0;
 }
 
-
-#define PCM_CAPTURE_SAMPLES (48000 * 20)
 int pcm_capture_test(int argc, char *argv[])
 {
-    enum ALSA_DEVICE_IN device = DEVICE_TDMIN_B;
-    if (argc >= 2) {
-        device = (enum ALSA_DEVICE_IN)atoi(argv[1]);
+    if (argc != 7) {
+        printf("Invalide param number:%d\n", argc);
+        return -1;
     }
+    int seconds = atoi(argv[0]);
+    int chunkMs = atoi(argv[1]);
+    int chn = atoi(argv[2]);
+    int rate = atoi(argv[3]);
+    int format = atoi(argv[4]);
+    if (format != 0) {
+        printf("Not supported format:%d\n", format);
+        return -1;
+    }
+    int device = atoi(argv[5]);
+    if (device != 1 && device != 3 && device != 4) {
+        printf("Not supported device:%d\n", device);
+        return -1;
+    }
+    FILE *filecap = fopen(argv[6], "w+b");
+    if (filecap == NULL) {
+        printf("failed to open captured pcm file\n");
+        return -1;
+    }
+
     rpc_pcm_config *pconfig = (rpc_pcm_config *)malloc(sizeof(rpc_pcm_config));
-    pconfig->channels = 16;
-    pconfig->rate = 48000;
+    pconfig->channels = chn;
+    pconfig->rate = rate;
     pconfig->format = PCM_FORMAT_S32_LE;
-    pconfig->period_size = 1024;
+    pconfig->period_size = chunkMs * (rate/1000);
     pconfig->period_count = 4;
     pconfig->start_threshold = 1024;
     pconfig->silence_threshold = 1024 * 2;
@@ -161,16 +179,9 @@ int pcm_capture_test(int argc, char *argv[])
     tAmlPcmhdl p = pcm_client_open(0, device, PCM_IN, pconfig);
     AML_MEM_HANDLE hShmBuf;
 
-    FILE *filecap = fopen(argv[0], "w+b");
-    if (filecap == NULL) {
-        printf("failed to open captured pcm file\n");
-        return -1;
-    }
-
-    int in_fr = PCM_CAPTURE_SAMPLES;
+    int in_fr = rate * seconds;
     int i, fr = 0;
-    const int ms = 36;
-    const int oneshot = 48 * ms; // 1728 samples
+    const int oneshot = chunkMs * (rate/1000);
     uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
     hShmBuf = AML_MEM_Allocate(size);
     void *buf = AML_MEM_GetVirtAddr(hShmBuf);

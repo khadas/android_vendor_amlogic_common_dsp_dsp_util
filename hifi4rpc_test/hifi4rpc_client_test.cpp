@@ -89,18 +89,18 @@ static void usage()
 
     printf ("\033[1mshared memory unit test usage:\033[m hifi4rpc_client_test --shm\n");
 
-    printf ("\033[1mshared memory loopback test usage:\033[m hifi4rpc_client_test --shm-loopback $hifiId[0:HiFiA, 1:HiFiB] $input $output\n");
-
     printf ("\033[1mmp3dec Usage:\033[m hifi4rpc_client_test --mp3dec $input_file $output_file\n");
 
     printf ("\033[1maacdec Usage:\033[m hifi4rpc_client_test --aacdec $format $input_file $output_file\n");
-    printf ("aac supported transport format: 0-RAW, 1-ADIF, 2-ADTS, 6-LATM_MCP1, 7-LATM_MCP0, 10-LOAS\n");
+    printf ("  format: [0-RAW, 1-ADIF, 2-ADTS, 6-LATM_MCP1, 7-LATM_MCP0, 10-LOAS]\n");
 
-    printf ("\033[1mpcmplay Usage:\033[m hifi4rpc_client_test --pcmplay $pcm_file\n");
+    printf ("\033[1mdspplay Usage:\033[m hifi4rpc_client_test --dspplay $pcm_file\n");
 
-    printf ("\033[1mpcmcap Usage:\033[m hifi4rpc_client_test --pcmcap  $pcm_file $input_mode[1:tdmin,3:tdmin&loopback, 4:pdmin]\n");
+    printf ("\033[1mdspcap Usage:\033[m hifi4rpc_client_test --dspcap $seconds $chunkMs $chn $rate $format $device $pcm_file\n"
+            "  format: [0-PCM_FORMAT_S32_LE]\n"
+            "  device: [1-tdmin, 3-tdmin&loopback, 4-pdmin]\n");
 
-    printf ("\033[1mpcmplay-buildin Usage:\033[m hifi4rpc_client_test --pcmplay-buildin\n");
+    printf ("\033[1mdspplay-buildin Usage:\033[m hifi4rpc_client_test --dspplay-buildin\n");
 
     printf ("\033[1mhifi inside wakeup test Usage:\033[m hifi4rpc_client_test --hifiwake\n");
 
@@ -118,11 +118,15 @@ static void usage()
 
     printf ("\033[1mpcm-gain Usage:\033[m hifi4rpc_client_test --pcm-gain $sampleRate $bitdepth $channels $gain $input $output\n");
 
-    printf ("\033[1mpcm-file Usage:\033[m hifi4rpc_client_test --pcm-file $hifiId[0:HiFiA, 1:HiFiB] $input\n File -> TinyCapturer");
+    printf ("\033[1mpcm-file Usage:\033[m hifi4rpc_client_test --pcm-file $hifiId[0:HiFiA, 1:HiFiB] $input\n"
+            "  File -> TinyCapturer\n");
 
-    printf ("\033[1mpcm-cap Usage:\033[m hifi4rpc_client_test --pcm-cap $hifiId[0:HiFiA, 1:HiFiB]\n Tinyalsa -> TinyCapturer\n");
+    printf ("\033[1mpcm-cap Usage:\033[m hifi4rpc_client_test --pcm-cap $hifiId[0:HiFiA, 1:HiFiB]\n"
+            "  Tinyalsa -> TinyCapturer\n");
 
-    printf ("\033[1mpcm-loopback test usage:\033[m hifi4rpc_client_test --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $seconds $output\n");
+    printf ("\033[1mshm-loopback usage:\033[m hifi4rpc_client_test --shm-loopback $hifiId[0:HiFiA, 1:HiFiB] $input $output\n");
+
+    printf ("\033[1mpcm-loopback usage:\033[m hifi4rpc_client_test --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $seconds $output\n");
 
     printf ("\033[1mpcm-dump Usage:\033[m hifi4rpc_client_test --pcm-dump $hifiId[0:HiFiA, 1:HiFiB] $output\n");
 
@@ -134,11 +138,10 @@ static void usage()
 
     printf ("\033[1maml-pcm-single Usage:\033[m hifi4rpc_client_test --aml-pcm-single $seconds $chunkMs $chn $sampleRate $sampleBytes $hifiId[0:HiFiA, 1:HiFiB]0 $output\n");
 
-	printf ("\033[1mxaf Usage:\033[m hifi4rpc_client_test --xaf $hifiId[0:HiFiA, 1:HiFiB] $case\n"
-	        "Case 0: Trigger TinyCapturer -> PcmGain pipeline\n"
-	        "Case 1: Trigger PcmGain -> TinyRenderer pipeline\n"
-	        "Case 2: Trigger TinyCapturer -> PcmGain -> TinyRenderer pipeline\n"
-	        );
+    printf ("\033[1mxaf Usage:\033[m hifi4rpc_client_test --xaf $hifiId[0:HiFiA, 1:HiFiB] $case\n"
+            "  Case 0: Trigger TinyCapturer -> PcmGain pipeline\n"
+            "  Case 1: Trigger PcmGain -> TinyRenderer pipeline\n"
+            "  Case 2: Trigger TinyCapturer -> PcmGain -> TinyRenderer pipeline\n");
 }
 
 
@@ -151,9 +154,9 @@ int main(int argc, char* argv[]) {
         {"ipc", no_argument, NULL, 1},
         {"shm", no_argument, NULL, 2},
         {"mp3dec", no_argument, NULL, 3},
-        {"pcmplay", no_argument, NULL, 4},
-        {"pcmcap", no_argument, NULL, 5},
-        {"pcmplay-buildin", no_argument, NULL, 6},
+        {"dspplay", no_argument, NULL, 4},
+        {"dspcap", no_argument, NULL, 5},
+        {"dspplay-buildin", no_argument, NULL, 6},
         {"aacdec", no_argument, NULL, 7},
         {"vsp-rsp", no_argument, NULL, 8},
         {"rpc", no_argument, NULL, 9},
@@ -226,7 +229,7 @@ int main(int argc, char* argv[]) {
             }
             break;
         case 5:
-            if (1 == argc - optind || 2 ==  argc - optind)
+            if (7 == argc - optind)
                 pcm_capture_test(argc - optind, &argv[optind]);
             else {
                 usage();
@@ -344,8 +347,10 @@ int main(int argc, char* argv[]) {
                 tbuf_arg[2] = argv[optind + 1];
                 tbuf_arg[3] = argv[optind + 2];
                 pcm_loopback_test(4, tbuf_arg);
-            } else
-                printf("The param should be liks this --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $seconds $output\n");
+            } else {
+                usage();
+                exit(1);
+            }
             break;
         case 20: // pcm-file
             bcm_file_test(argc - optind, &argv[optind]);
@@ -368,8 +373,10 @@ int main(int argc, char* argv[]) {
                 hifi4_tbuf_test(4, tbuf_arg);
                 TOC;
                 printf("tbuf unit test use:%u ms\n", ms);
-            } else
-                printf("The param should be liks this --tbuf-file $input $output0 $output1\n");
+            } else {
+                usage();
+                exit(1);
+            }
             break;
         case 24: // pcm-dump
             xaf_dump(argc - optind, &argv[optind]);
@@ -385,8 +392,10 @@ int main(int argc, char* argv[]) {
                 pcm_loopback_test(4, tbuf_arg);
                 TOC;
                 printf("buffer loopback unit test use:%u ms\n", ms);
-            } else
-                printf("The param should be liks this --shm-loopback $hifiId[0:HiFiA, 1:HiFiB] $input $output\n");
+            } else {
+                usage();
+                exit(1);
+            }
             break;
         case 26:
             if (argc == 5 && optind == 2)
@@ -397,8 +406,10 @@ int main(int argc, char* argv[]) {
                 tbuf_arg[2] = argv[optind + 1];
                 tbuf_arg[3] = argv[optind + 2];
                 hifi4_tbuf_test(4, tbuf_arg);
-            } else
-                printf("The param should be liks this --tbuf-pcm $seconds $output0 $output1\n");
+            } else {
+                usage();
+                exit(1);
+            }
             break;
         case 27:
             if (argc == 9 && optind == 2)
@@ -413,8 +424,10 @@ int main(int argc, char* argv[]) {
                 aml_pcm_arg[6] = argv[optind + 5];
                 aml_pcm_arg[7] = argv[optind + 6];
                 aml_pcm_test(8, aml_pcm_arg);
-            } else
-                printf("The param should be like this --aml-pcm $seconds $chunkMs $chn $sampleRate $sampleBytes $output0 $output1\n");
+            } else {
+                usage();
+                exit(1);
+            }
             break;
         case 28:
             if (argc == 9 && optind == 2)
@@ -429,8 +442,10 @@ int main(int argc, char* argv[]) {
                 aml_pcm_arg[6] = argv[optind + 5];
                 aml_pcm_arg[7] = argv[optind + 6];
                 aml_pcm_test(8, aml_pcm_arg);
-            } else
-                printf("The param should be like this --aml-pcm-single $secnds $chunkMs $chn $sampleRate $sampleBytes $hifiId[0:HiFiA, 1:HiFiB] $output\n");
+            } else {
+                usage();
+                exit(1);
+            }
             break;
         case '?':
             usage();

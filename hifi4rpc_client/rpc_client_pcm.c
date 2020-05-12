@@ -105,8 +105,7 @@ int pcm_client_readi(tAmlPcmhdl hdl, const void *data, unsigned int count)
     arg.count = count;
     arg.out_ret = 0;
 
-	printf("data:%p, count:%d\n", data, count);
-	xAIPC(pAmlPcmCtx->aipchdl, MBX_TINYALSA_READI, &arg, sizeof(arg));
+    xAIPC(pAmlPcmCtx->aipchdl, MBX_TINYALSA_READI, &arg, sizeof(arg));
     return arg.out_ret;
 }
 
