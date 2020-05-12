@@ -1,5 +1,6 @@
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
+LOCAL_CFLAGS+=-DANDROIDPLATFORM
 LOCAL_C_INCLUDES += \
                 $(TOP)/external/tinyalsa/include/tinyalsa \
                 $(LOCAL_PATH)/. \

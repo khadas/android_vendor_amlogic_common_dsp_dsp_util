@@ -340,7 +340,7 @@ int main(int argc, char* argv[]) {
             if (argc == 5 && optind == 2) {
                 char* tbuf_arg[4];
                 tbuf_arg[0] = argv[optind];
-                tbuf_arg[1] = "pcm";
+                tbuf_arg[1] = (char*)"pcm";
                 tbuf_arg[2] = argv[optind + 1];
                 tbuf_arg[3] = argv[optind + 2];
                 pcm_loopback_test(4, tbuf_arg);
@@ -360,7 +360,7 @@ int main(int argc, char* argv[]) {
             if (argc == 5 && optind == 2)
             {
                 char* tbuf_arg[4];
-                tbuf_arg[0] = "file";
+                tbuf_arg[0] = (char*)"file";
                 tbuf_arg[1] = argv[optind];
                 tbuf_arg[2] = argv[optind + 1];
                 tbuf_arg[3] = argv[optind + 2];
@@ -378,7 +378,7 @@ int main(int argc, char* argv[]) {
             if (argc == 5 && optind == 2) {
                 char* tbuf_arg[4];
                 tbuf_arg[0] = argv[optind];
-                tbuf_arg[1] = "file";
+                tbuf_arg[1] = (char*)"file";
                 tbuf_arg[2] = argv[optind + 1];
                 tbuf_arg[3] = argv[optind + 2];
                 TIC;
@@ -392,7 +392,7 @@ int main(int argc, char* argv[]) {
             if (argc == 5 && optind == 2)
             {
                 char* tbuf_arg[4];
-                tbuf_arg[0] = "pcm";
+                tbuf_arg[0] = (char*)"pcm";
                 tbuf_arg[1] = argv[optind];
                 tbuf_arg[2] = argv[optind + 1];
                 tbuf_arg[3] = argv[optind + 2];
@@ -404,7 +404,7 @@ int main(int argc, char* argv[]) {
             if (argc == 9 && optind == 2)
             {
                 char* aml_pcm_arg[8];
-                aml_pcm_arg[0] = "dual";
+                aml_pcm_arg[0] = (char*)"dual";
                 aml_pcm_arg[1] = argv[optind];
                 aml_pcm_arg[2] = argv[optind + 1];
                 aml_pcm_arg[3] = argv[optind + 2];
@@ -420,7 +420,7 @@ int main(int argc, char* argv[]) {
             if (argc == 9 && optind == 2)
             {
                 char* aml_pcm_arg[8];
-                aml_pcm_arg[0] = "single";
+                aml_pcm_arg[0] = (char*)"single";
                 aml_pcm_arg[1] = argv[optind];
                 aml_pcm_arg[2] = argv[optind + 1];
                 aml_pcm_arg[3] = argv[optind + 2];

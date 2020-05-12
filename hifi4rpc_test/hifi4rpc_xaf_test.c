@@ -46,7 +46,9 @@
 #include "aipc_type.h"
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
+#ifdef ANDROIDPLATFORM
 #include "asoundlib.h"
+#endif
 #include "generic_macro.h"
 #include "aml_audio_util.h"
 #include "aml_pcm_api.h"
@@ -120,6 +122,7 @@ int bcm_file_test(int argc, char* argv[])
 // !!! depend on libtinyalsa, only link in Android.mk !!!
 int bcm_pcm_test(int argc, char* argv[])
 {
+#ifdef ANDROIDPLATFORM
     int i;
     if (argc != 1) {
         printf("Invalid argc:%d\n", argc);
@@ -188,6 +191,11 @@ int bcm_pcm_test(int argc, char* argv[])
     pcm_close(pcm);
     free(buf);
     AML_FLATBUF_Destroy(hFlat);
+#else
+    AMX_UNUSED(argc);
+	AMX_UNUSED(argv);
+    printf("Not support such case");
+#endif
     return 0;
 }
 
@@ -207,11 +215,12 @@ int read_wrapper(io_thread_context* pWriteCtx, void* data, size_t* size)
         size_t nRead = 0;
         nRead = fread(data, 1, *size, pWriteCtx->fp);
         if (nRead != *size) {
-            printf("Capture thread reach EOF:%d\n", nRead);
+            printf("Capture thread reach EOF:%zu\n", nRead);
             *size = nRead;
             ret = -1;
         }
     }
+#ifdef ANDROIDPLATFORM
     else if (pWriteCtx->ppcm) {
         ret = pcm_read(pWriteCtx->ppcm, data, *size);
         if (ret != 0) {
@@ -219,6 +228,7 @@ int read_wrapper(io_thread_context* pWriteCtx, void* data, size_t* size)
             *size = 0;
         }
     }
+#endif
     return ret;
 }
 
@@ -243,7 +253,7 @@ static void* thread_write_pcm(void * arg)
         nBytes = AML_FLATBUF_Write(hFlat, buf, nBytes, -1);
         pWriteCtx->chunkNum++;
         pWriteCtx->fileSize -= nBytes;
-        printf("thread_write_pcm remained:%d\n", pWriteCtx->fileSize);
+        printf("thread_write_pcm remained:%zu\n", pWriteCtx->fileSize);
     }
     free(buf);
     AML_FLATBUF_Destroy(hFlat);
@@ -272,7 +282,7 @@ static void* thread_read_pcm(void * arg)
         #endif
         pReadCtx->fileSize -= nRead;
         pReadCtx->chunkNum++;
-        printf("thread_read_pcm remained:%d\n", pReadCtx->fileSize);
+        printf("thread_read_pcm remained:%zu\n", pReadCtx->fileSize);
     }
     free(buf);
     AML_FLATBUF_Destroy(hFlat);
@@ -305,6 +315,7 @@ int pcm_loopback_test(int argc, char* argv[])
         fileSize = ftell(writeCtx.fp);
         fseek(writeCtx.fp, 0, SEEK_SET);
     } else if (!strcmp("pcm", argv[1])) {
+#ifdef ANDROIDPLATFORM
         struct pcm_config cfg;
         memset(&cfg, 0, sizeof(cfg));
         cfg.channels = SAMPLE_CH;
@@ -328,6 +339,10 @@ int pcm_loopback_test(int argc, char* argv[])
         int seconds = atoi(argv[2]);
         fileSize = seconds*1000*SAMPLE_MS*SAMPLE_CH*SAMPLE_BYTES;
         printf("pcm open:%p\n", writeCtx.ppcm);
+#else
+        printf("Not support such case\n");
+        goto recycle_resource;
+#endif
     }
 
     writeCtx.fileSize = fileSize;
@@ -374,8 +389,10 @@ int pcm_loopback_test(int argc, char* argv[])
 recycle_resource:
     if (writeCtx.fp)
         fclose(writeCtx.fp);
+#ifdef ANDROIDPLATFORM
     if (writeCtx.ppcm)
         pcm_close(writeCtx.ppcm);
+#endif
     if (readCtx.fp)
         fclose(readCtx.fp);
     return 0;
@@ -451,7 +468,7 @@ void* thread_aml_pcm_test(void *arg)
     cfg.period_size = pContext->chunkMs * (pContext->sampleRate/1000);
     cfg.period_count = 4;
     cfg.format = AML_PCM_FORMAT_S32_LE;
-    AML_PCM_HANDLE hPcm = AML_PCM_Open(pContext->card, 0, PCM_IN, &cfg);
+    AML_PCM_HANDLE hPcm = AML_PCM_Open(pContext->card, 0, 0, &cfg);
 
     /*16 ms per chunk*/
     size_t szChunk = pContext->chunkMs*pContext->chNum*pContext->sampleBytes*(pContext->sampleRate/1000);

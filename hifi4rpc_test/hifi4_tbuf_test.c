@@ -42,7 +42,9 @@
 #include "rpc_client_shm.h"
 #include "aml_tbuf_api.h"
 #include "aml_flatbuf_api.h"
+#ifdef ANDROIDPLATFORM
 #include "asoundlib.h"
+#endif
 #include "generic_macro.h"
 
 #define TBUF_SIZE (10*CHUNK_BYTES)
@@ -93,11 +95,12 @@ int capturer_input(capturer_t* pCapturerCtx, void* data, size_t* size)
         size_t nRead = 0;
         nRead = fread(data, 1, *size, pCapturerCtx->fp);
         if (nRead != *size) {
-            printf("Capture thread reach EOF:%d\n", nRead);
+            printf("Capture thread reach EOF:%zu\n", nRead);
             *size = nRead;
             ret = -1;
         }
     }
+#ifdef ANDROIDPLATFORM
     else if (pCapturerCtx->inputType == CAPTURE_INPUT_PCM) {
         ret = pcm_read(pCapturerCtx->pcm, data, *size);
         if (ret != 0) {
@@ -105,6 +108,7 @@ int capturer_input(capturer_t* pCapturerCtx, void* data, size_t* size)
             *size = 0;
         }
     }
+#endif
     return ret;
 }
 
@@ -269,6 +273,7 @@ int hifi4_tbuf_test(int argc, char* argv[])
         fileSize = ftell(captureCtx.fp);
         fseek(captureCtx.fp, 0, SEEK_SET);
     } else if (!strcmp("pcm", argv[0])) {
+#ifdef ANDROIDPLATFORM
         captureCtx.inputType = CAPTURE_INPUT_PCM;
         struct pcm_config cfg;
         memset(&cfg, 0, sizeof(cfg));
@@ -299,6 +304,10 @@ int hifi4_tbuf_test(int argc, char* argv[])
         }
         int seconds = atoi(argv[1]);
         fileSize = seconds*1000*SAMPLE_MS*SAMPLE_CH*SAMPLE_BYTES;
+#else
+        printf("Not support such case\n");
+        goto recycle_resource;
+#endif
     }
 
     FILE* fOutputA = fopen(argv[2], "w+b");
@@ -400,8 +409,10 @@ recycle_resource:
         xAudio_Ipc_Deinit(loopbackBCtx.aipc);
     if (captureCtx.fp != NULL && captureCtx.inputType == CAPTURE_INPUT_FILE)
         fclose(captureCtx.fp);
+#ifdef ANDROIDPLATFORM
     if (captureCtx.pcm != NULL && captureCtx.inputType == CAPTURE_INPUT_PCM)
         pcm_close(captureCtx.pcm);
+#endif
     if (readerACtx.fp != NULL)
         fclose(readerACtx.fp);
     if (readerBCtx.fp != NULL)

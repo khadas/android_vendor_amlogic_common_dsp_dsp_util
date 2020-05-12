@@ -235,8 +235,8 @@ exit_capture:
 
 int flat_buf_test(int argc, char* argv[])
 {
-    UNUSED(argc);
-    UNUSED(argv);
+    AMX_UNUSED(argc);
+    AMX_UNUSED(argv);
 
     pthread_t wr_thread_cmd;
     pthread_t rd_thread_cmd;
