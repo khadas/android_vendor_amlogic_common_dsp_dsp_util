@@ -87,7 +87,7 @@ int bcm_file_test(int argc, char* argv[])
     uint32_t size = oneshot * SAMPLE_CH * SAMPLE_BYTES; // 16channel, 32bit
     uint32_t r;
     struct flatbuffer_config config;
-    config.size = 2*size;
+    config.size = 3*size;
     config.phy_ch = (id == 0)?FLATBUF_CH_ARM2DSPA:FLATBUF_CH_ARM2DSPB;
     AML_FLATBUF_HANDLE hFlat = AML_FLATBUF_Create("AML.XAF.CAPTURE", FLATBUF_FLAG_WR,
                                                 &config);
@@ -167,12 +167,14 @@ int bcm_pcm_test(int argc, char* argv[])
     uint32_t size = oneshot * SAMPLE_CH * SAMPLE_BYTES; // 16channel, 32bit
     uint32_t r;
     struct flatbuffer_config config;
-    config.size = 2*size;
+    config.size = 3*size;
     config.phy_ch = (id == 0)?FLATBUF_CH_ARM2DSPA:FLATBUF_CH_ARM2DSPB;
     AML_FLATBUF_HANDLE hFlat = AML_FLATBUF_Create("AML.XAF.CAPTURE", FLATBUF_FLAG_WR,
                                                 &config);
     void *buf = malloc(size);
-    int loop = 128 * 10;
+    int sec = 10;
+    int loop = 128 * sec;
+    printf("capture pcm data, and send it to dsp side in %d seconds\n", sec);
     for (i = 0; i != loop; i++) {
         /** Linux tinyalsa's pcm_read, it return error code
          * When r=0, it means successfully get full filled buffer */
