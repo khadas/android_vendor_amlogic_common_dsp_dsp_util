@@ -98,7 +98,7 @@ static void usage()
 
     printf ("\033[1mdspcap Usage:\033[m hifi4rpc_client_test --dspcap $seconds $chunkMs $chn $rate $format $device $pcm_file\n"
             "  format: [0-PCM_FORMAT_S32_LE]\n"
-            "  device: [1-tdmin, 3-tdmin&loopback, 4-pdmin]\n");
+            "  device: [1-tdmin, 3-tdmin&loopback]\n");
 
     printf ("\033[1mdspplay-buildin Usage:\033[m hifi4rpc_client_test --dspplay-buildin\n");
 
@@ -134,9 +134,11 @@ static void usage()
 
     printf ("\033[1mtbuf-pcm Usage:\033[m hifi4rpc_client_test --tbuf-pcm $seconds $output0 $output1\n");
 
-    printf ("\033[1maml-pcm Usage:\033[m hifi4rpc_client_test --aml-pcm $seconds $chunkMs $chn $sampleRate $sampleBytes $output0 $output1\n");
+    printf ("\033[1maml-pcm Usage:\033[m hifi4rpc_client_test --aml-pcm $seconds $chunkMs $chn $sampleRate $sampleBytes $device $output0 $output1\n"
+            "  device: [1-tdmin, 3-tdmin&loopback]\n");
 
-    printf ("\033[1maml-pcm-single Usage:\033[m hifi4rpc_client_test --aml-pcm-single $seconds $chunkMs $chn $sampleRate $sampleBytes $hifiId[0:HiFiA, 1:HiFiB]0 $output\n");
+    printf ("\033[1maml-pcm-single Usage:\033[m hifi4rpc_client_test --aml-pcm-single $seconds $chunkMs $chn $sampleRate $sampleBytes $device $hifiId[0:HiFiA, 1:HiFiB]0 $output\n"
+            "  device: [1-tdmin, 3-tdmin&loopback]\n");
 
     printf ("\033[1mxaf Usage:\033[m hifi4rpc_client_test --xaf $hifiId[0:HiFiA, 1:HiFiB] $case\n"
             "  Case 0: Trigger TinyCapturer -> PcmGain pipeline\n"
@@ -412,7 +414,7 @@ int main(int argc, char* argv[]) {
             }
             break;
         case 27:
-            if (argc == 9 && optind == 2)
+            if (argc == 10 && optind == 2)
             {
                 char* aml_pcm_arg[8];
                 aml_pcm_arg[0] = (char*)"dual";
@@ -423,14 +425,15 @@ int main(int argc, char* argv[]) {
                 aml_pcm_arg[5] = argv[optind + 4];
                 aml_pcm_arg[6] = argv[optind + 5];
                 aml_pcm_arg[7] = argv[optind + 6];
-                aml_pcm_test(8, aml_pcm_arg);
+                aml_pcm_arg[8] = argv[optind + 7];
+                aml_pcm_test(9, aml_pcm_arg);
             } else {
                 usage();
                 exit(1);
             }
             break;
         case 28:
-            if (argc == 9 && optind == 2)
+            if (argc == 10 && optind == 2)
             {
                 char* aml_pcm_arg[8];
                 aml_pcm_arg[0] = (char*)"single";
@@ -441,7 +444,8 @@ int main(int argc, char* argv[]) {
                 aml_pcm_arg[5] = argv[optind + 4];
                 aml_pcm_arg[6] = argv[optind + 5];
                 aml_pcm_arg[7] = argv[optind + 6];
-                aml_pcm_test(8, aml_pcm_arg);
+                aml_pcm_arg[8] = argv[optind + 7];
+                aml_pcm_test(9, aml_pcm_arg);
             } else {
                 usage();
                 exit(1);

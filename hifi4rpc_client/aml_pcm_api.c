@@ -84,7 +84,6 @@ static void internal_pcm_close(AML_PCM_HANDLE Handle)
 AML_PCM_HANDLE AML_PCM_Open(unsigned int card, unsigned int device, unsigned int flags,
                                         const struct aml_pcm_config *config)
 {
-    AMX_UNUSED(device);
     AMX_UNUSED(flags);
     AML_PCM_T* pPcm = malloc(sizeof(AML_PCM_T));
     if (!pPcm) {
@@ -111,6 +110,7 @@ AML_PCM_HANDLE AML_PCM_Open(unsigned int card, unsigned int device, unsigned int
     pcm_open_st openArg;
     memset(&openArg, 0, sizeof(openArg));
     openArg.card = card;
+    openArg.device = device;
     openArg.pcm_config.channels = config->channels;
     openArg.pcm_config.rate = config->rate;
     openArg.pcm_config.format = config->format;//format setting is hard code in dsp side

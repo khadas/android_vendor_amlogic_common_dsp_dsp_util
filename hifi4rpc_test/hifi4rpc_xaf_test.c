@@ -448,6 +448,7 @@ int xaf_dump(int argc, char **argv) {
 
 typedef struct _aml_pcm_test_context_t_ {
     int card;
+    int device;
     FILE *fp;
     int chNum;
     int sampleRate;
@@ -470,7 +471,7 @@ void* thread_aml_pcm_test(void *arg)
     cfg.period_size = pContext->chunkMs * (pContext->sampleRate/1000);
     cfg.period_count = 4;
     cfg.format = AML_PCM_FORMAT_S32_LE;
-    AML_PCM_HANDLE hPcm = AML_PCM_Open(pContext->card, 0, 0, &cfg);
+    AML_PCM_HANDLE hPcm = AML_PCM_Open(pContext->card, pContext->device, 0, &cfg);
 
     /*16 ms per chunk*/
     size_t szChunk = pContext->chunkMs*pContext->chNum*pContext->sampleBytes*(pContext->sampleRate/1000);
@@ -499,6 +500,7 @@ int aml_pcm_test(int argc, char **argv) {
     int chNum = 0;
     int sampleRate = 0;
     int sampleBytes = 0;
+    int device = 0;
     pthread_t pcmReadThreadA;
     pthread_t pcmReadThreadB;
     char* pFileNameA = NULL;
@@ -513,25 +515,27 @@ int aml_pcm_test(int argc, char **argv) {
         goto aml_pcm_test_recycle;
     }
 
-    if (!strcmp("dual", argv[0]) && argc == 8) {
+    if (!strcmp("dual", argv[0]) && argc == 9) {
         sec = atoi(argv[1]);
         chunkMs = atoi(argv[2]);
         chNum = atoi(argv[3]);
         sampleRate = atoi(argv[4]);
         sampleBytes = atoi(argv[5]);
-        pFileNameA = argv[6];
-        pFileNameB = argv[7];
-    } else if (!strcmp("single", argv[0]) && argc == 8) {
+        device = atoi(argv[6]);
+        pFileNameA = argv[7];
+        pFileNameB = argv[8];
+    } else if (!strcmp("single", argv[0]) && argc == 9) {
         sec = atoi(argv[1]);
         chunkMs = atoi(argv[2]);
         chNum = atoi(argv[3]);
         sampleRate = atoi(argv[4]);
         sampleBytes = atoi(argv[5]);
-        int card = atoi(argv[6]);
+        device = atoi(argv[6]);
+        int card = atoi(argv[7]);
         if (0 == card)
-            pFileNameA = argv[7];
+            pFileNameA = argv[8];
         else if (1 == card)
-            pFileNameB = argv[7];
+            pFileNameB = argv[8];
         else {
             printf("Invalid card:%d\n", card);
             goto aml_pcm_test_recycle;
@@ -549,6 +553,7 @@ int aml_pcm_test(int argc, char **argv) {
         contextA.sampleRate = sampleRate;
         contextA.sampleBytes = sampleBytes;
         contextA.card = 0;
+        contextA.device = device;
         contextA.fp = fopen(pFileNameA, "w+b");
         pthread_create(&pcmReadThreadA, NULL, thread_aml_pcm_test, (void *)&contextA);
         if (contextA.fp == NULL) {
@@ -564,6 +569,7 @@ int aml_pcm_test(int argc, char **argv) {
         contextB.sampleRate = sampleRate;
         contextB.sampleBytes = sampleBytes;
         contextB.card = 1;
+        contextB.device = device;
         contextB.fp = fopen(pFileNameB, "w+b");
         pthread_create(&pcmReadThreadB, NULL, thread_aml_pcm_test, (void *)&contextB);
         if (contextB.fp == NULL) {
