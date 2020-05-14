@@ -455,6 +455,8 @@ typedef struct _aml_pcm_test_context_t_ {
     int sampleBytes;
     int chunkMs;
     int sec;
+    struct timespec timeStamp[512];
+    int frameCnt;
 } aml_pcm_test_context;
 
 void* thread_aml_pcm_test(void *arg)
@@ -478,15 +480,19 @@ void* thread_aml_pcm_test(void *arg)
     void* buf = malloc(szChunk);
 
     int remained = pContext->sec*pContext->sampleRate*pContext->chNum*pContext->sampleBytes;
+    int timeStampIdx = 0;
     while (remained) {
         size_t bytes = AMX_MIN((int)szChunk, remained);
         int nRead = AML_PCM_Read(hPcm, buf, bytes);
+        if (timeStampIdx < 512)
+            aprofiler_get_cur_timestamp(&pContext->timeStamp[timeStampIdx++]);
         if (nRead != (int)bytes) {
             printf("AML_PCM_Read something wrong:%d\n", nRead);
             break;
         }
         fwrite(buf, 1, nRead, pContext->fp);
         remained -= nRead;
+        pContext->frameCnt++;
     }
     free(buf);
     AML_PCM_Close(hPcm);
@@ -588,6 +594,21 @@ aml_pcm_test_recycle:
         fclose(contextA.fp);
     if (contextB.fp)
         fclose(contextB.fp);
+    int maxDelay = 0;
+    int maxDelayIdx = 0;
+    int timeStampIdx = 0;
+    int frameCnt = AMX_MIN(512, contextA.frameCnt);
+    while (timeStampIdx < frameCnt) {
+        int32_t delay = aprofiler_msec_duration(&contextA.timeStamp[timeStampIdx], &contextB.timeStamp[timeStampIdx]);
+        //printf("frame_dix:%d, delay=%dms\n", timeStampIdx, delay);
+        if (abs(delay) > maxDelay) {
+            maxDelay = abs(delay);
+            maxDelayIdx = timeStampIdx;
+        }
+        timeStampIdx++;
+    }
+    printf("total frame number:%d, max delay:%d, the frame index of max delay:%d\n",
+            frameCnt, maxDelay, maxDelayIdx);
     return 0;
 }
 

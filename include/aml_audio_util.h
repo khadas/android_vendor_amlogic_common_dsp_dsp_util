@@ -50,7 +50,7 @@ int AML_SRCS16LE_Exec(void *h,
 
 
 void aprofiler_get_cur_timestamp(struct timespec* ts);
-uint32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStart);
+int32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStart);
 
 #define TIC              \
     struct timespec bgn, end; \
