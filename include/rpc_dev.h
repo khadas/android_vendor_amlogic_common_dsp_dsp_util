@@ -2,4 +2,4 @@
 
 int RPC_init(const char *path, int flags,mode_t mode);
 int RPC_deinit(int handle);
-void RPC_invoke(int handle, int cmd, void *data, unsigned int len);
+int RPC_invoke(int handle, int cmd, void *data, unsigned int len);

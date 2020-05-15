@@ -15,9 +15,14 @@ int RPC_deinit(int handle)
 {
 	return close(handle);
 }
-
-void RPC_invoke(int handle, int cmd, void *data, unsigned int len)
+/*
+ * rpc invoke
+ * write or read error, ret < 0
+ * write and read success, ret = msg len >= 0
+ */
+int RPC_invoke(int handle, int cmd, void *data, unsigned int len)
 {
+	int ret = 0;
 	struct merge_data {
 		int cmd;
 		char msg[240];
@@ -25,7 +30,15 @@ void RPC_invoke(int handle, int cmd, void *data, unsigned int len)
 
 	merge_data.cmd = cmd;
 	memcpy(merge_data.msg, data, len);
-	write(handle, &merge_data, sizeof(merge_data));
+	ret = write(handle, &merge_data, sizeof(merge_data));
+	if (ret < 0) {
+		printf("RPC invoke write error: %d\n", ret);
+		return ret;
+	}
 	memset(data, 0, len);
-	read(handle, data, len);
+	ret = read(handle, data, len);
+	if (ret < 0) {
+		printf("RPC invoke read error: %d\n", ret);
+	}
+	return ret;
 }
