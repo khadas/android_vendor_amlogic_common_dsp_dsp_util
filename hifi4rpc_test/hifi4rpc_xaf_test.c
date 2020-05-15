@@ -48,6 +48,8 @@
 #include "rpc_client_aipc.h"
 #ifdef ANDROIDPLATFORM
 #include "asoundlib.h"
+#elif defined (C4A_HIFI4)
+#include <alsa/asoundlib.h>
 #endif
 #include "generic_macro.h"
 #include "aml_audio_util.h"

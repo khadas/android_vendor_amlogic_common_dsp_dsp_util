@@ -44,6 +44,8 @@
 #include "aml_flatbuf_api.h"
 #ifdef ANDROIDPLATFORM
 #include "asoundlib.h"
+#elif defined (C4A_HIFI4)
+#include <alsa/asoundlib.h>
 #endif
 #include "generic_macro.h"
 
