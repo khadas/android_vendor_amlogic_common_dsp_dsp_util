@@ -255,7 +255,7 @@ static void* thread_write_pcm(void * arg)
         nBytes = AML_FLATBUF_Write(hFlat, buf, nBytes, -1);
         pWriteCtx->chunkNum++;
         pWriteCtx->fileSize -= nBytes;
-        printf("thread_write_pcm remained:%zu\n", pWriteCtx->fileSize);
+        //printf("thread_write_pcm remained:%zu\n", pWriteCtx->fileSize);
     }
     free(buf);
     AML_FLATBUF_Destroy(hFlat);
@@ -284,7 +284,7 @@ static void* thread_read_pcm(void * arg)
         #endif
         pReadCtx->fileSize -= nRead;
         pReadCtx->chunkNum++;
-        printf("thread_read_pcm remained:%zu\n", pReadCtx->fileSize);
+        //printf("thread_read_pcm remained:%zu\n", pReadCtx->fileSize);
     }
     free(buf);
     AML_FLATBUF_Destroy(hFlat);
