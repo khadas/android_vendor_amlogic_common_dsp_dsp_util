@@ -1,51 +1,31 @@
 # --shm-loopback $hifiId[0:HiFiA, 1:HiFiB] $input $output
+Arm feed pcm from local file to HiFi4, and loopback pcm back.
 a. Read pcm from local file $input
 b. Feed pcm to HiFiA or HiFiB
 c. Loopback pcm from HiFiA or HiFiB
 d. Dump pcm to local file $output
 
-# --pcm-loopback $hifiId[0:HiFiA, 1:HiFiB] $seconds $output
-a. Capture pcm from tinyalsa, the duration is $seconds
-b. Feed pcm to HiFiA or HiFiB
-c. Loopback pcm from HiFiA or HiFiB
-d. Dump pcm to local file $output
-
-# --tbuf-file $input $output0 $output1
-a. Read pcm from local file $input
-b. Feed pcm to both of two HiFi cores with shared buffer
-c. Loopback pcm from two HiFi cores separately
-d. Dump HiFiA's output to local file $input0 and dump HiFiB's output to local file $input1
-
-# --tbuf-pcm $seconds $output0 $output1
-a. Capture pcm from tinyalsa, the duration is $seconds
-b. Feed pcm to both of two HiFi cores with shared buffer
-c. Loopback pcm from two HiFi cores separately
-d. Dump HiFiA's output to local file $input0 and dump HiFiB's output to local file $input1
-
-# --aml-pcm $seconds $chunkMs $chn $sampleRate $sampleBytes $output0 $output1
+# --aml-pcm $seconds $chunkMs $chn $sampleRate $sampleBytes $device $output0 $output1
 Call aml pcm api to capture pcm from HiFiA and HiFiB
-a. tdm fifo is managed in HiFiA
-b. TBuf is managed in HiFiA
-c. HiFiA's pcm is dump to local file $output0 and HiFiB's pcm is dump to local file $input1
+a. HiFi4A reads pcm form TDM HW Fifo and writes pcm to T-Buffer
+b. Application of HiFiA read pcm from T-Buffer
+c. Application of HiFiB read pcm from T-Buffer
+d. T-Buffer handles the moving of wptr and the arbitration of moving of rptr of A/B
+e. HiFiA's pcm is dump to local file $output0 and HiFiB's pcm is dump to local file $input1
+sample test command:
+tinycap /data/out_lb.wav -D 0 -d 7 -c 16 -r 48000 -b 32 -p 128 -n 40 -f &
+hifi4rpc_client_test --aml-pcm 60 4 16 48000 4 3 /data/mic0 /data/mic1
 
 # --xaf $hifiId[0:HiFiA, 1:HiFiB] $caseId
 Trigger XAF test pipeline at HiFi side
 Case 0: TinyCapturer -> PcmGain
 Case 1: PcmGain -> TinyRenderer
-Case 2: TinyCapturer -> PcmGain -> TinyRenderer
 
 # --pcm-file $hifiId[0:HiFiA, 1:HiFiB] $input &
 Read pcm file $input, and feed data to HiFi side's TinyCapturer
 It work at bakcground.  TinyCapturer plugin in XAF need cowork with this command.
 sample test commmand:
     hifi4rpc_client_test --pcm-file 0 /data/out_lb.wav.raw &
-    hifi4rpc_client_test --xaf 0 0
-
-# --pcm-cap $hifiId[0:HiFiA, 1:HiFiB] &
-Capture pcm from tinyalsa, and feed data to HiFi side's TinyCapturer
-It work at background. TinyCapturer plugin in XAF need cowork with this command.
-sample test command:
-    hifi4rpc_client_test --pcm-cap 0 &
     hifi4rpc_client_test --xaf 0 0
 
 # --pcm-dump $hifiId[0:HiFiA, 1:HiFiB] $output &
