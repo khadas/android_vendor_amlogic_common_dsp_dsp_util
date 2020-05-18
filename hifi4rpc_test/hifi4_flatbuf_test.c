@@ -78,6 +78,8 @@ void* flat_buffers_read_cmd(void* arg)
          * Read bytes with 1 ms time out
          */
         size = AML_FLATBUF_Read(hFbuf, &recBuf[i], size, 1);
+        if (size == -1)
+            break;
         strRdSamplesLen -= size;
         i += size;
     }
@@ -128,6 +130,8 @@ void* flat_buffers_write_cmd(void* arg)
          * block here till all bytes are wrriten
          */
         size = AML_FLATBUF_Write(hFbuf, &sendBuf[i], size, -1);
+        if (size == -1)
+            break;
         strWrSamplesLen -= size;
         i += size;
     }
@@ -175,6 +179,8 @@ void* flat_buffers_read_data(void* arg)
          * block here till all bytes are read
          */
         size = AML_FLATBUF_Read(hFbuf, recBuf, size, 1);
+        if (size == -1)
+            break;
         rdLen -= size;
     }
 
@@ -222,6 +228,8 @@ void* flat_buffers_write_data(void* arg)
          * block here till all bytes are written
          */
         size = AML_FLATBUF_Write(hFbuf, sendBuf, size, -1);
+        if (size == -1)
+            break;
         wrLen -= size;
     }
 exit_capture:

@@ -62,19 +62,38 @@ AML_FLATBUF_HANDLE AML_FLATBUF_Create(const char* buf_id, int flags,
         printf("Not supported physical channel:%d\n", config->phy_ch);
         return NULL;
     }
-
+    int rpcRet = 0;
     aml_flatbuf_create_st arg;
     FLATBUFS * pFbufCtx = (FLATBUFS*)malloc(sizeof(FLATBUFS));
+    if (!pFbufCtx) {
+        printf("Failed to malloc flatbuf context\n");
+        goto recycle_flatbuf_context;
+    }
     memset(pFbufCtx, 0, sizeof(FLATBUFS));
     strcpy(arg.buf_id, buf_id);
     arg.flags = flags;
     arg.size = config->size;
     int id = (config->phy_ch == FLATBUF_CH_ARM2DSPA)?0:1;
     pFbufCtx->aipchdl = xAudio_Ipc_Init(id);
-    xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_CREATE, &arg, sizeof(arg));
+    if (pFbufCtx->aipchdl < 0) {
+        printf("Failed to init rpc handle\n");
+        goto recycle_flatbuf_context;
+    }
+    rpcRet = xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_CREATE, &arg, sizeof(arg));
+    if (rpcRet < 0) {
+        printf("Failed to invoke MBX_CMD_FLATBUF_CREATE\n");
+        goto recycle_flatbuf_context;
+    }
     pFbufCtx->hFbuf = arg.hFbuf;
     pFbufCtx->hShm = (AML_MEM_HANDLE)arg.hInterBuf;
     return pFbufCtx;
+recycle_flatbuf_context:
+    if (pFbufCtx) {
+        if (pFbufCtx->aipchdl >= 0)
+             xAudio_Ipc_Deinit(pFbufCtx->aipchdl);
+        free(pFbufCtx);
+    }
+    return NULL;
 }
 
 void AML_FLATBUF_Destroy(AML_FLATBUF_HANDLE hFbuf)
@@ -88,22 +107,28 @@ void AML_FLATBUF_Destroy(AML_FLATBUF_HANDLE hFbuf)
     free(pFbufCtx);
 }
 
-size_t AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size, int msTimeout)
+int AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size, int msTimeout)
 {
+    int rpcRet = 0;
     aml_flatbuf_read_st arg;
     FLATBUFS * pFbufCtx = (FLATBUFS*)hFbuf;
     arg.hFbuf = (tAmlFlatBufHdlRpc)pFbufCtx->hFbuf;
     arg.mem = (xpointer)AML_MEM_GetPhyAddr(pFbufCtx->hShm);
     arg.size = size;
     arg.ms = (uint32_t)msTimeout;
-    xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_READ, &arg, sizeof(arg));
+    rpcRet = xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_READ, &arg, sizeof(arg));
+    if (rpcRet < 0) {
+        printf("Failed to invoke MBX_CMD_FLATBUF_READ\n");
+        return -1;
+    }
     AML_MEM_Invalidate(pFbufCtx->hShm, arg.size);
     memcpy(buf, AML_MEM_GetVirtAddr(pFbufCtx->hShm), arg.size);
     return arg.size;
 }
 
-size_t AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, const void* buf, size_t size, int msTimeout)
+int AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, const void* buf, size_t size, int msTimeout)
 {
+    int rpcRet = 0;
     aml_flatbuf_write_st arg;
     FLATBUFS * pFbufCtx = (FLATBUFS*)hFbuf;
     arg.hFbuf = (tAmlFlatBufHdlRpc)pFbufCtx->hFbuf;
@@ -112,7 +137,11 @@ size_t AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, const void* buf, size_t size,
     arg.ms = (uint32_t)msTimeout;
     memcpy(AML_MEM_GetVirtAddr(pFbufCtx->hShm), buf, arg.size);
     AML_MEM_Clean(pFbufCtx->hShm, arg.size);
-    xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_WRITE, &arg, sizeof(arg));
+    rpcRet = xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_WRITE, &arg, sizeof(arg));
+    if (rpcRet < 0) {
+        printf("Failed to invoke MBX_CMD_FLATBUF_WRITE\n");
+        return -1;
+    }
     return arg.size;
 }
 

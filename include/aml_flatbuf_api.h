@@ -122,9 +122,9 @@ void AML_FLATBUF_Destroy(AML_FLATBUF_HANDLE hFbuf);
  *
  * @param[in] time out in micro seconds
  *
- * @return real size of the read
+ * @return real size of the read, -1 means failure of the call
  */
-size_t AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size, int msTimeout);
+int AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size, int msTimeout);
 
 /**
  * Write data to flat buffer
@@ -141,9 +141,9 @@ size_t AML_FLATBUF_Read(AML_FLATBUF_HANDLE hFbuf, void* buf, size_t size, int ms
  *
  * @param[in] time out in micro seconds
  *
- * @return real size of the write
+ * @return real size of the write, -1 means failure of the call
  */
-size_t AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, const void* buf, size_t size, int msTimeout);
+int AML_FLATBUF_Write(AML_FLATBUF_HANDLE hFbuf, const void* buf, size_t size, int msTimeout);
 
 
 /**

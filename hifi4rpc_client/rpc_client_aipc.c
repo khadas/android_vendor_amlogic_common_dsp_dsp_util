@@ -55,7 +55,6 @@ void xAudio_Ipc_Deinit(int handle) {
 }
 
 int xAIPC(int handle, unsigned int cmd, void *buf, size_t size) {
-    RPC_invoke(handle, cmd, buf, size);
-    return 0;
+    return RPC_invoke(handle, cmd, buf, size);
 }
 
