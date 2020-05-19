@@ -217,7 +217,7 @@ void* awe_thread_process_data(void * data)
                     aml_ch_extract_s16le((int16_t*)AML_MEM_GetVirtAddr(awe->hinWorkBuf[i]),
                                 (int16_t*)(awe->userFillBuf + awe->userFillBufRd),
                                 awe->inWorkBufLenInSample, (awe->micInChannels + awe->refInChannels), i);
-                    AML_MEM_Clean(awe->hinWorkBuf, awe->inWorkBufLen);
+                    AML_MEM_Clean(awe->hinWorkBuf[i], awe->inWorkBufLen);
                 }
                 isWaked = 0;
                 inLen =  awe->inWorkBufLen;

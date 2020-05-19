@@ -98,7 +98,7 @@ recycle_flatbuf_context:
 
 void AML_FLATBUF_Destroy(AML_FLATBUF_HANDLE hFbuf)
 {
-    aml_flatbuf_destory_st arg;
+    aml_flatbuf_destroy_st arg;
     FLATBUFS * pFbufCtx = (FLATBUFS*)hFbuf;
 
     arg.hFbuf = (tAmlFlatBufHdlRpc)pFbufCtx->hFbuf;

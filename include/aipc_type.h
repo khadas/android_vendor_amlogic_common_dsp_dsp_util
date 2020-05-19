@@ -242,7 +242,7 @@ typedef struct {
 
 typedef struct {
     tAmlFlatBufHdlRpc hFbuf;
-} __attribute__((packed)) aml_flatbuf_destory_st;
+} __attribute__((packed)) aml_flatbuf_destroy_st;
 
 typedef struct {
     tAmlFlatBufHdlRpc hFbuf;
