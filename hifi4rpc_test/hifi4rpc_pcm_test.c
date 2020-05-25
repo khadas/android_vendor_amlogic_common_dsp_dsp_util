@@ -64,23 +64,23 @@ uint32_t audio_play_data_len = sizeof(audio_play_data);
 
 int pcm_play_buildin()
 {
+    const int ms = 36;
+    const int oneshot = 48 * ms; // 1728 samples
     rpc_pcm_config *pconfig = (rpc_pcm_config *)malloc(sizeof(rpc_pcm_config));
     pconfig->channels = 2;
     pconfig->rate = 48000;
     pconfig->format = PCM_FORMAT_S32_LE;
-    pconfig->period_size = 1024;
-    pconfig->period_count = 2;
-    pconfig->start_threshold = 1024;
-    pconfig->silence_threshold = 1024 * 2;
-    pconfig->stop_threshold = 1024 * 2;
+    pconfig->period_size = oneshot;
+    pconfig->period_count = 8;
+    pconfig->start_threshold = oneshot*4;
+    pconfig->silence_threshold = oneshot * 2;
+    pconfig->stop_threshold = oneshot * 2;
     tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMOUT_B, PCM_OUT, pconfig);
     AML_MEM_HANDLE hShmBuf;
 
     uint8_t *play_data = (uint8_t *)audio_play_data;
     int in_fr = pcm_client_bytes_to_frame(p, audio_play_data_len);
     int i, fr = 0;
-    const int ms = 36;
-    const int oneshot = 48 * ms; // 1728 samples
     uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
     hShmBuf = AML_MEM_Allocate(size);
     void *buf = AML_MEM_GetVirtAddr(hShmBuf);
@@ -90,7 +90,7 @@ int pcm_play_buildin()
         AML_MEM_Clean(phybuf, size);
         fr = pcm_client_writei(p, phybuf, oneshot);
         //printf("%dms pcm_write i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
-        //  ms, i, p, buf, oneshot, fr);
+          //ms, i, p, buf, oneshot, fr);
     }
     pcm_client_close(p);
     AML_MEM_Free(hShmBuf);
@@ -100,15 +100,17 @@ int pcm_play_buildin()
 
 int pcm_play_test(int argc, char *argv[])
 {
+    const int ms = 36;
+    const int oneshot = 48 * ms; // 1728 samples
     rpc_pcm_config *pconfig = (rpc_pcm_config *)malloc(sizeof(rpc_pcm_config));
     pconfig->channels = 2;
     pconfig->rate = 48000;
     pconfig->format = PCM_FORMAT_S32_LE;
-    pconfig->period_size = 1024;
-    pconfig->period_count = 2;
-    pconfig->start_threshold = 1024;
-    pconfig->silence_threshold = 1024 * 2;
-    pconfig->stop_threshold = 1024 * 2;
+    pconfig->period_size = oneshot;
+    pconfig->period_count = 8;
+    pconfig->start_threshold = oneshot*4;
+    pconfig->silence_threshold = oneshot * 2;
+    pconfig->stop_threshold = oneshot * 2;
     tAmlPcmhdl p = pcm_client_open(0, DEVICE_TDMOUT_B, PCM_OUT, pconfig);
     AML_MEM_HANDLE hShmBuf;
 
@@ -122,8 +124,6 @@ int pcm_play_test(int argc, char *argv[])
         printf("failed to open played pcm file\n");
         return -1;
     }
-    const int ms = 36;
-    const int oneshot = 48 * ms; // 1728 samples
     uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
     hShmBuf = AML_MEM_Allocate(size);
     void *buf = AML_MEM_GetVirtAddr(hShmBuf);
@@ -190,8 +190,7 @@ int pcm_capture_test(int argc, char *argv[])
         fr = pcm_client_readi(p, phybuf, oneshot);
         AML_MEM_Invalidate(phybuf, size);
         fwrite(buf, sizeof(char), size, filecap);
-        //printf("%dms pcm_read i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
-        //  ms, i, p, buf, oneshot, fr);
+        //printf("i=%d pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n", i, p, buf, oneshot, fr);
     }
     pcm_client_close(p);
     AML_MEM_Free(hShmBuf);
