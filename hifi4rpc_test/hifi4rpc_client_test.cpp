@@ -141,9 +141,9 @@ static void usage()
             "  device: [1-tdmin, 3-tdmin&loopback]\n");
 
     printf ("\033[1mxaf Usage:\033[m hifi4rpc_client_test --xaf $hifiId[0:HiFiA, 1:HiFiB] $case\n"
-            "  Case 0: Trigger TinyCapturer -> PcmGain pipeline\n"
-            "  Case 1: Trigger PcmGain -> TinyRenderer pipeline\n"
-            "  Case 2: Trigger TinyCapturer -> PcmGain -> TinyRenderer pipeline\n");
+            "  Case 0/am_cap: Trigger TinyCapturer -> PcmGain pipeline\n"
+            "  Case 1/am_rnd: Trigger PcmGain -> TinyRenderer pipeline\n"
+            "  Case 2/am_pipe: Trigger TinyCapturer -> PcmGain -> TinyRenderer pipeline\n");
 }
 
 
@@ -337,8 +337,8 @@ int main(int argc, char* argv[]) {
             break;
         case 18:
             {
-                ipc_uint_test(atoi(argv[optind]));
-                ipc_uint_test1(atoi(argv[optind]));
+                ipc_uint_test(str2hifiId(argv[optind]));
+                ipc_uint_test1(str2hifiId(argv[optind]));
             }
             break;
         case 19:

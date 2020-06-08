@@ -76,7 +76,7 @@ int bcm_file_test(int argc, char* argv[])
         printf("arg[%d]=%s\n", i, argv[i]);
     }
     printf("all arg end\n");
-    int id = atoi(argv[0]);
+    int id = str2hifiId(argv[0]);
     printf("Invoke Hifi%d\n", id);
 
     FILE *fileplay = fopen(argv[1], "rb");
@@ -103,8 +103,18 @@ int bcm_file_test(int argc, char* argv[])
             rewind(fileplay);
             r = fread(buf, 1, size, fileplay);
         }
-        AML_FLATBUF_Write(hFlat, buf, r, -1);
+        int j, ret, times = 10;
+        for (j = 0; j != times; j++) {
+            ret = AML_FLATBUF_Write(hFlat, buf, r, -1);
+            if (ret > 0) {
+                break;
+            }
+        }
         d1 = get_us();
+        if (ret < 0) {
+            printf("try to write data in %d times, still fail, break\n", times);
+            break;
+        }
         e = 16 * 1000 - (d1 - d0);
         // if (i % (128 * 4) == 0) {
         //     printf("real=%ld wait=%ld\n", d1 - d0, e);
@@ -112,8 +122,8 @@ int bcm_file_test(int argc, char* argv[])
         if (e > 0) {
             usleep(e);
         }
-        //printf("%dms pcm_write pcm=%p buf=%p in_fr=%d -> fr=%d xxx\n",
-        //   ms, p, buf, oneshot, fr);
+        printf("%dms flatbuf_write hFlat=%p buf=%p in_fr=%d -> size=%d xxx dd=%ld e=%ld\n",
+               ms, hFlat, buf, oneshot, r, d1 - d0, e);
     }
     fclose(fileplay);
     free(buf);
@@ -133,7 +143,7 @@ int bcm_pcm_test(int argc, char* argv[])
     for (i = 0; i != argc; i++) {
         printf("arg[%d]=%s\n", i, argv[i]);
     }
-    int id = atoi(argv[0]);
+    int id = str2hifiId(argv[0]);
     printf("Invoke Hifi%d\n", id);
 
     struct pcm_config cfg;
@@ -306,7 +316,7 @@ int pcm_loopback_test(int argc, char* argv[])
         printf("pcm_loopback_test: invalid parameter number %d\n", argc);
         return -1;
     }
-    int id = atoi(argv[0]);
+    int id = str2hifiId(argv[0]);
 
     if (!strcmp("file", argv[1])) {
         FILE* fInput = fopen(argv[2], "rb");
@@ -402,13 +412,27 @@ recycle_resource:
     return 0;
 }
 
+int str2caseId(char *s) {
+    static const IdGroup g[] = {
+        {0, {"0", "am_cap", NULL}},
+        {1, {"1", "am_rnd", NULL}},
+        {2, {"2", "am_pipe", NULL}},
+        {3, {"3", "xa_pipe", NULL}},
+    };
+    return str2id(s, g, sizeof(g) / sizeof(g[0]));
+}
+
 int xaf_test(int argc, char **argv) {
     if (argc != 2) {
         printf("Invalid argc:%d\n", argc);
         return -1;
     }
-    int id = atoi(argv[0]);
-    int caseId = atoi(argv[1]);
+    int id = str2hifiId(argv[0]);
+    int caseId = str2caseId(argv[1]);
+    if (caseId == -1 || id == -1) {
+        printf("Invalid arg: id=%s case=%s\n", argv[0], argv[1]);
+        return -1;
+    }
     printf("Invoke HiFi%d case=%d\n", id, caseId);
     int hdl = xAudio_Ipc_Init(id);
     xAIPC(hdl, MBX_CMD_XAF_TEST, &caseId, sizeof(caseId));
@@ -421,7 +445,7 @@ int xaf_dump(int argc, char **argv) {
         printf("Invalid argc:%d\n", argc);
         return -1;
     }
-    int id = atoi(argv[0]);
+    int id = str2hifiId(argv[0]);
     printf("Invoke HiFi%d\n", id);
     FILE* fpOut = fopen(argv[1], "wb");
     const int ms = CHUNK_MS;
@@ -433,14 +457,13 @@ int xaf_dump(int argc, char **argv) {
     AML_FLATBUF_HANDLE hFlat = AML_FLATBUF_Create("AML.XAF.RENDER",  FLATBUF_FLAG_RD,
                                                   &config);
     void *buf = malloc(size);
-    int loop = 4; // test 10.24s
-    int32_t remained = size*loop;
-    while (remained > 0) {
-        uint32_t r = AMX_MIN(size, (uint32_t)remained);
-        r = AML_FLATBUF_Read(hFlat, buf, r, -1);
-        fwrite(buf, 1, r, fpOut);
-        remained -= r;
-        printf("recv data remained=%d\n", remained);
+    int32_t acc, times;
+    for (acc = times = 0; ;) {
+        uint32_t ret = AML_FLATBUF_Read(hFlat, buf, size, -1);
+        fwrite(buf, 1, ret, fpOut);
+        acc += ret;
+        times++;
+        printf("recv %d data acc=%d size=%d ret=%d\n", times, acc, size, ret);
     }
     AML_FLATBUF_Destroy(hFlat);
     free(buf);

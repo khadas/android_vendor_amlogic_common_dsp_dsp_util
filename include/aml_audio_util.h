@@ -60,6 +60,14 @@ int32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStart
     aprofiler_get_cur_timestamp(&end); \
     uint32_t ms = aprofiler_msec_duration(&end, &bgn)
 
+#define MAX_STR_NUM 3
+typedef struct {
+    int k;
+    char *a[MAX_STR_NUM];
+} IdGroup;
+
+int str2id(char *s, IdGroup *g, int n);
+int str2hifiId(char *s);
 
 #ifdef __cplusplus
 }

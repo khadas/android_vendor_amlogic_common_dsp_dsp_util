@@ -35,6 +35,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <assert.h>
 #include "aml_audio_util.h"
 
@@ -293,4 +294,34 @@ int32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStart
     uint32_t uStartMSec = (uint32_t)(tsStart->tv_sec*MSECS_PER_SEC) + (uint32_t)(tsStart->tv_nsec/NSECS_PER_MSEC);
     //printf("uEndMSec:%d, uStartMSec:%d\n", uEndMSec, uStartMSec);
     return (uEndMSec - uStartMSec);
+}
+
+bool anystr(const char *s, char **a) {
+    int i;
+    for (i = 0; a[i] != NULL; i++) {
+        printf("s=%p a[i]=%p\n", s, a[i]);
+        printf("s=%s a[i]=%s\n", s, a[i]);
+        if (strcasecmp(s, a[i]) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int str2id(char *s, IdGroup *g, int n) {
+    int i;
+    for (i = 0; i != n; i++) {
+        if (anystr(s, g[i].a)) {
+            return g[i].k;
+        }
+    }
+    return -1;
+}
+
+int str2hifiId(char *s) {
+    static const IdGroup g[] = {
+        {0, {"0", "a", NULL}},
+        {1, {"1", "b", NULL}}
+    };
+    return str2id(s, g, sizeof(g) / sizeof(g[0]));
 }
