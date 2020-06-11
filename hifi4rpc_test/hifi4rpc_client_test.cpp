@@ -106,7 +106,7 @@ static void usage()
 
     printf ("\033[1mvsp-rsp Usage:\033[m hifi4rpc_client_test --vsp-rsp $input_file $output_file $in_rate $out_rate\n");
 
-    printf ("\033[1mvsp-awe-unit Usage:\033[m hifi4rpc_client_test --vsp-awe-unit $mic0.pcm $mic1.pcm $ref.pcm $out_asr.pcm $out_voip.pcm\n");
+    printf ("\033[1mvsp-awe-unit Usage:\033[m hifi4rpc_client_test --vsp-awe-unit $mic0.pcm $mic1.pcm $ref1.pcm $ref2.pcm $out_asr.pcm $out_voip.pcm\n");
 
     printf ("\033[1mvsp-awe-dspin Usage:\033[m hifi4rpc_client_test --vsp-awe-dspin $out_asr.pcm $out_voip.pcm\n");
 
@@ -277,7 +277,7 @@ int main(int argc, char* argv[]) {
             }
             break;
         case 10:
-            if (5 == argc - optind || 6 == argc - optind){
+            if (6 == argc - optind || 7 == argc - optind){
                 TIC;
                 aml_wake_engine_unit_test(argc - optind, &argv[optind]);
                 TOC;

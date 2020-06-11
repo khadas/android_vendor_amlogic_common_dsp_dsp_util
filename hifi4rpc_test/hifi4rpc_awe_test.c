@@ -118,41 +118,46 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
     AWE_RET awe_ret = AWE_RET_OK;
     int32_t inLen = 0, outLen = 0;
     void *in[4], *out[2];
+    int nMic = 2;
+    int nRef = 2;
 
     void *vir_mic0_buf = NULL;
     void *vir_mic1_buf = NULL;
     void *vir_ref0_buf = NULL;
+    void *vir_ref1_buf = NULL;
     void *vir_interleave_buf = NULL;
     void *vir_out0_buf = NULL;
     void *vir_out1_buf = NULL;
 
     signal(SIGINT, &awe_test_sighandler);
-    if (argc == 6)
-        syncMode = atoi(argv[5]);
+    if (argc == 7)
+        syncMode = atoi(argv[6]);
 
     FILE *fmic0 = fopen(argv[0], "rb");
     FILE *fmic1 = fopen(argv[1], "rb");
     FILE *fref0 = fopen(argv[2], "rb");
-    FILE *fout0 = fopen(argv[3], "w+b");
-    FILE *fout1 = fopen(argv[4], "w+b");
+    FILE *fref1 = fopen(argv[3], "rb");
+    FILE *fout0 = fopen(argv[4], "w+b");
+    FILE *fout1 = fopen(argv[5], "w+b");
     if ( !fmic0 || !fmic1|| !fref0 || !fout0 || !fout1) {
-        printf("Can not open io file:%p %p %p %p %p\n",
-        fmic0, fmic1, fref0, fout0, fout1);
+        printf("Can not open io file:%p %p %p %p %p %p\n",
+        fmic0, fmic1, fref0, fref1, fout0, fout1);
         ret = -1;
         goto end_tab;
     }
 
-    vir_interleave_buf = malloc(3*VOICE_CHUNK_LEN_BYTE);
     vir_mic0_buf = malloc(VOICE_CHUNK_LEN_BYTE);
     vir_mic1_buf = malloc(VOICE_CHUNK_LEN_BYTE);
     vir_ref0_buf = malloc(VOICE_CHUNK_LEN_BYTE);
+    vir_ref1_buf = malloc(VOICE_CHUNK_LEN_BYTE);
     vir_out0_buf = malloc(2048);
     vir_out1_buf = malloc(2048);
-    if (!vir_interleave_buf || !vir_mic0_buf || !vir_mic1_buf
-        || !vir_ref0_buf || !vir_out0_buf || !vir_out1_buf) {
+    if (!vir_mic0_buf || !vir_mic1_buf
+        || !vir_ref0_buf || !vir_ref1_buf
+        || !vir_out0_buf || !vir_out1_buf) {
         printf("Can not allocate buffer:%p %p %p %p %p %p\n",
-            vir_interleave_buf, vir_mic0_buf, vir_mic1_buf, vir_ref0_buf,
-            vir_out0_buf, vir_out1_buf);
+            vir_mic0_buf, vir_mic1_buf, vir_ref0_buf,
+            vir_ref1_buf, vir_out0_buf, vir_out1_buf);
         ret = -1;
         goto end_tab;
     }
@@ -209,6 +214,15 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
         goto end_tab;
     }
 
+    awe_ret = AML_AWE_GetParam(gAwe, AWE_PARA_REF_IN_CHANNELS, &awe_para);
+    if (awe_ret != AWE_RET_OK) {
+        printf("Failed to get sample bits:%d\n", awe_ret);
+        ret = -1;
+        goto end_tab;
+    }
+    nRef = awe_para.refInChannels;
+    vir_interleave_buf = malloc((nMic + nRef)*VOICE_CHUNK_LEN_BYTE);
+
     awe_ret = AML_AWE_Open(gAwe);
     if (awe_ret != AWE_RET_OK) {
         printf("Failed to open AWE:%d\n", awe_ret);
@@ -222,10 +236,13 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
         uint32_t nbyteMic0 = 0;
         uint32_t nbyteMic1 = 0;
         uint32_t nbyteRef0 = 0;
+        uint32_t nbyteRef1 = 0;
         nbyteMic0 = fread(vir_mic0_buf, 1, nbyteRead, fmic0);
         nbyteMic1 = fread(vir_mic1_buf, 1, nbyteRead, fmic1);
         nbyteRef0 = fread(vir_ref0_buf, 1, nbyteRead, fref0);
-        if (nbyteMic0 < nbyteRead || nbyteMic1 < nbyteRead || nbyteRef0 < nbyteRead) {
+        nbyteRef1 = fread(vir_ref1_buf, 1, nbyteRead, fref1);
+        if (nbyteMic0 < nbyteRead || nbyteMic1 < nbyteRead ||
+            nbyteRef0 < nbyteRead || nbyteRef1 < nbyteRead) {
             printf("EOF\n");
             break;
         }
@@ -234,6 +251,7 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
             in[0] = vir_mic0_buf;
             in[1] = vir_mic1_buf;
             in[2] = vir_ref0_buf;
+            in[3] = vir_ref1_buf;
             inLen = nbyteRead;
             out[0] = vir_out0_buf;
             out[1] = vir_out1_buf;
@@ -246,6 +264,7 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
                 fseek(fmic0, -((long)inLen), SEEK_CUR);
                 fseek(fmic1, -((long)inLen), SEEK_CUR);
                 fseek(fref0, -((long)inLen), SEEK_CUR);
+                fseek(fref1, -((long)inLen), SEEK_CUR);
             }
             fwrite(vir_out0_buf, 1, outLen, fout0);
             fwrite(vir_out1_buf, 1, outLen, fout1);
@@ -256,6 +275,7 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
             short* pMic0 = (short*)vir_mic0_buf;
             short* pMic1 = (short*)vir_mic1_buf;
             short* pRef0 = (short*)vir_ref0_buf;
+            short* pRef1 = (short*)vir_ref1_buf;
             short* pInterleave = (short*)vir_interleave_buf;
             for (i = 0; i < (nbyteRead/2); i++) {
                 *pInterleave = *pMic0++;
@@ -263,13 +283,18 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
                 *pInterleave = *pMic1++;
                 pInterleave++;
                 *pInterleave = *pRef0++;
-                pInterleave++;
+                pInterleave++; 
+                if (nRef == 2) {
+                    *pInterleave = *pRef1++;
+                    pInterleave++;
+                }
             }
-            ret = AML_AWE_PushBuf(gAwe, (const char*)vir_interleave_buf, nbyteRead*3);
+            ret = AML_AWE_PushBuf(gAwe, (const char*)vir_interleave_buf, nbyteRead*(nMic + nRef));
             if (AWE_RET_ERR_NO_MEM == ret) {
                 fseek(fmic0, -((long)nbyteRead), SEEK_CUR);
                 fseek(fmic1, -((long)nbyteRead), SEEK_CUR);
                 fseek(fref0, -((long)nbyteRead), SEEK_CUR);
+                fseek(fref1, -((long)nbyteRead), SEEK_CUR);
                 usleep(500);
             }
             else if (ret != AWE_RET_OK) {
@@ -312,6 +337,10 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
         free(vir_ref0_buf);
     }
 
+    if (vir_ref1_buf) {
+        free(vir_ref1_buf);
+    }
+
     if (vir_out0_buf) {
         free(vir_out0_buf);
     }
@@ -326,6 +355,8 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
         fclose(fmic1);
     if (fref0)
         fclose(fref0);
+    if (fref1)
+        fclose(fref1);
     if (fout0)
         fclose(fout0);
     if (fout1)
@@ -333,8 +364,8 @@ int aml_wake_engine_unit_test(int argc, char* argv[]) {
     return ret;
 }
 
-#define VOIP_DATA_FIFO "/tmp/voip_data_fifo"
-#define VOIP_CMD_FIFO "/tmp/voip_cmd_fifo"
+#define VOIP_DATA_FIFO "/data/voip_data_fifo"
+#define VOIP_CMD_FIFO "/data/voip_cmd_fifo"
 #define VOIP_CMD_DATA_INVALID 0
 #define VOIP_CMD_DATA_EOF 0xffffffff
 #define VOIP_CMD_DATA_AVAIL 1
