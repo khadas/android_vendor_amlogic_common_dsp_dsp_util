@@ -299,8 +299,6 @@ int32_t aprofiler_msec_duration(struct timespec* tsEnd, struct timespec* tsStart
 bool anystr(const char *s, char **a) {
     int i;
     for (i = 0; a[i] != NULL; i++) {
-        printf("s=%p a[i]=%p\n", s, a[i]);
-        printf("s=%s a[i]=%s\n", s, a[i]);
         if (strcasecmp(s, a[i]) == 0) {
             return true;
         }
@@ -323,5 +321,10 @@ int str2hifiId(char *s) {
         {0, {"0", "a", NULL}},
         {1, {"1", "b", NULL}}
     };
-    return str2id(s, g, sizeof(g) / sizeof(g[0]));
+    int id = str2id(s, g, sizeof(g) / sizeof(g[0]));
+    if (id == -1) {
+        printf("unknown hifi id=%s\n", s);
+        exit(-1);
+    }
+    return id;
 }

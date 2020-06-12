@@ -562,7 +562,7 @@ int aml_pcm_test(int argc, char **argv) {
         sampleRate = atoi(argv[4]);
         sampleBytes = atoi(argv[5]);
         device = atoi(argv[6]);
-        int card = atoi(argv[7]);
+        int card = str2hifiId(argv[7]);
         if (0 == card)
             pFileNameA = argv[8];
         else if (1 == card)
