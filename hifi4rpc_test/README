@@ -16,10 +16,11 @@ sample test command:
 tinycap /data/out_lb.wav -D 0 -d 7 -c 16 -r 48000 -b 32 -p 128 -n 40 -f &
 hifi4rpc_client_test --aml-pcm 60 4 16 48000 4 3 /data/mic0 /data/mic1
 
-# --xaf $hifiId[0:HiFiA, 1:HiFiB] $caseId
+# --xaf $hifiId[0:HiFiA, 1:HiFiB] $caseId -rate:[48000,16000]
 Trigger XAF test pipeline at HiFi side
 Case 0: TinyCapturer -> PcmGain
 Case 1: PcmGain -> TinyRenderer
+Case 2: TinyCapturer -> PcmGain -> TinyRenderer
 
 # --pcm-file $hifiId[0:HiFiA, 1:HiFiB] $input &
 Read pcm file $input, and feed data to HiFi side's TinyCapturer
