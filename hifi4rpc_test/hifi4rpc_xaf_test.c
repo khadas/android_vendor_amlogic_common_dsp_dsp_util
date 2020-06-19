@@ -412,30 +412,23 @@ recycle_resource:
     return 0;
 }
 
-int str2caseId(char *s) {
-    static const IdGroup g[] = {
-        {0, {"0", "am_cap", NULL}},
-        {1, {"1", "am_rnd", NULL}},
-        {2, {"2", "am_pipe", NULL}},
-        {3, {"3", "xa_pipe", NULL}},
-    };
-    return str2id(s, g, sizeof(g) / sizeof(g[0]));
-}
-
 int xaf_test(int argc, char **argv) {
-    if (argc != 2) {
+    if (argc < 2) {
         printf("Invalid argc:%d\n", argc);
         return -1;
     }
     int id = str2hifiId(argv[0]);
-    int caseId = str2caseId(argv[1]);
-    if (caseId == -1 || id == -1) {
-        printf("Invalid arg: id=%s case=%s\n", argv[0], argv[1]);
+    if (id == -1) {
+        printf("Invalid arg: id=%s\n", argv[0]);
         return -1;
     }
-    printf("Invoke HiFi%d case=%d\n", id, caseId);
+    printf("Invoke HiFi%d case=%s\n", id, argv[1]);
+    argc--; argv++;
+    show_arg(argc, argv);
+    raw_st arg;
+    from_arg(argc, argv, &arg);
     int hdl = xAudio_Ipc_Init(id);
-    xAIPC(hdl, MBX_CMD_XAF_TEST, &caseId, sizeof(caseId));
+    xAIPC(hdl, MBX_CMD_XAF_TEST, &arg, sizeof(arg));
     xAudio_Ipc_Deinit(hdl);
     return 0;
 }

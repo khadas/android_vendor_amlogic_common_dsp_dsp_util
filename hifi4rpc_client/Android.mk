@@ -16,6 +16,7 @@ LOCAL_SRC_FILES  += \
                 rpc_client_vsp.c \
                 aml_pcm_gain_api.c \
                 aml_tbuf_api.c \
+                rpc_util.c \
                 aml_pcm_api.c
 LOCAL_MODULE := libhifi4rpc_client
 LOCAL_SHARED_LIBRARIES += \

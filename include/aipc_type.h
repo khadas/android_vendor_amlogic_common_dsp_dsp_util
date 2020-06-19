@@ -324,6 +324,57 @@ typedef struct {
     int32_t out_ret; // long to int32_t
 } __attribute__((packed)) pcm_get_latency_st;
 
+typedef struct {
+    xpointer out_ptr; // returned pointer
+    xsize_t size;     // memory's size
+    xpointer ptr;
+} __attribute__((packed)) shm_st;
+
+// TODO: mailbox layer should expose this definition
+#define MB_DATA_SHR_SIZE 200
+#define STRING_RAW_MAX_LEN (MB_DATA_SHR_SIZE - sizeof(xsize_t))
+typedef struct {
+    xsize_t len;
+    char raw[STRING_RAW_MAX_LEN];
+} __attribute__((packed)) raw_st;
+
+/**
+ * @brief convert list of arguments to raw string
+ * The arguments should NOT include special char, such as whitespace, quote, & etc.
+ *
+ * @param [in] argc number of arguments
+ * @param [in] argv array of arguments
+ * @param [out] p converted raw string
+ *
+ * @return 0, success
+ */
+int from_arg(int argc, char **argv, raw_st *p);
+/**
+ * @brief convert raw string back to list of arguments
+ * The caller need free the list of arguments via free_arg function
+ *
+ * @param [in] p raw string
+ * @param [out] o_argc number of arguments
+ * @param [out] o_argv array of arguments
+ *
+ * @return 0, success
+ */
+int to_arg(raw_st *p, int *o_argc, char ***o_argv);
+/**
+ * @brief append string to list of arguments
+ *
+ * @param [in out] o_argc number of arguments
+ * @param [in out] o_argv array of arguments
+ * @param [in] s the string, which to add to list
+ *
+ * @return 0, success
+ */
+int append_arg(int *o_argc, char ***o_argv, char *s);
+/** util function, help to free arguments which is converted from
+ * to_arg/append_arg */
+void free_arg(int argc, char **argv);
+void show_arg(int argc, char **argv);
+
 #ifdef __cplusplus
 }
 #endif
