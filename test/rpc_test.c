@@ -14,7 +14,7 @@
 #define	CMD_HIFI_DSPA	0x1
 #define CMD_HIFI_DSPB	0x2
 
-#define RPCUINT_SIZE	128
+#define RPCUINT_SIZE	64
 #define RPCUINT3_CNT	100
 #define RPCUINT4_CNT	10
 #define RPCUINT5_CNT	10
