@@ -99,7 +99,7 @@ typedef struct {
 	uint32_t sampleRate;
 	uint32_t frameSize;
 	uint32_t channels;
-	int channel_counts[0x24];
+	uint8_t channel_counts[0x24];
 } __attribute__((packed)) aacdec_out_ctx_st;
 
 typedef struct {

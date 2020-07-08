@@ -70,7 +70,7 @@ typedef struct  {
     /*number of channels*/
     uint32_t channelNum;
     /*see enum AUDIO_CHANNEL_TYPE, defined in aacdecoder_lib.h*/
-    int chmask[0x24];
+    uint8_t chmask[0x24];
 } tAmlAacOutputCtx;
 
 /**
