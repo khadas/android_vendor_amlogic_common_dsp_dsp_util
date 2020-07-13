@@ -49,7 +49,8 @@ struct audio_dump_context {
     int32_t ch;
     int32_t rate;
     int32_t bytesSample;
-    int32_t ms;
+    int32_t msChunk;
+    int32_t numChunk;
     int bExit;
     FILE* fdump;
     AML_FLATBUF_HANDLE hFbuf;
@@ -57,7 +58,7 @@ struct audio_dump_context {
 
 void* thread_dump(void* arg) {
     struct audio_dump_context* pContext = (struct audio_dump_context*)arg;
-    size_t chunkSize = (pContext->ch*pContext->rate*pContext->bytesSample*20)/1000;//20 ms
+    size_t chunkSize = (pContext->ch*pContext->rate*pContext->bytesSample*pContext->msChunk)/1000;
     char* pbuf = malloc(chunkSize);
 
     while(!pContext->bExit) {
@@ -77,11 +78,6 @@ int audio_dump(int argc, char* argv[])
     struct audio_dump_context context;
     memset(&context, 0, sizeof(context));
 
-    if (argc != 5) {
-        printf("Invalid parameter number:%d\n", argc);
-        return -1;
-    }
-
     context.fdump = fopen(argv[0], "w+b");
     if (!context.fdump) {
         printf("Can not create dump file:%p\n", context.fdump);
@@ -90,11 +86,13 @@ int audio_dump(int argc, char* argv[])
     context.ch = atoi(argv[1]);
     context.rate = atoi(argv[2]);
     context.bytesSample = atoi(argv[3]);
+    context.msChunk = atoi(argv[4]);
+    context.numChunk = atoi(argv[5]);
 
     struct flatbuffer_config config;
-    config.size = (context.ch*context.rate*context.bytesSample*1000)/1000;//1000 ms buffer
+    config.size = (context.ch*context.rate*context.bytesSample*context.msChunk*context.numChunk)/1000;
     config.phy_ch = FLATBUF_CH_ARM2DSPA;
-    context.hFbuf = AML_FLATBUF_Create(argv[4], FLATBUF_FLAG_RD, &config);
+    context.hFbuf = AML_FLATBUF_Create(argv[6], FLATBUF_FLAG_RD, &config);
     if (!context.hFbuf) {
         printf("Can not create flat file:%p\n", context.hFbuf);
         goto end_tab;
@@ -138,7 +136,7 @@ int reg_dump(int argc, char* argv[]) {
 
 static void usage()
 {
-    printf ("media-dump Usage: hifi4_media_tool --audio-dump $file $ch $rate $bytesSample $str_id\n");
+    printf ("media-dump Usage: hifi4_media_tool --audio-dump $file $ch $rate $bytesSample $msChunk $numChunk $buf_id\n");
     printf ("reg-dump Usage: hifi4_media_tool --reg-dump $addr $size\n");
     printf ("\n");
 }
@@ -164,7 +162,7 @@ int main(int argc, char* argv[]) {
             usage();
             break;
         case 1:
-            if (5 == argc - optind){
+            if (7 == argc - optind){
                 audio_dump(argc - optind, &argv[optind]);
             } else {
                 usage();
