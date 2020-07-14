@@ -44,6 +44,7 @@
 #include "aipc_type.h"
 #include "aml_flatbuf_api.h"
 #include "rpc_client_aipc.h"
+#include "generic_macro.h"
 
 struct audio_dump_context {
     int32_t ch;
@@ -74,6 +75,7 @@ void* thread_dump(void* arg) {
 
 int audio_dump(int argc, char* argv[])
 {
+    AMX_UNUSED(argc);
     pthread_t dump_thread;
     struct audio_dump_context context;
     memset(&context, 0, sizeof(context));
