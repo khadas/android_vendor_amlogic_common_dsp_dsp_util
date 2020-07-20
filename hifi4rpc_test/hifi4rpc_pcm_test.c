@@ -143,7 +143,7 @@ int pcm_play_test(int argc, char *argv[])
 
 int pcm_capture_test(int argc, char *argv[])
 {
-    if (argc != 7) {
+    if (argc != 7 && argc != 8) {
         printf("Invalide param number:%d\n", argc);
         return -1;
     }
@@ -166,6 +166,17 @@ int pcm_capture_test(int argc, char *argv[])
         printf("failed to open captured pcm file\n");
         return -1;
     }
+    int flags = PCM_IN;
+    if (argc >= 8) {
+        if (strcasecmp(argv[7], "block") == 0) {
+            // default to block
+        } else if (strcasecmp(argv[7], "nonblock") == 0) {
+            flags |= PCM_NONBLOCK;
+        } else {
+            printf("fail to parse option: [block,nonblock]\n");
+            return -1;
+        }
+    }
 
     rpc_pcm_config *pconfig = (rpc_pcm_config *)malloc(sizeof(rpc_pcm_config));
     pconfig->channels = chn;
@@ -176,7 +187,7 @@ int pcm_capture_test(int argc, char *argv[])
     pconfig->start_threshold = 1024;
     pconfig->silence_threshold = 1024 * 2;
     pconfig->stop_threshold = 1024 * 2;
-    tAmlPcmhdl p = pcm_client_open(0, device, PCM_IN, pconfig);
+    tAmlPcmhdl p = pcm_client_open(0, device, flags, pconfig);
     AML_MEM_HANDLE hShmBuf;
 
     int in_fr = rate * seconds;

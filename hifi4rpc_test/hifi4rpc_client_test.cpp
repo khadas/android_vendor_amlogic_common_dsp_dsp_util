@@ -74,6 +74,8 @@ int flat_buf_test(int argc, char* argv[]);
 int aml_pcm_gain_unit_test(int argc, char* argv[]);
 int hifi4_tbuf_test(int argc, char* argv[]);
 int aml_pcm_test(int argc, char **argv);
+int rpc_meminfo(int id);
+
 #ifdef __cplusplus
 }
 #endif
@@ -96,7 +98,7 @@ static void usage()
 
     printf ("\033[1mdspplay Usage:\033[m hifi4rpc_client_test --dspplay $pcm_file\n");
 
-    printf ("\033[1mdspcap Usage:\033[m hifi4rpc_client_test --dspcap $seconds $chunkMs $chn $rate $format $device $pcm_file\n"
+    printf ("\033[1mdspcap Usage:\033[m hifi4rpc_client_test --dspcap $seconds $chunkMs $chn $rate $format $device $pcm_file [nonblock]\n"
             "  format: [0-PCM_FORMAT_S32_LE]\n"
             "  device: [1-tdmin, 3-tdmin&loopback]\n");
 
@@ -144,6 +146,7 @@ static void usage()
             "  Case 0/am_cap: Trigger TinyCapturer -> PcmGain pipeline\n"
             "  Case 1/am_rnd: Trigger PcmGain -> TinyRenderer pipeline\n"
             "  Case 2/am_pipe: Trigger TinyCapturer -> PcmGain -> TinyRenderer pipeline\n");
+    printf ("\033[1mmeminfo Usage:\033[m hifi4rpc_client_test --meminfo $hifiId[0:HiFiA, 1:HiFiB]\n");
 }
 
 
@@ -181,6 +184,7 @@ int main(int argc, char* argv[]) {
         {"tbuf-pcm", no_argument, NULL, 26},
         {"aml-pcm", no_argument, NULL, 27},
         {"aml-pcm-single", no_argument, NULL, 28},
+        {"meminfo", no_argument, NULL, 29},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -231,9 +235,7 @@ int main(int argc, char* argv[]) {
             }
             break;
         case 5:
-            if (7 == argc - optind)
-                pcm_capture_test(argc - optind, &argv[optind]);
-            else {
+            if (pcm_capture_test(argc - optind, &argv[optind]) != 0) {
                 usage();
                 exit(1);
             }
@@ -450,6 +452,9 @@ int main(int argc, char* argv[]) {
                 usage();
                 exit(1);
             }
+            break;
+        case 29:
+            rpc_meminfo(str2hifiId(argv[optind]));
             break;
         case '?':
             usage();

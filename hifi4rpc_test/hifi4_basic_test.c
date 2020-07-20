@@ -287,3 +287,11 @@ void aml_hifi4_timer_wakeup()
     printf("Hifi4 Wake Up from SW Timer\n");
 }
 
+int rpc_meminfo(int id) {
+    int h = xAudio_Ipc_Init(id);
+    printf("id=%d h=%d meminfo\n", id, h);
+    int r = xAIPC(h, MBX_CMD_MEMINFO, NULL, 0);
+    printf("id=%d h=%d meminfo r=%d\n", id, h, r);
+    xAudio_Ipc_Deinit(h);
+    return 0;
+}
