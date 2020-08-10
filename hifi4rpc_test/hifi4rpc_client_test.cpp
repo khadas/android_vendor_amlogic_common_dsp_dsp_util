@@ -100,7 +100,7 @@ static void usage()
 
     printf ("\033[1mdspcap Usage:\033[m hifi4rpc_client_test --dspcap $seconds $chunkMs $chn $rate $format $device $pcm_file [nonblock]\n"
             "  format: [0-PCM_FORMAT_S32_LE]\n"
-            "  device: [1-tdmin, 3-tdmin&loopback]\n");
+            "  device: [1-tdmin, 3-tdmin&loopback, 4-pdmin]\n");
 
     printf ("\033[1mdspplay-buildin Usage:\033[m hifi4rpc_client_test --dspplay-buildin\n");
 
