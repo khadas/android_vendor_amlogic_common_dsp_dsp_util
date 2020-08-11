@@ -152,7 +152,7 @@ int pcm_capture_test(int argc, char *argv[])
     int chn = atoi(argv[2]);
     int rate = atoi(argv[3]);
     int format = atoi(argv[4]);
-    if (format != 0) {
+    if (format != 0 && format != 1) {
         printf("Not supported format:%d\n", format);
         return -1;
     }
@@ -181,7 +181,7 @@ int pcm_capture_test(int argc, char *argv[])
     rpc_pcm_config *pconfig = (rpc_pcm_config *)malloc(sizeof(rpc_pcm_config));
     pconfig->channels = chn;
     pconfig->rate = rate;
-    pconfig->format = PCM_FORMAT_S32_LE;
+    pconfig->format = (format == 0) ? PCM_FORMAT_S32_LE : PCM_FORMAT_S16_LE;
     pconfig->period_size = chunkMs * (rate/1000);
     pconfig->period_count = 4;
     pconfig->start_threshold = 1024;
