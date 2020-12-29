@@ -17,6 +17,7 @@ LOCAL_SRC_FILES  += \
                 hifi4rpc_gain_test.c \
                 hifi4rpc_xaf_test.c
 LOCAL_MODULE := hifi4rpc_client_test
+LOCAL_SYSTEM_EXT_MODULE := true
 LOCAL_SHARED_LIBRARIES += \
                         libhifi4rpc_client \
                         libhifi4rpc \

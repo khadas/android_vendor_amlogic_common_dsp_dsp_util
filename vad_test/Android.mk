@@ -6,6 +6,7 @@ LOCAL_SRC_FILES  += \
                  vad_main.c
 LOCAL_MODULE := vad_trigger
 LOCAL_MODULE_TAGS := optional
+LOCAL_SYSTEM_EXT_MODULE := true
 
 ifeq ($(C4A_HIFI4),true)
 LOCAL_CFLAGS+=-DC4A_HIFI4

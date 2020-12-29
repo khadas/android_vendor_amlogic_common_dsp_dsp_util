@@ -13,6 +13,7 @@ LOCAL_C_INCLUDES += \
 LOCAL_SRC_FILES  += \
                  dsp_util.c
 LOCAL_MODULE := dsp_util
+LOCAL_SYSTEM_EXT_MODULE := true
 LOCAL_SHARED_LIBRARIES +=
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_EXECUTABLE)

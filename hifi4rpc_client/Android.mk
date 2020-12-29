@@ -19,6 +19,7 @@ LOCAL_SRC_FILES  += \
                 rpc_util.c \
                 aml_pcm_api.c
 LOCAL_MODULE := libhifi4rpc_client
+LOCAL_SYSTEM_EXT_MODULE := true
 LOCAL_SHARED_LIBRARIES += \
                 libhifi4rpc \
                 libtinyalsa
