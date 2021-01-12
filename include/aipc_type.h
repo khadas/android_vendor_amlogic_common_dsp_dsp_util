@@ -331,7 +331,8 @@ typedef struct {
 } __attribute__((packed)) shm_st;
 
 // TODO: mailbox layer should expose this definition
-#define MB_DATA_SHR_SIZE 200
+// T7 mailbox FIFO only support 96bytes
+#define MB_DATA_SHR_SIZE 96
 #define STRING_RAW_MAX_LEN (MB_DATA_SHR_SIZE - sizeof(xsize_t))
 typedef struct {
     xsize_t len;

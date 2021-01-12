@@ -122,7 +122,7 @@ int bcm_file_test(int argc, char* argv[])
         if (e > 0) {
             usleep(e);
         }
-        printf("%dms flatbuf_write hFlat=%p buf=%p in_fr=%d -> size=%d xxx dd=%ld e=%ld\n",
+        printf("%dms flatbuf_write hFlat=%p buf=%p in_fr=%d -> size=%d dd=%ld e=%ld\n",
                ms, hFlat, buf, oneshot, r, d1 - d0, e);
     }
     fclose(fileplay);
@@ -254,6 +254,11 @@ static void* thread_write_pcm(void * arg)
     config.size = 2*CHUNK_BYTES;
     config.phy_ch = (pWriteCtx->id == 0)?FLATBUF_CH_ARM2DSPA:FLATBUF_CH_ARM2DSPB;
     AML_FLATBUF_HANDLE hFlat = AML_FLATBUF_Create("IOBUF_ARM2DSP",  FLATBUF_FLAG_WR, &config);
+    if (hFlat == NULL) {
+        free(buf);
+        return NULL;
+    }
+    printf("IOBUF_ARM2DSP hFlat=%p\n", hFlat);
     int bExit = 0;
     while (!bExit && pWriteCtx->fileSize > 0) {
         int ret = 0;
@@ -282,6 +287,11 @@ static void* thread_read_pcm(void * arg)
     config.size = 2*CHUNK_BYTES;
     config.phy_ch = (pReadCtx->id == 0)?FLATBUF_CH_ARM2DSPA:FLATBUF_CH_ARM2DSPB;;
     AML_FLATBUF_HANDLE hFlat = AML_FLATBUF_Create("IOBUF_DSP2ARM",  FLATBUF_FLAG_RD, &config);
+    if (hFlat == NULL) {
+        free(buf);
+        return NULL;
+    }
+    printf("IOBUF_DSP2ARM hFlat=%p\n", hFlat);
     while (pReadCtx->fileSize) {
         int nRead = AMX_MIN(CHUNK_BYTES, pReadCtx->fileSize);
         nRead = AML_FLATBUF_Read(hFlat, buf, nRead, CHUNK_MS);
@@ -379,8 +389,9 @@ int pcm_loopback_test(int argc, char* argv[])
     aipc = xAudio_Ipc_Init(id);
     pcm_io_st io_arg;
     io_arg.count = fileSize;
-    xAIPC(aipc, MBX_CMD_IOBUF_DEMO, &io_arg, sizeof(io_arg));
+    int r = xAIPC(aipc, MBX_CMD_IOBUF_DEMO, &io_arg, sizeof(io_arg));
     xAudio_Ipc_Deinit(aipc);
+    printf("iobuf demo r=%d\n", r);
 
     printf("Invoke loopback task done\n");
     pthread_join(writeThread,NULL);

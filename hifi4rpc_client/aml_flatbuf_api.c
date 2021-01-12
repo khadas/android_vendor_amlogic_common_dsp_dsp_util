@@ -81,7 +81,8 @@ AML_FLATBUF_HANDLE AML_FLATBUF_Create(const char* buf_id, int flags,
     }
     rpcRet = xAIPC(pFbufCtx->aipchdl, MBX_CMD_FLATBUF_CREATE, &arg, sizeof(arg));
     if (rpcRet < 0) {
-        printf("Failed to invoke MBX_CMD_FLATBUF_CREATE\n");
+        printf("Failed to invoke MBX_CMD_FLATBUF_CREATE r=%d buf_id=%s flags=%s\n",
+               rpcRet, buf_id, (flags & FLATBUF_FLAG_RD) ? "RD" : "WR");
         goto recycle_flatbuf_context;
     }
     pFbufCtx->hFbuf = arg.hFbuf;
