@@ -96,7 +96,7 @@ $(HIFI4RPC_CLIENT_TEST): $(HIFI4RPC_CLIENT_TEST_OBJ)
 	$(CXX) $^ -I./ -L$(LIBDIR) -lhifi4rpc_client -lhifi4rpc -lmp3tools -lpthread $(CFLAGS) -o $@
 
 $(HIFI4RPC_TEST): $(HIFI4RPC_TEST_OBJ)
-	$(CC) $^ -L$(LIBDIR) -lhifi4rpc $(CFLAGS) -o $@
+	$(CC) $^ -L$(LIBDIR) -lhifi4rpc -lpthread $(CFLAGS) -o $@
 
 $(DSP_UTIL): $(DSP_UTIL_OBJ)
 	$(CC) $^ $(CFLAGS) -o $@
