@@ -158,7 +158,7 @@ int pcm_play_buildin()
 	return 0;
 }
 
- int play_wav(int argc, char *argv[])
+int play_wav(int argc, char *argv[])
 {
 	FILE *file;
 	struct riff_wave_header riff_wave_header;
@@ -168,14 +168,11 @@ int pcm_play_buildin()
 	int more_chunks = 1;
 	int oneshot;
 	int device;
-	if (argc > 2) {
-		fprintf(stderr, "Error:argc is greater than 2\n");
-		return -1;
-	}
-
-	if(argc == 2) {
+	if(argc == 2)
+	{
 		device = atoi(argv[1]);
-	} else if (argc == 1) {
+	} else if (argc == 1)
+	{
 		device = DEVICE_TDMOUT_B;
 	}
 	rpc_pcm_config *pconfig = (rpc_pcm_config *)malloc(sizeof(rpc_pcm_config));
@@ -183,19 +180,21 @@ int pcm_play_buildin()
 	file = fopen(filename, "rb");
 	if (!file) {
 		fprintf(stderr, "Unable to open file '%s'\n", filename);
-		return -1;
+		return 1;
 	}
 	fread(&riff_wave_header, sizeof(riff_wave_header), 1, file);
-	if ((riff_wave_header.riff_id != ID_RIFF) ||(riff_wave_header.wave_id != ID_WAVE)) {
+	if ((riff_wave_header.riff_id != ID_RIFF) ||
+			(riff_wave_header.wave_id != ID_WAVE)) {
 		fprintf(stderr, "Error: '%s' is not a riff/wave file\n", filename);
 		fclose(file);
-		return -1;
+		return 1;
 	}
 	do {
 		fread(&chunk_header, sizeof(chunk_header), 1, file);
+
 		switch (chunk_header.id) {
-		case ID_FMT:
-			fread(&chunk_fmt, sizeof(chunk_fmt), 1, file);
+			case ID_FMT:
+				fread(&chunk_fmt, sizeof(chunk_fmt), 1, file);
 				/* If the format header is larger, skip the rest */
 				if (chunk_header.sz > sizeof(chunk_fmt))
 					fseek(file, chunk_header.sz - sizeof(chunk_fmt), SEEK_CUR);
@@ -219,7 +218,8 @@ int pcm_play_buildin()
 	printf("bits_per_sample:%d\n",chunk_fmt.bits_per_sample);
 	pconfig->channels = chunk_fmt.num_channels;
 	pconfig->rate = chunk_fmt.sample_rate;
-	if(chunk_fmt.bits_per_sample == 24) {
+	if(chunk_fmt.bits_per_sample == 24)
+	{
 		if (chunk_fmt.block_align/chunk_fmt.num_channels == 3) {
 			pconfig->format = PCM_FORMAT_S24_3LE;
 			printf("format:PCM_FORMAT_S24_3LE\n");
@@ -228,9 +228,12 @@ int pcm_play_buildin()
 			pconfig->format = PCM_FORMAT_S24_LE;
 			printf("format:PCM_FORMAT_S24_LE\n");
 		}
-	} else if(chunk_fmt.bits_per_sample == 32) {
+
+	} else if(chunk_fmt.bits_per_sample == 32)
+	{
 		pconfig->format = PCM_FORMAT_S32_LE;
-	} else if(chunk_fmt.bits_per_sample == 16) {
+	} else if(chunk_fmt.bits_per_sample == 16)
+	{
 		pconfig->format = PCM_FORMAT_S16_LE;
 
 	}
@@ -240,6 +243,7 @@ int pcm_play_buildin()
 	pconfig->silence_threshold = 1024 * 2;
 	pconfig->stop_threshold = 1024 * 2;
 	oneshot = pconfig->period_size;
+
 	tAmlPcmhdl p = pcm_client_open(0, device, PCM_OUT, pconfig);
 	AML_MEM_HANDLE hShmBuf;
 	uint32_t size = pcm_client_frame_to_bytes(p, oneshot);
@@ -247,19 +251,21 @@ int pcm_play_buildin()
 	void *buf = AML_MEM_GetVirtAddr(hShmBuf);
 	void *phybuf = AML_MEM_GetPhyAddr(hShmBuf);
 	while (size) {
-	  //  AML_TIC;
+		//  AML_TIC;
 		size = fread(buf, 1, size,file);
-	  //  AML_TOC;
-	   // printf("read %d ms\n",AML_MS);
-	  //  AML_TIC;
+		//  AML_TOC;
+		// printf("read %d ms\n",AML_MS);
+		//  AML_TIC;
 		AML_MEM_Clean(phybuf, size);
-	   // AML_TOC;
-	   // printf("clean %d ms\n",AML_MS);
-	   // AML_TIC;
+		// AML_TOC;
+		// printf("clean %d ms\n",AML_MS);
+		// AML_TIC;
 		pcm_client_writei(p, phybuf, oneshot);
-	   // AML_TOC;
-	   // printf("write %d ms\n",AML_MS);
+		// AML_TOC;
+		// printf("write %d ms\n",AML_MS);
+
 	}
+
 	pcm_client_close(p);
 	AML_MEM_Free(hShmBuf);
 	free(pconfig);

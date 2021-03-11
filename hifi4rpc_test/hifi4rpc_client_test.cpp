@@ -53,7 +53,6 @@ extern "C" {
 #endif
 int pcm_play_buildin(void);
 int play_wav(int argc, char *argv[]);
-
 int pcm_play_test(int argc, char* argv[]);
 int bcm_file_test(int argc, char *argv[]);
 int bcm_pcm_test(int argc, char* argv[]);
@@ -78,6 +77,7 @@ int hifi4_tbuf_test(int argc, char* argv[]);
 int aml_pcm_test(int argc, char **argv);
 int rpc_meminfo(int id);
 void aml_hifi_vad_awe_wakeup(int argc, char *argv[]);
+int dspc_flatbuf(int argc, char* argv[]);
 
 #ifdef __cplusplus
 }
@@ -152,7 +152,8 @@ static void usage()
             "  Case 1/am_rnd: Trigger PcmGain -> TinyRenderer pipeline\n"
             "  Case 2/am_pipe: Trigger TinyCapturer -> PcmGain -> TinyRenderer pipeline\n");
     printf ("\033[1mmeminfo Usage:\033[m hifi4rpc_client_test --meminfo $hifiId[0:HiFiA, 1:HiFiB]\n");
-
+    printf ("\033[1playwav Usage:\033[m hifi4rpc_client_test --playwav xxx.wav $device_id [0:TDM_A, 1: TDM_B ]\n");
+    printf ("\033[1dspc_flatbuf Usage:\033[m hifi4rpc_client_test --dspc_flatbuf\n");
 }
 
 
@@ -193,6 +194,7 @@ int main(int argc, char* argv[]) {
         {"meminfo", no_argument, NULL, 29},
         {"vad-awe-wakeup", no_argument, NULL, 30},
         {"playwav", no_argument, NULL, 31},
+        {"dspc_flatbuf", no_argument, NULL, 32},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -470,6 +472,14 @@ int main(int argc, char* argv[]) {
             if (play_wav(argc - optind, &argv[optind]) != 0) {
                 usage();
                 exit(1);
+            }
+            break;
+        case 32:
+            {
+                TIC;
+                dspc_flatbuf(argc - optind, &argv[optind]);
+                TOC;
+                printf("dspc_flatbuf use : %u ms\n", ms);
             }
             break;
         case '?':

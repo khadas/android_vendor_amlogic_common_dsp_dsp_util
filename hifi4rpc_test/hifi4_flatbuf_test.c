@@ -42,6 +42,7 @@
 #include "rpc_client_aipc.h"
 #include "aml_flatbuf_api.h"
 #include "generic_macro.h"
+#include "pcm.h"
 
 #define FLAT_TEST_TYPE_UNIT 0
 #define FLAT_TEST_TYPE_THROUGHPUT 1
@@ -49,96 +50,96 @@
 char* strRdSamples = "flat buffer api test, this is test samples FlatBufCmdDsp2Arm";
 void* flat_buffers_read_cmd(void* arg)
 {
-    AMX_UNUSED(arg);
-    AML_FLATBUF_HANDLE hFbuf = NULL;
+	AMX_UNUSED(arg);
+	AML_FLATBUF_HANDLE hFbuf = NULL;
 
-    int strRdSamplesLen = strlen(strRdSamples) + 1;
-    char* recBuf = (char*)malloc(strRdSamplesLen);
+	int strRdSamplesLen = strlen(strRdSamples) + 1;
+	char* recBuf = (char*)malloc(strRdSamplesLen);
 
-    struct flatbuffer_config config;
-    memset(&config, 0, sizeof(config));
-    config.size = strRdSamplesLen/2;
-    config.phy_ch = FLATBUF_CH_ARM2DSPA;
+	struct flatbuffer_config config;
+	memset(&config, 0, sizeof(config));
+	config.size = strRdSamplesLen/2;
+	config.phy_ch = FLATBUF_CH_ARM2DSPA;
 
-    hFbuf = AML_FLATBUF_Create("FlatBufCmdDsp2Arm", FLATBUF_FLAG_RD, &config);
-    if (hFbuf == NULL) {
-        printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
-        goto exit_capture;
-    }
+	hFbuf = AML_FLATBUF_Create("FlatBufCmdDsp2Arm", FLATBUF_FLAG_RD, &config);
+	if (hFbuf == NULL) {
+		printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
+		goto exit_capture;
+	}
 
-    int i = 0;
-    srand(time(NULL));
-    while (strRdSamplesLen > 0) {
-        /*
-         * read random number of chars every time
-         */
-        int size = rand() % config.size;
-        size = AMX_MIN(size, strRdSamplesLen);
-        /*
-         * Read bytes with 1 ms time out
-         */
-        size = AML_FLATBUF_Read(hFbuf, &recBuf[i], size, 1);
-        if (size == -1)
-            break;
-        strRdSamplesLen -= size;
-        i += size;
-    }
+	int i = 0;
+	srand(time(NULL));
+	while (strRdSamplesLen > 0) {
+		/*
+		 * read random number of chars every time
+		 */
+		int size = rand() % config.size;
+		size = AMX_MIN(size, strRdSamplesLen);
+		/*
+		 * Read bytes with 1 ms time out
+		 */
+		size = AML_FLATBUF_Read(hFbuf, &recBuf[i], size, 1);
+		if (size == -1)
+			break;
+		strRdSamplesLen -= size;
+		i += size;
+	}
 
-    if (!strcmp(strRdSamples, recBuf)) {
-        printf("arm_flat_buffers_read_cmd_success\n");
-    } else {
-        printf("arm_flat_buffers_read_cmd_fails\n");
-    }
+	if (!strcmp(strRdSamples, recBuf)) {
+		printf("arm_flat_buffers_read_cmd_success\n");
+	} else {
+		printf("arm_flat_buffers_read_cmd_fails\n");
+	}
 exit_capture:
-    if (recBuf)
-        free(recBuf);
-    if (hFbuf)
-        AML_FLATBUF_Destroy(hFbuf);
-    return NULL;
+	if (recBuf)
+		free(recBuf);
+	if (hFbuf)
+		AML_FLATBUF_Destroy(hFbuf);
+	return NULL;
 }
 
 
 char* strWrSamples = "flat buffer api test, this is test samples FlatBufCmdArm2Dsp";
 void* flat_buffers_write_cmd(void* arg)
 {
-    AMX_UNUSED(arg);
-    AML_FLATBUF_HANDLE hFbuf = NULL;
+	AMX_UNUSED(arg);
+	AML_FLATBUF_HANDLE hFbuf = NULL;
 
-    int strWrSamplesLen = strlen(strWrSamples) + 1;
-    char* sendBuf = strWrSamples;
+	int strWrSamplesLen = strlen(strWrSamples) + 1;
+	char* sendBuf = strWrSamples;
 
-    struct flatbuffer_config config;
-    memset(&config, 0, sizeof(config));
-    config.size = strWrSamplesLen/2;
-    config.phy_ch = FLATBUF_CH_ARM2DSPA;
+	struct flatbuffer_config config;
+	memset(&config, 0, sizeof(config));
+	config.size = strWrSamplesLen/2;
+	config.phy_ch = FLATBUF_CH_ARM2DSPA;
 
-    hFbuf = AML_FLATBUF_Create("FlatBufCmdArm2Dsp", FLATBUF_FLAG_WR, &config);
-    if (hFbuf == NULL) {
-        printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
-        goto exit_capture;
-    }
+	hFbuf = AML_FLATBUF_Create("FlatBufCmdArm2Dsp", FLATBUF_FLAG_WR, &config);
+	if (hFbuf == NULL) {
+		printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
+		goto exit_capture;
+	}
 
-    int i = 0;
-    srand(time(NULL));
-    while (strWrSamplesLen > 0) {
-        /*
-         * write random number of chars every time
-         */
-        int size = rand() % config.size;
-        size = AMX_MIN(size, strWrSamplesLen);
-        /*
-         * block here till all bytes are wrriten
-         */
-        size = AML_FLATBUF_Write(hFbuf, &sendBuf[i], size, -1);
-        if (size == -1)
-            break;
-        strWrSamplesLen -= size;
-        i += size;
-    }
+	int i = 0;
+	srand(time(NULL));
+	while (strWrSamplesLen > 0) {
+		/*
+		 * write random number of chars every time
+		 */
+		int size = rand() % config.size;
+		size = AMX_MIN(size, strWrSamplesLen);
+		/*
+		 * block here till all bytes are wrriten
+		 */
+		size = AML_FLATBUF_Write(hFbuf, &sendBuf[i], size, -1);
+		if (size == -1)
+			break;
+		strWrSamplesLen -= size;
+		i += size;
+	}
 exit_capture:
-    if (hFbuf)
-        AML_FLATBUF_Destroy(hFbuf);
-    return NULL;
+	if (hFbuf)
+		AML_FLATBUF_Destroy(hFbuf);
+	return NULL;
 }
 
 #define FLAT_TEST_SAMPLE_RATE 16000
@@ -147,144 +148,329 @@ exit_capture:
 #define FLAT_TEST_SAMPLE_BYTE 2
 void* flat_buffers_read_data(void* arg)
 {
-    AMX_UNUSED(arg);
-    AML_FLATBUF_HANDLE hFbuf = NULL;
-    void* recBuf = NULL;
+	AMX_UNUSED(arg);
+	AML_FLATBUF_HANDLE hFbuf = NULL;
+	void* recBuf = NULL;
 
-    int32_t rdLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
+	int32_t rdLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
 
-    struct flatbuffer_config config;
-    memset(&config, 0, sizeof(config));
+	struct flatbuffer_config config;
+	memset(&config, 0, sizeof(config));
 
-    /*
-     * Config internal CC buffer size.
-     */
-    config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
-    config.phy_ch = FLATBUF_CH_ARM2DSPA;
+	/*
+	 * Config internal CC buffer size.
+	 */
+	config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
+	config.phy_ch = FLATBUF_CH_ARM2DSPA;
 
-    hFbuf = AML_FLATBUF_Create("FlatBufDataDsp2Arm", FLATBUF_FLAG_RD, &config);
-    if (hFbuf == NULL) {
-        printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
-        goto exit_capture;
-    }
+	hFbuf = AML_FLATBUF_Create("FlatBufDataDsp2Arm", FLATBUF_FLAG_RD, &config);
+	if (hFbuf == NULL) {
+		printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
+		goto exit_capture;
+	}
 
-    recBuf = malloc(config.size);
-    while (rdLen > 0) {
-        /*
-         * read size should not be larger than config.size
-         */
-        int size = config.size/2;
-        size = AMX_MIN(rdLen, size);
-        /*
-         * block here till all bytes are read
-         */
-        size = AML_FLATBUF_Read(hFbuf, recBuf, size, 1);
-        if (size == -1)
-            break;
-        rdLen -= size;
-    }
+	recBuf = malloc(config.size);
+	while (rdLen > 0) {
+		/*
+		 * read size should not be larger than config.size
+		 */
+		int size = config.size/2;
+		size = AMX_MIN(rdLen, size);
+		/*
+		 * block here till all bytes are read
+		 */
+		size = AML_FLATBUF_Read(hFbuf, recBuf, size, 1);
+		if (size == -1)
+			break;
+		rdLen -= size;
+	}
 
-    printf("arm_flat_buffers_read_data_finish_rdLen:%d\n",
-        FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE);
+	printf("arm_flat_buffers_read_data_finish_rdLen:%d\n",
+			FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE);
 exit_capture:
-    if (recBuf)
-        free(recBuf);
-    if (hFbuf)
-        AML_FLATBUF_Destroy(hFbuf);
-    return NULL;
+	if (recBuf)
+		free(recBuf);
+	if (hFbuf)
+		AML_FLATBUF_Destroy(hFbuf);
+	return NULL;
 }
 
 void* flat_buffers_write_data(void* arg)
 {
-    AMX_UNUSED(arg);
-    AML_FLATBUF_HANDLE hFbuf = NULL;
-    void* sendBuf = NULL;
+	AMX_UNUSED(arg);
+	AML_FLATBUF_HANDLE hFbuf = NULL;
+	void* sendBuf = NULL;
 
-    int32_t wrLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
+	int32_t wrLen = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_PERIOD_SEC*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
 
-    struct flatbuffer_config config;
-    memset(&config, 0, sizeof(config));
+	struct flatbuffer_config config;
+	memset(&config, 0, sizeof(config));
 
-    /*
-     * Config internal CC buffer size.
-     */
-    config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
-    config.phy_ch = FLATBUF_CH_ARM2DSPA;
+	/*
+	 * Config internal CC buffer size.
+	 */
+	config.size = FLAT_TEST_SAMPLE_RATE*FLAT_TEST_CH_NUM*FLAT_TEST_SAMPLE_BYTE;
+	config.phy_ch = FLATBUF_CH_ARM2DSPA;
 
-    hFbuf = AML_FLATBUF_Create("FlatBufDataArm2Dsp", FLATBUF_FLAG_WR, &config);
-    if (hFbuf == NULL) {
-        printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
-        goto exit_capture;
-    }
+	hFbuf = AML_FLATBUF_Create("FlatBufDataArm2Dsp", FLATBUF_FLAG_WR, &config);
+	if (hFbuf == NULL) {
+		printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
+		goto exit_capture;
+	}
 
-    sendBuf = malloc(config.size);
-    while (wrLen > 0) {
-        /*
-         * write size should not be larger than config.size
-         */
-        int size = config.size/2;
-        size = AMX_MIN(wrLen, size);
-        /*
-         * block here till all bytes are written
-         */
-        size = AML_FLATBUF_Write(hFbuf, sendBuf, size, -1);
-        if (size == -1)
-            break;
-        wrLen -= size;
-    }
+	sendBuf = malloc(config.size);
+	while (wrLen > 0) {
+		/*
+		 * write size should not be larger than config.size
+		 */
+		int size = config.size/2;
+		size = AMX_MIN(wrLen, size);
+		/*
+		 * block here till all bytes are written
+		 */
+		size = AML_FLATBUF_Write(hFbuf, sendBuf, size, -1);
+		if (size == -1)
+			break;
+		wrLen -= size;
+	}
 exit_capture:
-    if (sendBuf)
-        free(sendBuf);
-    if (hFbuf)
-        AML_FLATBUF_Destroy(hFbuf);
-    return NULL;
+	if (sendBuf)
+		free(sendBuf);
+	if (hFbuf)
+		AML_FLATBUF_Destroy(hFbuf);
+	return NULL;
 }
 
 
 int flat_buf_test(int argc, char* argv[])
 {
-    AMX_UNUSED(argc);
-    AMX_UNUSED(argv);
+	AMX_UNUSED(argc);
+	AMX_UNUSED(argv);
 
-    pthread_t wr_thread_cmd;
-    pthread_t rd_thread_cmd;
-    pthread_t wr_thread_data;
-    pthread_t rd_thread_data;
+	pthread_t wr_thread_cmd;
+	pthread_t rd_thread_cmd;
+	pthread_t wr_thread_data;
+	pthread_t rd_thread_data;
 
-    int handle = xAudio_Ipc_init();
-    uint32_t cmd = 0;
+	int handle = xAudio_Ipc_init();
+	uint32_t cmd = 0;
 
-    if (argc == 0) {
-        xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP, &cmd, sizeof(uint32_t));
-        xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, &cmd, sizeof(uint32_t));
-        pthread_create(&wr_thread_cmd, NULL, flat_buffers_write_cmd, NULL);
-        pthread_create(&rd_thread_cmd, NULL, flat_buffers_read_cmd, NULL);
-        pthread_create(&wr_thread_data, NULL, flat_buffers_write_data, NULL);
-        pthread_create(&rd_thread_data, NULL, flat_buffers_read_data, NULL);
-        pthread_join(wr_thread_cmd,NULL);
-        pthread_join(rd_thread_cmd,NULL);
-        pthread_join(wr_thread_data,NULL);
-        pthread_join(rd_thread_data,NULL);
-    } else if (argc == 1){
-        if (!strcmp(argv[0], "arm2dsp_write")) {
-            pthread_create(&wr_thread_cmd, NULL, flat_buffers_write_cmd, NULL);
-            pthread_join(wr_thread_cmd,NULL);
-        } else if (!strcmp(argv[0], "arm2dsp_read")) {
-            cmd = 1;
-            xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP, &cmd, sizeof(uint32_t));
-        } else if (!strcmp(argv[0], "dsp2arm_write")) {
-            cmd = 1;
-            xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, &cmd, sizeof(uint32_t));
-        } else if (!strcmp(argv[0], "dsp2arm_read")) {
-            pthread_create(&rd_thread_cmd, NULL, flat_buffers_read_cmd, NULL);
-            pthread_join(rd_thread_cmd,NULL);
-        } else
-            printf("Invalid argv: %s\n", argv[0]);
-    } else {
-        printf("Invalid argc=%d\n", argc);
-    }
-    xAudio_Ipc_Deinit(handle);
-    return 0;
+	if (argc == 0) {
+		xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP, &cmd, sizeof(uint32_t));
+		xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, &cmd, sizeof(uint32_t));
+		pthread_create(&wr_thread_cmd, NULL, flat_buffers_write_cmd, NULL);
+		pthread_create(&rd_thread_cmd, NULL, flat_buffers_read_cmd, NULL);
+		pthread_create(&wr_thread_data, NULL, flat_buffers_write_data, NULL);
+		pthread_create(&rd_thread_data, NULL, flat_buffers_read_data, NULL);
+		pthread_join(wr_thread_cmd,NULL);
+		pthread_join(rd_thread_cmd,NULL);
+		pthread_join(wr_thread_data,NULL);
+		pthread_join(rd_thread_data,NULL);
+	} else if (argc == 1){
+		if (!strcmp(argv[0], "arm2dsp_write")) {
+			pthread_create(&wr_thread_cmd, NULL, flat_buffers_write_cmd, NULL);
+			pthread_join(wr_thread_cmd,NULL);
+		} else if (!strcmp(argv[0], "arm2dsp_read")) {
+			cmd = 1;
+			xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP, &cmd, sizeof(uint32_t));
+		} else if (!strcmp(argv[0], "dsp2arm_write")) {
+			cmd = 1;
+			xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM, &cmd, sizeof(uint32_t));
+		} else if (!strcmp(argv[0], "dsp2arm_read")) {
+			pthread_create(&rd_thread_cmd, NULL, flat_buffers_read_cmd, NULL);
+			pthread_join(rd_thread_cmd,NULL);
+		} else
+			printf("Invalid argv: %s\n", argv[0]);
+	} else {
+		printf("Invalid argc=%d\n", argc);
+	}
+	xAudio_Ipc_Deinit(handle);
+	return 0;
 }
 
+/* DSPConcept algorithm audio data */
+static const struct pcm_config lb_config = {
+	.channels = 4, // 2 ch PDM + 2 ch TDMB-loopback
+	.rate = 16000,
+	.format = PCM_FORMAT_S16_LE,
+	.period_size = 256,
+	.period_count = 4,
+	.start_threshold = 1024,
+	.silence_threshold = 1024 * 2,
+	.stop_threshold = 1024 * 2
+};
 
+static const struct pcm_config dspc_output_config = {
+	.channels = 2,
+	.rate = 16000,
+	.format = PCM_FORMAT_S16_LE,
+	.period_size = 256,
+	.period_count = 4,
+	.start_threshold = 1024,
+	.silence_threshold = 1024 * 2,
+	.stop_threshold = 1024 * 2
+};
+
+#define DSPC_SAMPLE_RATE 16000
+#define DSPC_PERIOD_SEC 10
+#define DSPC_RAWDATA_CH_NUM 4
+#define DSPC_PROCESSEDDATA_CH_NUM 2
+#define DSPC_SAMPLE_BYTE 2
+void* write_dspc_cmd(void* arg)
+{
+	AMX_UNUSED(arg);
+	return NULL;
+}
+void* read_dspc_cmd(void* arg)
+{
+	AMX_UNUSED(arg);
+	return NULL;
+}
+void* write_dspc_data(void* arg)
+{
+	AMX_UNUSED(arg);
+	return NULL;
+}
+
+void* read_dspc_rawdata(void* arg)
+{
+	AMX_UNUSED(arg);
+	AML_FLATBUF_HANDLE hFbuf = NULL;
+	void* recBuf = NULL;
+
+	int32_t rdLen = DSPC_SAMPLE_RATE*DSPC_PERIOD_SEC*DSPC_RAWDATA_CH_NUM*DSPC_SAMPLE_BYTE;
+	struct flatbuffer_config config;
+	memset(&config, 0, sizeof(config));
+
+	/*
+	 * Config internal CC buffer size.
+	 */
+	config.size = lb_config.period_size*DSPC_RAWDATA_CH_NUM*DSPC_SAMPLE_BYTE;
+	config.phy_ch = FLATBUF_CH_ARM2DSPA;
+
+	hFbuf = AML_FLATBUF_Create("DSP2ARM_DSPC_RAWDATA", FLATBUF_FLAG_RD, &config);
+	if (hFbuf == NULL) {
+		printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
+		goto exit_capture;
+	}
+
+	recBuf = malloc(config.size);
+	FILE *fRawdata = fopen("/data/dspc_rawdata","w+b");
+	if (fRawdata == NULL) {
+		printf("failed to open /data/dspc_rawdata file\n");
+		return NULL;
+	}
+
+	while (rdLen > 0) {
+		/*
+		 * read size should not be larger than config.size
+		 */
+		int size = config.size;
+		size = AMX_MIN(rdLen, size);
+		/*
+		 * block here till all bytes are read
+		 */
+		size = AML_FLATBUF_Read(hFbuf, recBuf, size, -1);
+		if (size == -1)
+			break;
+		rdLen -= size;
+		fwrite(recBuf, sizeof(char), size, fRawdata);
+	}
+
+	printf("dspc_read_rawdata_finish_rdLen:%d\n",
+			DSPC_SAMPLE_RATE*DSPC_PERIOD_SEC*DSPC_RAWDATA_CH_NUM*DSPC_SAMPLE_BYTE);
+exit_capture:
+	if (recBuf)
+		free(recBuf);
+	if (hFbuf)
+		AML_FLATBUF_Destroy(hFbuf);
+	if (fRawdata)
+		fclose(fRawdata);
+	return NULL;
+}
+
+void* read_dspc_processeddata(void* arg)
+{
+	AMX_UNUSED(arg);
+	AML_FLATBUF_HANDLE hFbuf = NULL;
+	void* recBuf = NULL;
+
+	int32_t rdLen = DSPC_SAMPLE_RATE*DSPC_PERIOD_SEC*DSPC_PROCESSEDDATA_CH_NUM*DSPC_SAMPLE_BYTE;
+	struct flatbuffer_config config;
+	memset(&config, 0, sizeof(config));
+
+	/*
+	 * Config internal CC buffer size.
+	 */
+	config.size = dspc_output_config.period_size*DSPC_PROCESSEDDATA_CH_NUM*DSPC_SAMPLE_BYTE;
+	config.phy_ch = FLATBUF_CH_ARM2DSPA;
+
+	hFbuf = AML_FLATBUF_Create("DSP2ARM_DSPC_PROCESSEDDATA", FLATBUF_FLAG_RD, &config);
+	if (hFbuf == NULL) {
+		printf("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
+		goto exit_capture;
+	}
+
+	recBuf = malloc(config.size);
+	FILE *fProcesseddata = fopen("/data/dspc_processeddata","w+b");
+	if (fProcesseddata == NULL) {
+		printf("failed to open /data/dspc_processeddata file\n");
+		return NULL;
+	}
+
+	while (rdLen > 0) {
+		/*
+		 * read size should not be larger than config.size
+		 */
+		int size = config.size;
+		size = AMX_MIN(rdLen, size);
+		/*
+		 * block here till all bytes are read
+		 */
+		size = AML_FLATBUF_Read(hFbuf, recBuf, size, -1);
+		if (size == -1)
+			break;
+		rdLen -= size;
+		fwrite(recBuf, sizeof(char), size, fProcesseddata);
+	}
+
+	printf("dspc_read_processeddata_finish_rdLen:%d\n",
+			DSPC_SAMPLE_RATE*DSPC_PERIOD_SEC*DSPC_PROCESSEDDATA_CH_NUM*DSPC_SAMPLE_BYTE);
+exit_capture:
+	if (recBuf)
+		free(recBuf);
+	if (hFbuf)
+		AML_FLATBUF_Destroy(hFbuf);
+	if (fProcesseddata)
+		fclose(fProcesseddata);
+	return NULL;
+}
+
+int dspc_flatbuf(int argc, char* argv[])
+{
+	AMX_UNUSED(argc);
+	AMX_UNUSED(argv);
+
+	pthread_t wr_dspc_thread_cmd;
+	pthread_t rd_dspc_thread_cmd;
+	pthread_t wr_dspc_thread_data;
+	pthread_t rd_dspc_thread_rawdata;
+	pthread_t rd_dspc_thread_processeddata;
+
+	int handle = xAudio_Ipc_init();
+	uint32_t cmd = 0;
+	xAIPC(handle, MBX_CMD_FLATBUF_ARM2DSP_DSPC, &cmd, sizeof(uint32_t));
+	xAIPC(handle, MBX_CMD_FLATBUF_DSP2ARM_DSPC, &cmd, sizeof(uint32_t));
+	pthread_create(&wr_dspc_thread_cmd, NULL, write_dspc_cmd, NULL);
+	pthread_create(&rd_dspc_thread_cmd, NULL, read_dspc_cmd, NULL);
+	pthread_create(&wr_dspc_thread_data, NULL, write_dspc_data, NULL);
+	pthread_create(&rd_dspc_thread_rawdata, NULL, read_dspc_rawdata, NULL);
+	pthread_create(&rd_dspc_thread_processeddata, NULL, read_dspc_processeddata, NULL);
+	pthread_join(wr_dspc_thread_cmd, NULL);
+	pthread_join(rd_dspc_thread_cmd, NULL);
+	pthread_join(wr_dspc_thread_data, NULL);
+	pthread_join(rd_dspc_thread_rawdata, NULL);
+	pthread_join(rd_dspc_thread_processeddata, NULL);
+	xAudio_Ipc_Deinit(handle);
+	return 0;
+}
