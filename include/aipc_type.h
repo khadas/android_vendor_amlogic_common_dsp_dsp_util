@@ -376,6 +376,12 @@ int append_arg(int *o_argc, char ***o_argv, char *s);
 void free_arg(int argc, char **argv);
 void show_arg(int argc, char **argv);
 
+typedef struct {
+    uint32_t times;
+    int32_t is_dsp_clk;
+    int32_t is_arm_on;
+} __attribute__((packed)) vad_awe_wakeup_st;
+
 #ifdef __cplusplus
 }
 #endif

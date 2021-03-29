@@ -75,6 +75,7 @@ int aml_pcm_gain_unit_test(int argc, char* argv[]);
 int hifi4_tbuf_test(int argc, char* argv[]);
 int aml_pcm_test(int argc, char **argv);
 int rpc_meminfo(int id);
+void aml_hifi_vad_awe_wakeup(int argc, char *argv[]);
 
 #ifdef __cplusplus
 }
@@ -116,6 +117,8 @@ static void usage()
 
     printf ("\033[1mtimerwakeup Usage:\033[m hifi4rpc_client_test --timerwakeup\n");
 
+    printf ("\033[1mvad-awe-wakeup Usage:\033[m hifi4rpc_client_test --vad-awe-wakeup [--times=TIMES] [--dsp-clk] [--arm-on]\n");
+
     printf ("\033[1mflatbuffer Usage:\033[m hifi4rpc_client_test --flatbuf-unit\n");
 
     printf ("\033[1mpcm-gain Usage:\033[m hifi4rpc_client_test --pcm-gain $sampleRate $bitdepth $channels $gain $input $output\n");
@@ -147,6 +150,7 @@ static void usage()
             "  Case 1/am_rnd: Trigger PcmGain -> TinyRenderer pipeline\n"
             "  Case 2/am_pipe: Trigger TinyCapturer -> PcmGain -> TinyRenderer pipeline\n");
     printf ("\033[1mmeminfo Usage:\033[m hifi4rpc_client_test --meminfo $hifiId[0:HiFiA, 1:HiFiB]\n");
+
 }
 
 
@@ -185,6 +189,7 @@ int main(int argc, char* argv[]) {
         {"aml-pcm", no_argument, NULL, 27},
         {"aml-pcm-single", no_argument, NULL, 28},
         {"meminfo", no_argument, NULL, 29},
+        {"vad-awe-wakeup", no_argument, NULL, 30},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -455,6 +460,10 @@ int main(int argc, char* argv[]) {
             break;
         case 29:
             rpc_meminfo(str2hifiId(argv[optind]));
+            break;
+        case 30:
+            optind = 1; // continue scan in sub-cmd
+            aml_hifi_vad_awe_wakeup(argc - optind, &argv[optind]);
             break;
         case '?':
             usage();

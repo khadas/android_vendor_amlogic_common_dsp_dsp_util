@@ -43,6 +43,7 @@
 #include <math.h>
 #include <pthread.h>
 #include <signal.h>
+#include <getopt.h>
 #include "aipc_type.h"
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
@@ -294,4 +295,39 @@ int rpc_meminfo(int id) {
     printf("id=%d h=%d meminfo r=%d\n", id, h, r);
     xAudio_Ipc_Deinit(h);
     return 0;
+}
+void aml_hifi_vad_awe_wakeup(int argc, char *argv[]) {
+    vad_awe_wakeup_st param = {1, 0, 0};
+    struct option long_options[] = {
+        {"dsp-clk", no_argument, NULL, 0},
+        {"arm-on", no_argument, NULL, 1},
+        {"times", required_argument, NULL, 2}
+    };
+    int option_index = 0;
+    int c;
+    for (c = '0';
+         (c = getopt_long(argc, argv, "", long_options, &option_index)) != -1;
+        ) {
+        switch (c) {
+            case 0:
+                param.is_dsp_clk = 1;
+                break;
+            case 1:
+                param.is_arm_on = 1;
+                break;
+            case 2:
+                param.times = atoi(optarg);
+                break;
+            case '?':
+            default:
+                printf("vad-awe-wakeup: wrong option c=%d\n", c);
+                return;
+        }
+    }
+    printf("vad-awe-wakeup times=%d dsp_clk=%d arm_on=%d\n",
+           param.times, param.is_dsp_clk, param.is_arm_on);
+
+    int h = xAudio_Ipc_init();
+    xAIPC(h, MBX_CMD_VAD_AWE_WAKEUP, &param, sizeof(param));
+    xAudio_Ipc_Deinit(h);
 }
