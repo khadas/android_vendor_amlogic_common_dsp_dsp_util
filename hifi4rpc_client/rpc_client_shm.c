@@ -98,9 +98,10 @@ static int Aml_ACodecMemory_Init(void)
                                 PROT_READ | PROT_WRITE, MAP_SHARED,
                                 gACodecShmPoolInfo.fd, 0);
 
-    printf("fd = %d, Vir: %p, Phy:0x%lx, size:%zu\n",
-    gACodecShmPoolInfo.fd, gACodecShmPoolInfo.ShmVirBase,
-    gACodecShmPoolInfo.ShmPhyBase, gACodecShmPoolInfo.size);
+    printf("SHM fd=%d Vir=%p Phy=0x%lx size=%zu/0x%zx\n",
+           gACodecShmPoolInfo.fd, gACodecShmPoolInfo.ShmVirBase,
+           gACodecShmPoolInfo.ShmPhyBase, gACodecShmPoolInfo.size,
+           gACodecShmPoolInfo.size);
     gACodecShmPoolInfo.rpchdl = xAudio_Ipc_init();
 tab_end:
     pthread_mutex_unlock(&gACodecShmPoolInfo.mutex);
@@ -156,8 +157,16 @@ void* AML_MEM_GetVirtAddr(AML_MEM_HANDLE hShm)
             return NULL;
         }
     }
-    pVir = (void*)(((long)hShm - gACodecShmPoolInfo.ShmPhyBase) + (long)gACodecShmPoolInfo.ShmVirBase);
-    return pVir;
+    if (((long)hShm >= gACodecShmPoolInfo.ShmPhyBase)
+        && ((long)hShm < gACodecShmPoolInfo.ShmPhyBase + gACodecShmPoolInfo.size)) {
+        pVir = (void*)(((long)hShm - gACodecShmPoolInfo.ShmPhyBase) + (long)gACodecShmPoolInfo.ShmVirBase);
+        return pVir;
+    } else {
+        printf("hShm=%p is NOT in range phy=%lx size=%zu/0x%zx\n",
+               hShm, gACodecShmPoolInfo.ShmPhyBase,
+               gACodecShmPoolInfo.size, gACodecShmPoolInfo.size);
+        return NULL;
+    }
 }
 
 

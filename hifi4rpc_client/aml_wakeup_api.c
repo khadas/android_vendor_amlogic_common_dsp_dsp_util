@@ -329,12 +329,12 @@ AWE_RET AML_AWE_Create(AWE **awe)
 
     if (pawe->hParam && pawe->hInput && pawe->hOutput && pawe->hVsp) {
         *awe = pawe;
-        printf("Create AWE success: hVsp:%p hParam:%p hInput:%p hOutput:%p\n",
+        printf("Create AWE success: hVsp=%p hParam=%p hInput=%p hOutput=%p\n",
             pawe->hVsp, pawe->hParam, pawe->hInput, pawe->hOutput);
         (*awe)->aweStatus = AWE_STATUS_IDLE;
         return AWE_RET_OK;
     } else {
-        printf("Allocate AWE resource failed: hVsp:%p hParam:%p hInput:%p hOutput:%p\n",
+        printf("Allocate AWE resource failed: hVsp=%p hParam=%p hInput=%p hOutput=%p\n",
             pawe->hVsp, pawe->hParam, pawe->hInput, pawe->hOutput);
         if (pawe->hParam)
             AML_MEM_Free(pawe->hParam);
@@ -403,8 +403,7 @@ AWE_RET AML_AWE_Open(AWE *awe)
     AML_VSP_GetParam(awe->hVsp, AWE_PARA_INPUT_MODE, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
     AML_MEM_Invalidate(AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
     awe->inputMode = para->inputMode;
-    printf("Open AWE: SampleRate: %d, Bitdepth:%d, inputMode:%d\n"
-           "channels num: mic:%d, ref:%d, out:%d\n",
+    printf("Open AWE: SampleRate=%d Bitdepth=%d inputMode=%d channels mic=%d ref=%d out=%d\n",
             awe->inSampleRate, awe->inSampleBit, awe->inputMode,
             awe->micInChannels, awe->refInChannels, awe->outChannels);
 
@@ -528,8 +527,9 @@ AWE_RET AML_AWE_SetParam(AWE *awe, AWE_PARA_ID paraId, AWE_PARA *para)
             ret = AML_VSP_SetParam(awe->hVsp, (int32_t)paraId, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
             sem_post(&awe->userFillSem);
         }
-    } else
+    } else {
         ret = AML_VSP_SetParam(awe->hVsp, (int32_t)paraId, AML_MEM_GetPhyAddr(awe->hParam), awe->param_size);
+    }
     return ret;
 }
 

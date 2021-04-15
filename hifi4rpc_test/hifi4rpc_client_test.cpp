@@ -111,7 +111,7 @@ static void usage()
 
     printf ("\033[1mvsp-awe-unit Usage:\033[m hifi4rpc_client_test --vsp-awe-unit $mic0.pcm $mic1.pcm $ref1.pcm $ref2.pcm $out_asr.pcm $out_voip.pcm\n");
 
-    printf ("\033[1mvsp-awe-dspin Usage:\033[m hifi4rpc_client_test --vsp-awe-dspin $out_asr.pcm $out_voip.pcm\n");
+    printf ("\033[1mvsp-awe-dspin Usage:\033[m hifi4rpc_client_test --vsp-awe-dspin $out_asr.pcm $out_voip.pcm $in.pcm\n");
 
     printf ("\033[1mresampler Usage:\033[m hifi4rpc_client_test --resampler $inRate $outRate $inFile $outFile\n");
 
@@ -295,7 +295,7 @@ int main(int argc, char* argv[]) {
             }
             break;
         case 11:
-            if (2 == argc - optind){
+            if (3 == argc - optind){
                 aml_wake_engine_dspin_test(argc - optind, &argv[optind]);
             } else {
                 usage();

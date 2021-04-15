@@ -44,12 +44,14 @@
 #include <math.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdbool.h>
 #include "aipc_type.h"
 #include "rpc_client_shm.h"
 #include "rpc_client_aipc.h"
 #include "rpc_client_pcm.h"
 #include "aml_wakeup_api.h"
 #include "aml_audio_util.h"
+#include "aml_flatbuf_api.h"
 #include "generic_macro.h"
 
 #define VOICE_CHUNK_LEN_MS 20
@@ -453,6 +455,88 @@ void aml_wake_engine_voip_data_transfer(AWE *awe, const AWE_DATA_TYPE type,
     }
 }
 
+/** receiving origin data for COMMS(voice communication)
+ * - FreeRTOS side use flatbuf to transfer origin data (3ch, 16k, 16bit)
+ * - client side use pthread save to file
+ */
+typedef struct {
+    bool *watch;
+    FILE *fp;
+    AML_FLATBUF_HANDLE hFlat;
+    void *buf;
+    uint32_t size;
+} dumper_t;
+
+void dumper_close(dumper_t *p) {
+    if (p == NULL) {
+        assert(0);
+        return;
+    }
+    if (p->fp) {
+        fclose(p->fp);
+    }
+    if (p->hFlat) {
+        AML_FLATBUF_Destroy(p->hFlat);
+    }
+    if (p->buf) {
+        free(p->buf);
+    }
+    free(p);
+}
+
+dumper_t *dumper_open(const char *id, const char *fn, bool *watch) {
+    dumper_t *p = malloc(sizeof(dumper_t));
+    if (p == NULL) {
+        printf("fail to allocate dumper\n");
+        return NULL;
+    }
+    memset(p, 0x00, sizeof(dumper_t));
+
+    p->watch = watch;
+    p->fp = fopen(fn, "wb");
+    if (p->fp == NULL) {
+        printf("fail to open file=%s\n", fn);
+        goto fail;
+    }
+
+    uint32_t size = 16 * 3 * 2 * 50; // 16kHz, 3ch, 16bit, 50ms
+    struct flatbuffer_config cfg;
+    cfg.size = size;
+    cfg.phy_ch = FLATBUF_CH_ARM2DSPA;
+    p->hFlat = AML_FLATBUF_Create(id, FLATBUF_FLAG_RD, &cfg);
+    if (p->hFlat == NULL) {
+        printf("fail to create flatbuf id=%s\n", id);
+        goto fail;
+    }
+
+    p->buf = malloc(size);
+    if (p->buf == NULL) {
+        printf("fail to create transfer buffer size=%u\n", size);
+        goto fail;
+    }
+    p->size = size;
+    return p;
+
+fail:
+    dumper_close(p);
+    return NULL;
+}
+
+void *dumper_thread(void *t) {
+    dumper_t *p = (dumper_t *)t;
+    printf("dumper with t=%p flat=%p buf=%p\n", t, p->hFlat, p->buf);
+    uint32_t cnt = 0;
+    while (*p->watch) {
+        uint32_t ret = AML_FLATBUF_Read(p->hFlat, p->buf, p->size, 10);
+        fwrite(p->buf, 1, ret, p->fp);
+        cnt++;
+        ret = ret;
+    }
+    printf("dumper=%p stop\n", p);
+    return NULL;
+}
+
+
 int aml_wake_engine_dspin_test(int argc, char* argv[]) {
     AMX_UNUSED(argc);
     AWE_PARA awe_para;
@@ -477,7 +561,7 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
 
     /* fork a child process */
     pid = fork();
-    if (pid < 0) { /* error occurred */\
+    if (pid < 0) { /* error occurred */
         printf("Fork Failed");
         return 1;
     }
@@ -490,7 +574,6 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
     else { /* parent process */
         printf("Continue parent process\n");
     }
-
     signal(SIGINT, &awe_test_sighandler);
     fifo_writer_fd = open(VOIP_DATA_FIFO, O_RDWR | O_NONBLOCK, 0);
     if (fifo_writer_fd < 0) {
@@ -568,6 +651,23 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
         ret = -1;
         goto end_tab;
     }
+
+    bool dumper_run = true;
+    dumper_t *d = dumper_open("AWE.IN", argv[2], &dumper_run);
+    if (d == NULL) {
+        printf("Failed to create dumper\n");
+        ret = -1;
+        goto end_tab;
+    }
+    pthread_t thr = 0;
+    int r = 0;
+    r = pthread_create(&thr, NULL, dumper_thread, d);
+    if (r != 0) {
+        printf("Failed to create dumper thread\n");
+        ret = -1;
+        goto end_tab;
+    }
+
     printf("wake test start in dsp input mode\n");
     char user_cmd[16];
     while (1) {
@@ -585,6 +685,13 @@ int aml_wake_engine_dspin_test(int argc, char* argv[]) {
     write(fifo_cmdsend_fd, &cmd, sizeof(cmd));
 
 end_tab:
+    dumper_run = false;
+    if (thr != 0) {
+        pthread_join(thr, NULL);
+    }
+    if (d != NULL) {
+        dumper_close(d);
+    }
     if (gAwe)
         AML_AWE_Close(gAwe);
     if (gAwe)
