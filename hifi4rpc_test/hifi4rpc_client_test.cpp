@@ -52,6 +52,8 @@ int aac_offload_dec(int argc, char* argv[]);
 extern "C" {
 #endif
 int pcm_play_buildin(void);
+int play_wav(int argc, char *argv[]);
+
 int pcm_play_test(int argc, char* argv[]);
 int bcm_file_test(int argc, char *argv[]);
 int bcm_pcm_test(int argc, char* argv[]);
@@ -190,6 +192,7 @@ int main(int argc, char* argv[]) {
         {"aml-pcm-single", no_argument, NULL, 28},
         {"meminfo", no_argument, NULL, 29},
         {"vad-awe-wakeup", no_argument, NULL, 30},
+        {"playwav", no_argument, NULL, 31},
         {0, 0, 0, 0}
     };
     c = getopt_long (argc, argv, "hvV", long_options, &option_index);
@@ -232,9 +235,7 @@ int main(int argc, char* argv[]) {
             }
             break;
         case 4:
-            if (1 == argc - optind)
-                pcm_play_test(argc - optind, &argv[optind]);
-                else {
+            if (pcm_play_test(argc - optind, &argv[optind]) != 0) {
                 usage();
                 exit(1);
             }
