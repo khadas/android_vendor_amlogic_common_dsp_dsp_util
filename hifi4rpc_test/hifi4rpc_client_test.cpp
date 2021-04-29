@@ -466,6 +466,12 @@ int main(int argc, char* argv[]) {
             optind = 1; // continue scan in sub-cmd
             aml_hifi_vad_awe_wakeup(argc - optind, &argv[optind]);
             break;
+        case 31:
+            if (play_wav(argc - optind, &argv[optind]) != 0) {
+                usage();
+                exit(1);
+            }
+            break;
         case '?':
             usage();
             exit(1);
