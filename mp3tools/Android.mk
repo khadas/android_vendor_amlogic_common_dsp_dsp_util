@@ -9,6 +9,8 @@ LOCAL_SRC_FILES  += \
                  primitives.c \
                  tinysndfile.c
 LOCAL_MODULE := libmp3tools
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0 SPDX-license-identifier-BSD
+LOCAL_LICENSE_CONDITIONS := notice
 LOCAL_SYSTEM_EXT_MODULE := true
 LOCAL_SHARED_LIBRARIES +=
 LOCAL_MODULE_TAGS := optional
