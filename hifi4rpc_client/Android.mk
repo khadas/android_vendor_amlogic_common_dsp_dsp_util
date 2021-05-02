@@ -19,6 +19,8 @@ LOCAL_SRC_FILES  += \
                 rpc_util.c \
                 aml_pcm_api.c
 LOCAL_MODULE := libhifi4rpc_client
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0 SPDX-license-identifier-FTL SPDX-license-identifier-GPL SPDX-license-identifier-LGPL-2.1 SPDX-license-identifier-MIT legacy_by_exception_only legacy_notice
+LOCAL_LICENSE_CONDITIONS := by_exception_only notice restricted
 LOCAL_SYSTEM_EXT_MODULE := true
 LOCAL_SHARED_LIBRARIES += \
                 libhifi4rpc \
