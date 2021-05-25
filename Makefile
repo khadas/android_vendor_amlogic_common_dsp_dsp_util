@@ -36,6 +36,12 @@ HIFI4RPC_CLIENT_TEST_OBJ += $(patsubst %c, %o, $(HIFI4RPC_CLIENT_TEST_SRC))
 HIFI4RPC_CLIENT_TEST_OBJ += $(patsubst %cpp, %o, $(HIFI4RPC_CLIENT_TEST_SRC_CPP))
 HIFI4RPC_CLIENT_TEST = hifi4rpc_client_test
 
+HIFI4RPC_CLIENT_AUDIO_BRIDGE_SRC = $(wildcard hifi4rpc_audio_bridge/*.c)
+HIFI4RPC_CLIENT_AUDIO_BRIDGE_SRC_CPP = $(wildcard hifi4rpc_audio_bridge/*.cpp)
+HIFI4RPC_CLIENT_AUDIO_BRIDGE_OBJ += $(patsubst %c, %o, $(HIFI4RPC_CLIENT_AUDIO_BRIDGE_SRC))
+HIFI4RPC_CLIENT_AUDIO_BRIDGE_OBJ += $(patsubst %cpp, %o, $(HIFI4RPC_CLIENT_AUDIO_BRIDGE_SRC_CPP))
+HIFI4RPC_CLIENT_AUDIO_BRIDGE = hifi4rpc_client_audio_bridge
+
 DSP_UTIL_SRC = $(wildcard src/*.c)
 DSP_UTIL_OBJ = $(patsubst %c, %o, $(DSP_UTIL_SRC))
 DSP_UTIL = dsp_util
@@ -46,7 +52,7 @@ HIFI4RPC_TEST = hifi4_rpc_test
 
 OBJS = $(HIFI4_TOOL_OBJ) $(HIFI4RPC_CLIENT_TEST_OBJ) $(LIBHIFI4RPC_CLIENT_OBJ) $(LIBHIFI4RPC_OBJ) $(HIFI4RPC_TEST_OBJ) $(LIBMP3TOOLS_OBJ) $(DSP_UTIL_OBJ)
 LIBS = $(LIBHIFI4RPC_CLIENT) $(LIBHIFI4RPC) $(LIBMP3TOOLS)
-APPS = $(HIFI4_TOOL) $(HIFI4RPC_CLIENT_TEST) $(HIFI4RPC_TEST) $(DSP_UTIL)
+APPS = $(HIFI4_TOOL) $(HIFI4RPC_CLIENT_TEST) $(HIFI4RPC_TEST) $(DSP_UTIL) $(HIFI4RPC_CLIENT_AUDIO_BRIDGE)
 
 EXPORT_HEADERFILES = ./include/rpc_client_mp3.h \
 	./include/ipc_cmd_type.h \
@@ -63,7 +69,10 @@ EXPORT_HEADERFILES = ./include/rpc_client_mp3.h \
 	./include/rpc_client_aac.h \
 	./include/syslib_channelMapDescr.h \
 	./include/aml_wakeup_api.h \
-	./include/aml_pcm_gain_api.h
+	./include/aml_pcm_gain_api.h \
+	./include/rpc_client_pcm.h \
+	./include/pcm.h \
+	./include/aml_flatbuf_api.h
 
 # rules
 all: $(LIBS) $(APPS)
@@ -71,6 +80,7 @@ all: $(LIBS) $(APPS)
 $(HIFI4_TOOL): $(LIBHIFI4RPC_CLIENT) $(LIBHIFI4RPC)
 $(HIFI4RPC_CLIENT_TEST): $(LIBHIFI4RPC_CLIENT) $(LIBHIFI4RPC) $(LIBMP3TOOLS)
 $(HIFI4RPC_TEST): $(LIBHIFI4RPC)
+$(HIFI4RPC_CLIENT_AUDIO_BRIDGE): $(LIBHIFI4RPC_CLIENT) $(LIBHIFI4RPC) $(LIBMP3TOOLS)
 
 %.o:%.c
 	$(CC) -c  $(CFLAGS) $^ -o $@
@@ -97,6 +107,9 @@ $(HIFI4RPC_CLIENT_TEST): $(HIFI4RPC_CLIENT_TEST_OBJ)
 
 $(HIFI4RPC_TEST): $(HIFI4RPC_TEST_OBJ)
 	$(CC) $^ -L$(LIBDIR) -lhifi4rpc -lpthread $(CFLAGS) -o $@
+
+$(HIFI4RPC_CLIENT_AUDIO_BRIDGE): $(HIFI4RPC_CLIENT_AUDIO_BRIDGE_OBJ)
+	$(CXX) $^ -I./ -L$(LIBDIR) -lhifi4rpc_client -lhifi4rpc -lmp3tools -lpthread -lasound $(CFLAGS) -o $@
 
 $(DSP_UTIL): $(DSP_UTIL_OBJ)
 	$(CC) $^ $(CFLAGS) -o $@
