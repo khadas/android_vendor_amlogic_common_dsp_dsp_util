@@ -45,7 +45,7 @@
 #include <sys/types.h>
 #include "audio_alsa.h"
 
-#include "alsa/asoundlib.h"
+#include "asoundlib.h"
 
 using namespace std;
 

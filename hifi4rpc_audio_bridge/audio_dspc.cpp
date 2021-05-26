@@ -141,7 +141,7 @@ int AudioDspc::pcm_open(PCM_DEVICE pcm_hw, PCM_MODE pcm_mode, Audio_Hw_Param *pc
 		pconfig.silence_threshold = pcm_hparam->pcm_period * 2;
 		pconfig.stop_threshold = pcm_hparam->pcm_period * 2;
 
-		if((phandle = (int)pcm_client_open(0, value, PCM_OUT, &pconfig)) < 0) {
+		if((pphandle = pcm_client_open(0, value, PCM_OUT, &pconfig)) == NULL) {
 			audio_err("pcm client open fail\n");
 			return -1;
 		}
@@ -171,7 +171,7 @@ int AudioDspc::pcm_open(PCM_DEVICE pcm_hw, PCM_MODE pcm_mode, Audio_Hw_Param *pc
 void AudioDspc::pcm_close(void)
 {
 	if(pmode == PCM_PLAYBACK) {
-		pcm_client_close((tAmlPcmhdl)phandle);
+		pcm_client_close(pphandle);
 	} else {
 		AML_FLATBUF_Destroy(prohFbuf);
 		xAudio_Ipc_Deinit(phandle);
@@ -216,7 +216,7 @@ int AudioDspc::pcm_write(unsigned char *buffer, unsigned int pcm_period)
 		memcpy(virbuf, buffer, bufsize);
 	if(AML_MEM_Clean(phybuf, bufsize) < 0)
 		return -1;
-	if(pcm_client_writei((tAmlPcmhdl)phandle, phybuf, pcm_period) < 0)
+	if(pcm_client_writei(pphandle, phybuf, pcm_period) < 0)
 		return -1;
 
 	return 0;

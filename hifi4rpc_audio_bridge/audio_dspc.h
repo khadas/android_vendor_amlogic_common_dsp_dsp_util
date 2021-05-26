@@ -80,6 +80,7 @@ public:
 	int pcm_restore(void);
 
 private:
+	tAmlPcmhdl pphandle;
 	PCM_MODE pmode;
 	rpc_pcm_config pconfig;
 	int phandle;
