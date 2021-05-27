@@ -426,7 +426,7 @@ int main(int argc, char* argv[]) {
         case 27:
             if (argc == 10 && optind == 2)
             {
-                char* aml_pcm_arg[8];
+                char* aml_pcm_arg[9];
                 aml_pcm_arg[0] = (char*)"dual";
                 aml_pcm_arg[1] = argv[optind];
                 aml_pcm_arg[2] = argv[optind + 1];
@@ -445,7 +445,7 @@ int main(int argc, char* argv[]) {
         case 28:
             if (argc == 10 && optind == 2)
             {
-                char* aml_pcm_arg[8];
+                char* aml_pcm_arg[9];
                 aml_pcm_arg[0] = (char*)"single";
                 aml_pcm_arg[1] = argv[optind];
                 aml_pcm_arg[2] = argv[optind + 1];
