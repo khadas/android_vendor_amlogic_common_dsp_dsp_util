@@ -42,7 +42,7 @@ HIFI4RPC_CLIENT_AUDIO_BRIDGE_OBJ += $(patsubst %c, %o, $(HIFI4RPC_CLIENT_AUDIO_B
 HIFI4RPC_CLIENT_AUDIO_BRIDGE_OBJ += $(patsubst %cpp, %o, $(HIFI4RPC_CLIENT_AUDIO_BRIDGE_SRC_CPP))
 HIFI4RPC_CLIENT_AUDIO_BRIDGE = hifi4rpc_client_audio_bridge
 
-DSP_UTIL_SRC = $(wildcard src/*.c)
+DSP_UTIL_SRC = $(wildcard src/dsp_util.c)
 DSP_UTIL_OBJ = $(patsubst %c, %o, $(DSP_UTIL_SRC))
 DSP_UTIL = dsp_util
 
