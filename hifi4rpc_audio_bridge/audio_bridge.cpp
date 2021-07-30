@@ -39,11 +39,11 @@
 using namespace std;
 
 unsigned int nchannels = 2;
-unsigned int rate = 16000;
+unsigned int rate = 48000;
 PCM_FORMAT format = PCM_FOR_S16_LE;
 unsigned int byte = 2;
 unsigned int period = 256;
-unsigned int buffer_size = period * nchannels * byte * 50;
+unsigned int buffer_size = period * nchannels * byte * 10;
 
 
 struct PCM_DEVICE_INFO {
@@ -57,7 +57,7 @@ struct PCM_LINE {
 	char *name;
 	struct PCM_DEVICE_INFO src;
 	struct PCM_DEVICE_INFO dst;
-	RingBuf *pRBuf;
+	RingBuf *rbuf;
 };
 
 int running = 1;
@@ -79,25 +79,28 @@ void *playback_pthread(void *arg)
 	int size = play_hparam.pcm_period * play_hparam.pcm_nchannels * play_hparam.pcm_byte;
 
 	ret = playback.pcm_open(pdev->dev, pdev->mode, &play_hparam);
-	if(ret < 0) {
+	if (ret < 0) {
 		audio_err("pcm open device %d fail.\n",pdev->dev);
 		running = 0;
 	}
 
 	buffer = (unsigned char *)playback.pcm_alloc_buffer(size);
-	if(buffer == NULL) {
+	if (buffer == NULL) {
 		audio_err("pcm alloc buffer fail.\n");
 		running = 0;
 	}
-	while(running) {
-		if(playback.pcm_write(buffer, pcm_line->pRBuf->rb_read(buffer, size) / (play_hparam.pcm_nchannels * play_hparam.pcm_byte)) < 0) {			//size >> 2 -> size / channel / byte
-		while((pcm_line->pRBuf->rb_get_size_of_already_used() < (size * 10)) && running);
+	playback.pcm_start();
+	while (running) {
+		ret = pcm_line->rbuf->rb_read(buffer, size) / (play_hparam.pcm_nchannels * play_hparam.pcm_byte);
+		if (playback.pcm_write(buffer, ret) < 0) {			//size >> 2 -> size / channel / byte
+			while ((pcm_line->rbuf->rb_get_size_of_already_used() < (size * 3)) && running)
+				usleep(1000);
 			playback.pcm_restore();
-
 		}
 	}
-	playback.pcm_close();
+	playback.pcm_stop();
 	playback.pcm_free_buffer();
+	playback.pcm_close();
 	return 0;
 }
 
@@ -113,40 +116,43 @@ void *capture_pthread(void *arg)
 	int size = recor_hparam.pcm_period * recor_hparam.pcm_nchannels * recor_hparam.pcm_byte;
 
 	ret = capture.pcm_open(pdev->dev, pdev->mode, &recor_hparam);
-	if(ret < 0) {
+	if (ret < 0) {
 		audio_err("pcm open device %d fail.\n",pdev->dev);
 		running = 0;
 	}
 
 	buffer = (unsigned char *)capture.pcm_alloc_buffer(size);
-	if(buffer == NULL) {
+	if (buffer == NULL) {
 		audio_err("pcm alloc buffer fail.\n");
 		running = 0;
 	}
-	while(running) {
-		size = capture.pcm_read(buffer, recor_hparam.pcm_period);
-		pcm_line->pRBuf->rb_write(buffer, size);
-	}
 
-	capture.pcm_close();
+	capture.pcm_start();
+	while (running) {
+		size = capture.pcm_read(buffer, recor_hparam.pcm_period);
+		if (size > 0)
+			pcm_line->rbuf->rb_write(buffer, size);
+	}
+	capture.pcm_stop();
 	capture.pcm_free_buffer();
+	capture.pcm_close();
 	return 0;
 }
 
 int create_line_pthread(struct PCM_LINE *PcmLine)
 {
 	RingBuf *tRB = new RingBuf();
-	if(tRB == NULL)
+	if (tRB == NULL)
 		return -1;
 
-	if(tRB->rb_init(buffer_size) < 0)
+	if (tRB->rb_init(buffer_size) < 0)
 		return -1;
 
-	PcmLine->pRBuf = tRB;
-	if(pthread_create(&PcmLine->src.pid, NULL, capture_pthread, PcmLine) != 0)
+	PcmLine->rbuf = tRB;
+	if (pthread_create(&PcmLine->src.pid, NULL, capture_pthread, PcmLine) != 0)
 		return -1;
 
-	if(pthread_create(&PcmLine->dst.pid, NULL, playback_pthread, PcmLine) != 0)
+	if (pthread_create(&PcmLine->dst.pid, NULL, playback_pthread, PcmLine) != 0)
 		return -1;
 
 	return 0;
@@ -156,7 +162,8 @@ void destroy_line_pthread(struct PCM_LINE *PcmLine)
 {
 	pthread_join(PcmLine->src.pid, NULL);
 	pthread_join(PcmLine->dst.pid, NULL);
-	delete PcmLine->pRBuf;
+	PcmLine->rbuf->rb_deinit();
+	delete PcmLine->rbuf;
 }
 
 int main()
@@ -176,30 +183,30 @@ int main()
 		NULL};
 
 	ret = create_line_pthread(&PcmLine0);
-	if(ret) {
+	if (ret) {
 		audio_err("%s:thread create fail.\n", PcmLine0.name);
 		running = 0;
 	}
 
 	ret = create_line_pthread(&PcmLine1);
-	if(ret) {
+	if (ret) {
 		audio_err("%s:thread create fail.\n", PcmLine1.name);
 		running = 0;
 	}
 
 	//Wait for stable data transmission
 	a_sleep(1);
-	audio_debug("start size %s:%d, %s:%d.\n",PcmLine0.name, PcmLine0.pRBuf->rb_get_size_of_already_used(), PcmLine1.name, PcmLine1.pRBuf->rb_get_size_of_already_used());
-	while(running)
+	audio_debug("start size %s:%d, %s:%d.\n",PcmLine0.name, PcmLine0.rbuf->rb_get_size_of_already_used(), PcmLine1.name, PcmLine1.rbuf->rb_get_size_of_already_used());
+	while (running)
 	{
 		//reduce cpu occupancy rate
 		a_usleep(1000);
 		audio_debug("\r");
 		audio_debug("%s:buffer used size %d.        ",
-			PcmLine0.name, PcmLine0.pRBuf->rb_get_size_of_already_used());
+			PcmLine0.name, PcmLine0.rbuf->rb_get_size_of_already_used());
 
 		audio_debug("%s:buffer used size %d.        ",
-			PcmLine1.name, PcmLine1.pRBuf->rb_get_size_of_already_used());
+			PcmLine1.name, PcmLine1.rbuf->rb_get_size_of_already_used());
 
 		fflush(stdout);
 	}

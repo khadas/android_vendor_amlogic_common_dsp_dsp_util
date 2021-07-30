@@ -47,13 +47,8 @@
 #include "audio_dspc.h"
 #include "audio_common.h"
 
+#define DQBUF_MODE 1
 using namespace std;
-
-#define DSPC_SAMPLE_RATE 16000
-#define DSPC_PERIOD_SEC 10
-#define DSPC_RAWDATA_CH_NUM 4
-#define DSPC_PROCESSEDDATA_CH_NUM 2
-#define DSPC_SAMPLE_BYTE 2
 
 struct AML_DSP_ADEVICE {
 	int value;
@@ -75,9 +70,9 @@ const struct AML_DSP_ADEVICE aml_dsp_adev[] =
 int find_dsp_device_node(PCM_DEVICE pcm_hw, PCM_MODE pcm_mode)
 {
 	int i;
-	for(i = 0; i < sizeof(aml_dsp_adev)/sizeof(struct AML_DSP_ADEVICE); i++)
+	for (i = 0; i < sizeof(aml_dsp_adev)/sizeof(struct AML_DSP_ADEVICE); i++)
 	{
-		if(aml_dsp_adev[i].value == ((pcm_hw << 1) | pcm_mode)){
+		if (aml_dsp_adev[i].value == ((pcm_hw << 1) | pcm_mode)) {
 			return aml_dsp_adev[i].ahw_id;
 		}
 
@@ -88,7 +83,7 @@ int find_dsp_device_node(PCM_DEVICE pcm_hw, PCM_MODE pcm_mode)
 int find_dsp_format_node(PCM_FORMAT pcm_format)
 {
 	int ret = 0;
-	switch(pcm_format)
+	switch (pcm_format)
 	{
 		case PCM_FOR_S8: ret = PCM_FORMAT_S8;
 			break;
@@ -122,26 +117,26 @@ int AudioDspc::pcm_open(PCM_DEVICE pcm_hw, PCM_MODE pcm_mode, Audio_Hw_Param *pc
 	int value;
 
 	pmode = pcm_mode;
-	if(pcm_mode == PCM_PLAYBACK) {
+	if (pcm_mode == PCM_PLAYBACK) {
 		pconfig.channels = pcm_hparam->pcm_nchannels;
 		pconfig.rate = pcm_hparam->pcm_rate;
 
-		if((value = find_dsp_device_node(pcm_hw, pcm_mode)) < 0) {
+		if ((value = find_dsp_device_node(pcm_hw, pcm_mode)) < 0) {
 			audio_err("not support this device(%d,%d)\n",pcm_hw,pcm_mode);
 			return -1;
 		}
-		if((pconfig.format = find_dsp_format_node(pcm_hparam->pcm_format)) < 0) {
+		if ((pconfig.format = find_dsp_format_node(pcm_hparam->pcm_format)) < 0) {
 			audio_err("not support this format(%d,%d)\n",pcm_hparam->pcm_format);
 			return -1;
 		}
 
 		pconfig.period_size = pcm_hparam->pcm_period;
 		pconfig.period_count = 8;
-		pconfig.start_threshold = pcm_hparam->pcm_period*4;
-		pconfig.silence_threshold = pcm_hparam->pcm_period * 2;
-		pconfig.stop_threshold = pcm_hparam->pcm_period * 2;
+		pconfig.start_threshold = 0;
+		pconfig.silence_threshold = 0;
+		pconfig.stop_threshold = 0;
 
-		if((pphandle = pcm_client_open(0, value, PCM_OUT, &pconfig)) == NULL) {
+		if ((phandle = pcm_client_open(0, value, PCM_OUT, &pconfig)) == NULL) {
 			audio_err("pcm client open fail\n");
 			return -1;
 		}
@@ -149,32 +144,40 @@ int AudioDspc::pcm_open(PCM_DEVICE pcm_hw, PCM_MODE pcm_mode, Audio_Hw_Param *pc
 		pcm_hparam->pcm_period = pconfig.period_size;
 
 	} else {
+		pconfig.channels = pcm_hparam->pcm_nchannels*2;
+		pconfig.rate = pcm_hparam->pcm_rate;
 
-		phandle = xAudio_Ipc_init();
-		uint32_t cmd = 0;
-		xAIPC(phandle, MBX_CMD_FLATBUF_ARM2DSP_DSPC, &cmd, sizeof(uint32_t));
-		xAIPC(phandle, MBX_CMD_FLATBUF_DSP2ARM_DSPC, &cmd, sizeof(uint32_t));
-
-		memset(&proconfig, 0, sizeof(proconfig));
-		proconfig.size = 256*DSPC_PROCESSEDDATA_CH_NUM*DSPC_SAMPLE_BYTE;
-		proconfig.phy_ch = FLATBUF_CH_ARM2DSPA;
-		prohFbuf = AML_FLATBUF_Create("DSP2ARM_DSPC_PROCESSEDDATA", FLATBUF_FLAG_RD, &proconfig);
-		if (prohFbuf == NULL) {
-			audio_err("%s, %d, AML_FLATBUF_Create failed\n", __func__, __LINE__);
+		if ((value = find_dsp_device_node(pcm_hw, pcm_mode)) < 0) {
+			audio_err("not support this device(%d,%d)\n",pcm_hw,pcm_mode);
+			return -1;
+		}
+		if ((pconfig.format = find_dsp_format_node(pcm_hparam->pcm_format)) < 0) {
+			audio_err("not support this format(%d,%d)\n",pcm_hparam->pcm_format);
 			return -1;
 		}
 
+		pconfig.period_size = pcm_hparam->pcm_period;
+		pconfig.period_count = 4;
+		pconfig.start_threshold = 0;
+		pconfig.silence_threshold = 0;
+		pconfig.stop_threshold = 0;
+
+		if ((phandle = pcm_process_client_open(0, value, PCM_IN, &pconfig)) == NULL) {
+			audio_err("pcm client open fail\n");
+			return -1;
+		if (pcm_process_client_set_volume_gain(phandle, 20))
+			return -1;
+		}
 	}
 	return 0;
 }
 
 void AudioDspc::pcm_close(void)
 {
-	if(pmode == PCM_PLAYBACK) {
-		pcm_client_close(pphandle);
+	if (pmode == PCM_PLAYBACK) {
+		pcm_client_close(phandle);
 	} else {
-		AML_FLATBUF_Destroy(prohFbuf);
-		xAudio_Ipc_Deinit(phandle);
+		pcm_process_client_close(phandle);
 	}
 }
 
@@ -183,40 +186,49 @@ void AudioDspc::pcm_close(void)
 void *AudioDspc::pcm_alloc_buffer(unsigned int size)
 {
 
-	if(pmode == PCM_PLAYBACK) {
-		hShmBuf = AML_MEM_Allocate(size);
-		virbuf = AML_MEM_GetVirtAddr(hShmBuf);
-		phybuf = AML_MEM_GetPhyAddr(hShmBuf);
-		return virbuf;
-	} else {
-		virbuf = (void *)malloc(size);
-		return virbuf;
-	}
+	bufsize = size;
+	hShmBuf = AML_MEM_Allocate(bufsize);
+	virbuf = AML_MEM_GetVirtAddr(hShmBuf);
+	phybuf = AML_MEM_GetPhyAddr(hShmBuf);
+	return virbuf;
 }
 
 void AudioDspc::pcm_free_buffer(void)
 {
-
-	if(pmode == PCM_PLAYBACK) {
-		AML_MEM_Free(hShmBuf);
-	} else {
-		free(virbuf);
-	}
+	AML_MEM_Free(hShmBuf);
 }
 
 int AudioDspc::pcm_read(unsigned char *buffer, unsigned int pcm_period)
 {
+	unsigned int size = 0;
+#if DQBUF_MODE
+	struct buf_info buf;
 	AMX_UNUSED(pcm_period);
-	return AML_FLATBUF_Read(prohFbuf, buffer, proconfig.size, -1);
+	pcm_process_client_dqbuf(phandle, &buf, NULL, PROCESSBUF);
+	if (buf.size) {
+		size = buf.size;
+		memcpy(buffer, buf.viraddr, buf.size);
+		pcm_process_client_qbuf(phandle, &buf, PROCESSBUF);
+	}
+#else
+	size = pcm_process_client_readi(phandle, phybuf, pcm_period, PROCESSBUF);
+	if (size) {
+		AML_MEM_Invalidate(phybuf, size);
+		if (buffer != virbuf)
+			memcpy(buffer, virbuf, size);
+	}
+#endif
+
+	return size;
 }
 
 int AudioDspc::pcm_write(unsigned char *buffer, unsigned int pcm_period)
 {
-	if(buffer != virbuf)
+	if (buffer != virbuf)
 		memcpy(virbuf, buffer, bufsize);
-	if(AML_MEM_Clean(phybuf, bufsize) < 0)
+	if (AML_MEM_Clean(phybuf, bufsize) < 0)
 		return -1;
-	if(pcm_client_writei(pphandle, phybuf, pcm_period) < 0)
+	if (pcm_client_writei(phandle, phybuf, pcm_period) < 0)
 		return -1;
 
 	return 0;
@@ -229,10 +241,19 @@ int AudioDspc::pcm_restore(void)
 
 int AudioDspc::pcm_start(void)
 {
+	if (pmode == PCM_PLAYBACK) {
+
+	} else {
+		pcm_process_client_start(phandle);
+	}
 	return 0;
 }
 
 void AudioDspc::pcm_stop(void)
 {
+	if (pmode == PCM_PLAYBACK) {
 
+	} else {
+		pcm_process_client_stop(phandle);
+	}
 }

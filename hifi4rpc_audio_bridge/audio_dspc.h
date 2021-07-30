@@ -80,17 +80,14 @@ public:
 	int pcm_restore(void);
 
 private:
-	tAmlPcmhdl pphandle;
+	tAmlPcmhdl phandle;
 	PCM_MODE pmode;
 	rpc_pcm_config pconfig;
-	int phandle;
 	AML_MEM_HANDLE hShmBuf;
 	unsigned int bufsize;
 	void *virbuf;
 	void *phybuf;
 
-	AML_FLATBUF_HANDLE prohFbuf;
-	struct flatbuffer_config proconfig;
 };
 
 

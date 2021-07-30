@@ -265,7 +265,7 @@ int AudioAlsa::pcm_write(unsigned char *buffer, unsigned int pcm_period)
 {
 	int ret = 0;
 	if ((ret = snd_pcm_writei(pcm_handle, buffer, (snd_pcm_uframes_t)pcm_period)) < 0) {
-		audio_err("<<<<<<<<<<<<<<< Buffer Underrun >>>>>>>>>>>>>>>\n");
+		audio_err("<<<<<<<<<<<<<<< (%s) >>>>>>>>>>>>>>>\n", snd_strerror(ret));
 	}
 
 	return ret;
