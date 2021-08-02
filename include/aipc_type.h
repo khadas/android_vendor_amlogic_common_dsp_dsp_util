@@ -37,6 +37,7 @@
 
 #include <stdint.h>
 #include "ipc_cmd_type.h"
+#include "aml_flatbuf_api.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -310,7 +311,7 @@ typedef struct {
 typedef struct {
     xpointer pcm;
     int32_t out_ret;
-} __attribute__((packed)) pcm_close_st; 
+} __attribute__((packed)) pcm_close_st;
 
 typedef struct {
     xpointer pcm;
@@ -329,6 +330,55 @@ typedef struct {
     xsize_t size;     // memory's size
     xpointer ptr;
 } __attribute__((packed)) shm_st;
+
+typedef struct {
+    uint32_t card;
+    uint32_t device;
+    uint32_t flags;
+    rpc_pcm_config pcm_config; // dsp also could access this address
+    xpointer out_pcm;
+} __attribute__((packed)) pcm_process_open_st;
+
+typedef struct {
+    xpointer pcm;
+    int32_t out_ret;
+} __attribute__((packed)) pcm_process_close_st;
+
+typedef struct {
+    xpointer pcm;
+    xpointer data; // dsp need access this address
+    uint32_t count;
+    uint32_t id;
+    int32_t out_ret;
+} __attribute__((packed)) pcm_process_io_st;
+
+typedef struct {
+    xpointer pcm;
+    xpointer release_buf_handle;
+    xpointer buf_handle;
+    xpointer data;
+    uint32_t count;
+    uint32_t id;
+    int32_t out_ret;
+} __attribute__((packed)) pcm_process_buf_st;
+
+typedef struct {
+    xpointer pcm;
+    int32_t gain;
+    int32_t out_ret;
+} __attribute__((packed)) pcm_process_gain_st;
+
+typedef struct {
+    xpointer pcm;
+    uint32_t chanid;
+    uint32_t size;
+    uint32_t phy_ch;
+    char buf_name[BUF_STR_ID_MAX];
+    int32_t out_ret;
+} __attribute__((packed)) pcm_process_memory_st;
+
+#define PROCESSBUF 0
+#define RAWBUF 1
 
 // TODO: mailbox layer should expose this definition
 // T7 mailbox FIFO only support 96bytes
