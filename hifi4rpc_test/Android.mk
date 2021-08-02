@@ -15,7 +15,8 @@ LOCAL_SRC_FILES  += \
                 hifi4rpc_rsp_test.c \
                 hifi4rpc_vsp_test.c \
                 hifi4rpc_gain_test.c \
-                hifi4rpc_xaf_test.c
+                hifi4rpc_xaf_test.c \
+                hifi4rpc_pcm_dspc_test.c
 LOCAL_MODULE := hifi4rpc_client_test
 LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0 SPDX-license-identifier-FTL SPDX-license-identifier-GPL SPDX-license-identifier-LGPL-2.1 SPDX-license-identifier-MIT legacy_by_exception_only legacy_notice
 LOCAL_LICENSE_CONDITIONS := by_exception_only notice restricted
