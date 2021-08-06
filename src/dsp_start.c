@@ -15,11 +15,11 @@ int main(void)
     char *arg_load_b[] = {"dsp_util", "-d", "hifi4b", "-f", "dspbootb.bin", "-l", NULL};
     char *arg_start_b[] = {"dsp_util", "-d", "hifi4b", "-S", NULL};
     char **arg[4];
-    char *cmd_info[4] = {"load dspa firmware", "load dspb firmware", "start dspa", "start dspb"};
+    char *cmd_info[4] = {"load dspa firmware", "start dspa", "load dspb firmware", "start dspb"};
 
     arg[0] = arg_load_a;
-    arg[1] = arg_load_b;
-    arg[2] = arg_start_a;
+    arg[2] = arg_load_b;
+    arg[1] = arg_start_a;
     arg[3] = arg_start_b;
 
 #ifdef TWODSP

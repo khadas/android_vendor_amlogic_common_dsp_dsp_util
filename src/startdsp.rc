@@ -1,0 +1,10 @@
+on property:sys.boot_completed=1
+    start vendor.startdsp
+
+service vendor.startdsp /vendor/bin/startdsp
+    class main
+    user root
+    group system
+    disabled
+    oneshot
+    seclabel u:r:startdsp:s0

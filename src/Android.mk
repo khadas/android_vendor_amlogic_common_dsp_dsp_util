@@ -32,6 +32,6 @@ LOCAL_SRC_FILES  += \
 LOCAL_MODULE := startdsp
 LOCAL_SHARED_LIBRARIES += liblog libcutils
 LOCAL_MODULE_TAGS := optional
-#LOCAL_INIT_RC := startdsp.rc
+LOCAL_INIT_RC := startdsp.rc
 LOCAL_PROPRIETARY_MODULE := true
 include $(BUILD_EXECUTABLE)
