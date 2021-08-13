@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <log/log.h>
 
-#define DSP_UTIL "/system_ext/bin/dsp_util"
+#define DSP_UTIL "/vendor/bin/dsp_util"
 
 int main(void)
 {
