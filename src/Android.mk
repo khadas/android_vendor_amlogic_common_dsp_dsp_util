@@ -22,7 +22,7 @@ LOCAL_MODULE_TAGS := optional
 include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
-ifneq (,$(filter $(TARGET_PRODUCT),t7_an400))
+ifneq (,$(filter $(TARGET_PRODUCT),kvim4))
 LOCAL_CFLAGS+=-DTWODSP
 endif
 ifneq (,$(filter $(TARGET_PRODUCT),t982_ar301))
